@@ -18,7 +18,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc, getDocs, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     window.firebase = {
       initializeApp,
       getAuth,
@@ -31,7 +31,11 @@
       onSnapshot,
       collection,
       addDoc,
-      deleteDoc
+      deleteDoc,
+      getDocs,
+      query,
+      where,
+      writeBatch
     };
   </script>
 </head>
@@ -71,9 +75,9 @@
       const [loading, setLoading] = useState(true);
       const [userId, setUserId] = useState(null);
       const [isAdding, setIsAdding] = useState(false);
-      const [isProcessing, setIsProcessing] = useState(false); // New state for processing
+      const [isProcessing, setIsProcessing] = useState(false);
       const [editableValues, setEditableValues] = useState(defaultValueMap);
-      const [pdfLoading, setPdfLoading] = useState(false); // State for PDF generation loading
+      const [pdfLoading, setPdfLoading] = useState(false);
 
       const dbRef = useRef(null);
       const authRef = useRef(null);
@@ -114,8 +118,6 @@
         setPdfLoading(false);
       };
 
-      // This effect handles Firebase initialization and auth state changes.
-      // It runs only once on component mount.
       useEffect(() => {
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -153,13 +155,9 @@
           }
         });
 
-        // Cleanup function for the listener
         return () => unsubscribe();
       }, []);
 
-      // This is the core of the performance optimization. We use `docChanges()` to
-      // only process the changes that have occurred, instead of re-processing the
-      // entire collection.
       const setupFirestoreListeners = (uid) => {
         const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${uid}/valores_clase/precios`);
         const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${uid}/clases_padel`);
@@ -183,95 +181,35 @@
           console.error("Error fetching editable values:", error);
         });
 
-        // Listener for the classes with incremental updates
+        // Listener for the classes
         firebase.onSnapshot(userClassesRef, (snapshot) => {
           setIsProcessing(true);
-          const changes = snapshot.docChanges();
-          if (changes.length === 0) {
-            setClasses([]);
-            setWeeklyReports([]);
-            setMonthlyReports([]);
-            setIsProcessing(false);
-            setLoading(false);
-            return;
-          }
+          const fetchedClasses = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
 
-          // Use a timeout to not block the main thread
-          setTimeout(() => {
-            setClasses(prevClasses => {
-              let newClasses = [...prevClasses];
+          // Sort classes for display
+          fetchedClasses.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            if (dateA.getTime() !== dateB.getTime()) {
+              return dateA.getTime() - dateB.getTime();
+            }
+            const dayIndexA = dayOptions.indexOf(a.day);
+            const dayIndexB = dayOptions.indexOf(b.day);
+            if (dayIndexA !== dayIndexB) {
+              return dayIndexA - dayIndexB;
+            }
+            const timeIndexA = timeOptions.indexOf(a.time);
+            const timeIndexB = timeOptions.indexOf(b.time);
+            return timeIndexA - timeIndexB;
+          });
 
-              changes.forEach(change => {
-                const classData = { id: change.doc.id, ...change.doc.data() };
-                const classKey = `${classData.date}-${classData.day}-${classData.time}`;
-                const classOldKey = change.oldIndex !== -1 ? `${prevClasses[change.oldIndex]?.date}-${prevClasses[change.oldIndex]?.day}-${prevClasses[change.oldIndex]?.time}` : null;
-
-                if (change.type === 'added') {
-                  newClasses.push(classData);
-                  // Update reports for the added class
-                  updateReportsForClass(classData, 'added');
-                } else if (change.type === 'modified') {
-                  const existingIndex = newClasses.findIndex(c => c.id === change.doc.id);
-                  if (existingIndex > -1) {
-                    const oldClassData = newClasses[existingIndex];
-                    newClasses[existingIndex] = classData;
-                    // Update reports for the old and new class
-                    updateReportsForClass(oldClassData, 'removed');
-                    updateReportsForClass(classData, 'added');
-                  }
-                } else if (change.type === 'removed') {
-                  newClasses = newClasses.filter(c => c.id !== change.doc.id);
-                  // Update reports for the removed class
-                  updateReportsForClass(classData, 'removed');
-                }
-              });
-
-              // Re-group classes to get new student counts
-              const classesByDayTime = newClasses.reduce((acc, curr) => {
-                const key = `${curr.date}-${curr.day}-${curr.time}`;
-                if (!acc[key]) {
-                  acc[key] = [];
-                }
-                acc[key].push(curr);
-                return acc;
-              }, {});
-
-              // Update the classes with the correct student counts and values
-              const updatedClassesWithValues = newClasses.map(cls => {
-                const key = `${cls.date}-${cls.day}-${cls.time}`;
-                const studentCount = classesByDayTime[key]?.length || 0;
-                return {
-                  ...cls,
-                  studentCount,
-                  value: editableValues[studentCount] || 0,
-                  color: colorMap[studentCount] || '',
-                };
-              });
-
-              // Sort classes for display
-              updatedClassesWithValues.sort((a, b) => {
-                const dateA = new Date(a.date);
-                const dateB = new Date(b.date);
-                if (dateA.getTime() !== dateB.getTime()) {
-                  return dateA.getTime() - dateB.getTime();
-                }
-                const dayIndexA = dayOptions.indexOf(a.day);
-                const dayIndexB = dayOptions.indexOf(b.day);
-                if (dayIndexA !== dayIndexB) {
-                  return dayIndexA - dayIndexB;
-                }
-                const timeIndexA = timeOptions.indexOf(a.time);
-                const timeIndexB = timeOptions.indexOf(b.time);
-                return timeIndexA - timeIndexB;
-              });
-
-              return updatedClassesWithValues;
-            });
-
-            // After processing all changes, stop loading
-            setIsProcessing(false);
-            setLoading(false);
-          }, 0);
+          setClasses(fetchedClasses);
+          calculateReports(fetchedClasses, editableValues);
+          setIsProcessing(false);
+          setLoading(false);
         }, (error) => {
           console.error("Error fetching classes:", error);
           setLoading(false);
@@ -279,79 +217,74 @@
         });
       };
 
-      // A helper function to get week and month keys
-      const getReportKeys = (dateString) => {
-        const date = new Date(dateString + 'T00:00:00');
-        const year = date.getFullYear();
-        const month = date.getMonth();
-        const monthName = monthNames[month];
+      // This function now just aggregates values that are already stored in the documents.
+      const calculateReports = (allClasses, currentValues) => {
+        const weeklyReportMap = new Map();
+        const monthlyReportMap = new Map();
 
-        const firstDayOfYear = new Date(year, 0, 1);
-        const pastDays = (date - firstDayOfYear) / 86400000;
-        const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
-
-        return {
-          weekKey: `${year}-Semana ${weekNumber}`,
-          monthKey: `${monthName} ${year}`
-        };
-      };
-
-      // Function to incrementally update reports based on a single class change
-      const updateReportsForClass = (cls, type) => {
-        const { weekKey, monthKey } = getReportKeys(cls.date);
-
-        const isAdded = type === 'added';
-        const modifier = isAdded ? 1 : -1;
-
-        // Update weekly reports
-        setWeeklyReports(prevReports => {
-          const newReports = [...prevReports];
-          let report = newReports.find(r => r.week === weekKey);
-          if (!report) {
-            if (isAdded) {
-              newReports.push({ week: weekKey, totalClasses: 1, totalEarnings: cls.value });
+        const processedClassKeys = new Set();
+        allClasses.forEach(cls => {
+            // Check if this is the first document for a specific class time slot
+            const classKey = `${cls.date}-${cls.day}-${cls.time}`;
+            if (processedClassKeys.has(classKey)) {
+                return;
             }
-          } else {
-            report.totalClasses += modifier;
-            report.totalEarnings += cls.value * modifier;
-          }
-          return newReports.filter(r => r.totalClasses > 0).sort((a,b) => a.week.localeCompare(b.week));
-        });
+            processedClassKeys.add(classKey);
 
-        // Update monthly reports
-        setMonthlyReports(prevReports => {
-          const newReports = [...prevReports];
-          let report = newReports.find(r => r.month === monthKey);
-          if (!report) {
-            if (isAdded) {
-              const newCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
-              newCounts[cls.studentCount] = 1;
-              newReports.push({ month: monthKey, totalClasses: 1, totalEarnings: cls.value, countsByStudent: newCounts });
-            }
-          } else {
-            report.totalClasses += modifier;
-            report.totalEarnings += cls.value * modifier;
+            const date = new Date(cls.date + 'T00:00:00');
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const monthName = monthNames[month];
+            const firstDayOfYear = new Date(year, 0, 1);
+            const pastDays = (date - firstDayOfYear) / 86400000;
+            const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
+
+            const weekKey = `${year}-Semana ${weekNumber}`;
+            const monthKey = `${monthName} ${year}`;
+            
+            const totalValue = currentValues[cls.studentCount] || 0;
+
+            // Update weekly report
+            weeklyReportMap.set(weekKey, {
+                totalClasses: (weeklyReportMap.get(weekKey)?.totalClasses || 0) + 1,
+                totalEarnings: (weeklyReportMap.get(weekKey)?.totalEarnings || 0) + totalValue,
+            });
+
+            // Update monthly report
+            const monthlyReport = monthlyReportMap.get(monthKey) || {
+              totalClasses: 0,
+              totalEarnings: 0,
+              countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 }
+            };
+            monthlyReport.totalClasses++;
+            monthlyReport.totalEarnings += totalValue;
             if (cls.studentCount >= 1 && cls.studentCount <= 4) {
-              report.countsByStudent[cls.studentCount] += modifier;
+              monthlyReport.countsByStudent[cls.studentCount]++;
             }
-          }
-          return newReports.filter(r => r.totalClasses > 0).sort((a,b) => {
-              const [monthA, yearA] = a.month.split(' ');
-              const [monthB, yearB] = b.month.split(' ');
-              const dateA = new Date(yearA, monthNames.indexOf(monthA));
-              const dateB = new Date(yearB, monthNames.indexOf(monthB));
-              return dateA - dateB;
-          });
+            monthlyReportMap.set(monthKey, monthlyReport);
         });
+
+        const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
+        const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
+
+        weeklyReportsArray.sort((a,b) => a.week.localeCompare(b.week));
+        monthlyReportsArray.sort((a,b) => {
+            const [monthA, yearA] = a.month.split(' ');
+            const [monthB, yearB] = b.month.split(' ');
+            const dateA = new Date(yearA, monthNames.indexOf(monthA));
+            const dateB = new Date(yearB, monthNames.indexOf(monthB));
+            return dateA - dateB;
+        });
+
+        setWeeklyReports(weeklyReportsArray);
+        setMonthlyReports(monthlyReportsArray);
       };
 
-      // Handle input changes in the form
       const handleInputChange = (e) => {
         const { name, value } = e.target;
         setNewEntry(prev => ({ ...prev, [name]: value }));
       };
 
-      // Handle changes to the editable value inputs and update Firestore
       const handleValueChange = async (e) => {
         const { name, value } = e.target;
         const newValues = { ...editableValues, [name]: Number(value) };
@@ -359,36 +292,110 @@
         try {
           const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/valores_clase/precios`);
           await firebase.setDoc(userValuesDocRef, newValues);
+
+          // Now, update all existing classes to reflect the new pricing
+          if (classes.length > 0) {
+            setIsProcessing(true);
+            const batch = firebase.writeBatch(dbRef.current);
+            classes.forEach(cls => {
+              const classDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${cls.id}`);
+              const newValue = newValues[cls.studentCount] || 0;
+              batch.set(classDocRef, { value: newValue }, { merge: true });
+            });
+            await batch.commit();
+            setIsProcessing(false);
+          }
         } catch (error) {
           console.error("Error updating values in Firestore:", error);
+          setIsProcessing(false);
         }
       };
 
-      // Handle adding a new class and save to Firestore
       const handleAddClass = async (e) => {
         e.preventDefault();
         if (newEntry.studentName.trim() === '' || !userId) return;
 
         setIsAdding(true);
         try {
-          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`);
-          await firebase.addDoc(userClassesRef, newEntry);
-          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reset only student name
+          // Find existing classes for the same day, time, and date
+          const q = firebase.query(
+            firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`),
+            firebase.where("date", "==", newEntry.date),
+            firebase.where("day", "==", newEntry.day),
+            firebase.where("time", "==", newEntry.time)
+          );
+          const querySnapshot = await firebase.getDocs(q);
+
+          const studentCount = querySnapshot.docs.length + 1;
+          const classValue = editableValues[studentCount] || 0;
+
+          const batch = firebase.writeBatch(dbRef.current);
+
+          // Update existing classes
+          querySnapshot.docs.forEach(doc => {
+            const docRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${doc.id}`);
+            batch.set(docRef, { studentCount: studentCount, value: classValue, color: colorMap[studentCount] }, { merge: true });
+          });
+
+          // Add the new class
+          const newClassRef = firebase.doc(firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`));
+          batch.set(newClassRef, {
+            ...newEntry,
+            studentCount: studentCount,
+            value: classValue,
+            color: colorMap[studentCount] || '',
+          });
+
+          await batch.commit();
+          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
         } catch (error) {
           console.error("Error adding class to Firestore:", error);
         }
         setIsAdding(false);
       };
 
-      // Handle deleting a class and delete from Firestore
       const handleDeleteClass = async (id) => {
         if (!userId) return;
+
+        setIsProcessing(true);
         try {
-          const userClassesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${id}`);
-          await firebase.deleteDoc(userClassesDocRef);
+          const classToDelete = classes.find(c => c.id === id);
+          if (!classToDelete) {
+            setIsProcessing(false);
+            return;
+          }
+
+          // Find other classes in the same time slot
+          const q = firebase.query(
+            firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`),
+            firebase.where("date", "==", classToDelete.date),
+            firebase.where("day", "==", classToDelete.day),
+            firebase.where("time", "==", classToDelete.time)
+          );
+          const querySnapshot = await firebase.getDocs(q);
+
+          const newStudentCount = querySnapshot.docs.length - 1;
+          const newClassValue = editableValues[newStudentCount] || 0;
+
+          const batch = firebase.writeBatch(dbRef.current);
+
+          // Update remaining classes
+          querySnapshot.docs.forEach(doc => {
+            if (doc.id !== id) {
+              const docRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${doc.id}`);
+              batch.set(docRef, { studentCount: newStudentCount, value: newClassValue, color: colorMap[newStudentCount] || '' }, { merge: true });
+            }
+          });
+
+          // Delete the class
+          const classDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${id}`);
+          batch.delete(classDocRef);
+
+          await batch.commit();
         } catch (error) {
           console.error("Error deleting class from Firestore:", error);
         }
+        setIsProcessing(false);
       };
 
       const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Conectando a la nube...";
@@ -403,21 +410,15 @@
               {userIdDisplay}
             </p>
 
-            {loading ? (
+            {loading || isProcessing ? (
               <div className="flex justify-center items-center h-48">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                <p className="ml-4 text-gray-600">Conectando a la nube y cargando datos...</p>
+                <p className="ml-4 text-gray-600">
+                  {loading ? "Cargando datos..." : "Procesando datos..."}
+                </p>
               </div>
             ) : (
               <>
-                {isProcessing && (
-                  <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
-                    <div className="bg-white rounded-lg p-8 shadow-xl text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-                      <p className="text-gray-700 font-semibold">Calculando informes...</p>
-                    </div>
-                  </div>
-                )}
                 {/* Editable Values Section */}
                 <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
                   <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
@@ -638,11 +639,9 @@
                     <tbody className="bg-white divide-y divide-gray-200">
                       {classes.length > 0 ? (
                         classes.map((cls, index) => {
-                          // Find the index of the first occurrence of this date, day, and time
                           const firstIndex = classes.findIndex(
                             (c) => c.date === cls.date && c.day === cls.day && c.time === cls.time
                           );
-                          // Render the value only for the first student in a given class time
                           const displayValue = firstIndex === index;
 
                           return (
@@ -701,6 +700,8 @@
   </script>
 </body>
 </html>
+
+
 
 
 
