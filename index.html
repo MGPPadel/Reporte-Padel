@@ -11,6 +11,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   
+  <!-- jsPDF library for PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
+  
   <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -77,10 +80,15 @@
       
       // New state to manage the editable values
       const [editableValues, setEditableValues] = useState(defaultValueMap);
+      const [pdfLoading, setPdfLoading] = useState(false); // State for PDF generation loading
       
       const dbRef = useRef(null);
       const authRef = useRef(null);
       const userRef = useRef(null);
+
+      // Refs to access the report sections for PDF generation
+      const weeklyReportRef = useRef(null);
+      const monthlyReportRef = useRef(null);
 
       // Options for form dropdowns
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
@@ -89,6 +97,26 @@
       // Helper function to format currency
       const formatCurrency = (value) => {
         return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
+      };
+
+      // Function to generate the PDF report
+      const generatePdfReport = async (reportType) => {
+        setPdfLoading(true);
+        const element = reportType === 'weekly' ? weeklyReportRef.current : monthlyReportRef.current;
+        const filename = reportType === 'weekly' ? 'Informe_Semanal_Padel.pdf' : 'Informe_Mensual_Padel.pdf';
+        
+        if (element) {
+          const opt = {
+            margin:       10,
+            filename:     filename,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+          
+          html2pdf().from(element).set(opt).save();
+        }
+        setPdfLoading(false);
       };
 
       // Initialize Firebase and setup listeners
@@ -363,10 +391,19 @@
                 {/* Reports Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   {/* Weekly Reports */}
-                  <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                      <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
-                    </h2>
+                  <div className="p-6 bg-gray-50 rounded-lg shadow-inner" ref={weeklyReportRef}>
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                        <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
+                      </h2>
+                      <button
+                        onClick={() => generatePdfReport('weekly')}
+                        disabled={pdfLoading || weeklyReports.length === 0}
+                        className="bg-red-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+                      >
+                        {pdfLoading ? "Generando..." : "Exportar a PDF"}
+                      </button>
+                    </div>
                     {weeklyReports.length > 0 ? (
                       weeklyReports.map(report => (
                         <div key={report.week} className="mb-4 p-4 bg-white rounded-lg shadow-md">
@@ -389,10 +426,19 @@
                   </div>
                   
                   {/* Monthly Reports */}
-                  <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                      <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
-                    </h2>
+                  <div className="p-6 bg-gray-50 rounded-lg shadow-inner" ref={monthlyReportRef}>
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                        <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
+                      </h2>
+                      <button
+                        onClick={() => generatePdfReport('monthly')}
+                        disabled={pdfLoading || monthlyReports.length === 0}
+                        className="bg-red-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+                      >
+                        {pdfLoading ? "Generando..." : "Exportar a PDF"}
+                      </button>
+                    </div>
                     {monthlyReports.length > 0 ? (
                       monthlyReports.map(report => (
                         <div key={report.month} className="mb-4 p-4 bg-white rounded-lg shadow-md">
@@ -597,5 +643,7 @@
   </script>
 </body>
 </html>
+
+
 
 
