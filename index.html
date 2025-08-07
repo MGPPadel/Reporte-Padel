@@ -18,7 +18,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     window.firebase = {
       initializeApp,
       getAuth,
@@ -27,13 +27,10 @@
       onAuthStateChanged,
       getFirestore,
       doc,
-      getDoc,
       setDoc,
       onSnapshot,
       collection,
-      query,
       addDoc,
-      getDocs,
       deleteDoc
     };
   </script>
@@ -74,7 +71,7 @@
       const [loading, setLoading] = useState(true);
       const [userId, setUserId] = useState(null);
       const [isAdding, setIsAdding] = useState(false);
-      const [isProcessingReports, setIsProcessingReports] = useState(false); // New state for processing
+      const [isProcessing, setIsProcessing] = useState(false); // New state for processing
       const [editableValues, setEditableValues] = useState(defaultValueMap);
       const [pdfLoading, setPdfLoading] = useState(false); // State for PDF generation loading
 
@@ -90,6 +87,7 @@
       // Options for form dropdowns
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
       const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
+      const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
       // Helper function to format currency
       const formatCurrency = (value) => {
@@ -138,12 +136,10 @@
 
         const unsubscribe = firebase.onAuthStateChanged(auth, async (user) => {
           if (user) {
-            console.log("Usuario autenticado:", user.uid);
             setUserId(user.uid);
             authReadyRef.current = true;
             setupFirestoreListeners(user.uid);
           } else {
-            console.log("No hay usuario. Intentando autenticación.");
             try {
               if (initialAuthToken) {
                 await firebase.signInWithCustomToken(auth, initialAuthToken);
@@ -151,7 +147,7 @@
                 await firebase.signInAnonymously(auth);
               }
             } catch (error) {
-              console.error("Error durante la autenticación inicial:", error);
+              console.error("Error during initial authentication:", error);
               setLoading(false);
             }
           }
@@ -161,8 +157,9 @@
         return () => unsubscribe();
       }, []);
 
-      // This function sets up the real-time listeners for the Firestore data.
-      // It is only called once a user is authenticated.
+      // This is the core of the performance optimization. We use `docChanges()` to
+      // only process the changes that have occurred, instead of re-processing the
+      // entire collection.
       const setupFirestoreListeners = (uid) => {
         const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${uid}/valores_clase/precios`);
         const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${uid}/clases_padel`);
@@ -186,129 +183,167 @@
           console.error("Error fetching editable values:", error);
         });
 
-        // Listener for the classes
+        // Listener for the classes with incremental updates
         firebase.onSnapshot(userClassesRef, (snapshot) => {
-          const fetchedClasses = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          setClasses(fetchedClasses);
-          // We can set loading to false here because the data is now in state
-          setLoading(false);
+          setIsProcessing(true);
+          const changes = snapshot.docChanges();
+          if (changes.length === 0) {
+            setClasses([]);
+            setWeeklyReports([]);
+            setMonthlyReports([]);
+            setIsProcessing(false);
+            setLoading(false);
+            return;
+          }
+
+          // Use a timeout to not block the main thread
+          setTimeout(() => {
+            setClasses(prevClasses => {
+              let newClasses = [...prevClasses];
+
+              changes.forEach(change => {
+                const classData = { id: change.doc.id, ...change.doc.data() };
+                const classKey = `${classData.date}-${classData.day}-${classData.time}`;
+                const classOldKey = change.oldIndex !== -1 ? `${prevClasses[change.oldIndex]?.date}-${prevClasses[change.oldIndex]?.day}-${prevClasses[change.oldIndex]?.time}` : null;
+
+                if (change.type === 'added') {
+                  newClasses.push(classData);
+                  // Update reports for the added class
+                  updateReportsForClass(classData, 'added');
+                } else if (change.type === 'modified') {
+                  const existingIndex = newClasses.findIndex(c => c.id === change.doc.id);
+                  if (existingIndex > -1) {
+                    const oldClassData = newClasses[existingIndex];
+                    newClasses[existingIndex] = classData;
+                    // Update reports for the old and new class
+                    updateReportsForClass(oldClassData, 'removed');
+                    updateReportsForClass(classData, 'added');
+                  }
+                } else if (change.type === 'removed') {
+                  newClasses = newClasses.filter(c => c.id !== change.doc.id);
+                  // Update reports for the removed class
+                  updateReportsForClass(classData, 'removed');
+                }
+              });
+
+              // Re-group classes to get new student counts
+              const classesByDayTime = newClasses.reduce((acc, curr) => {
+                const key = `${curr.date}-${curr.day}-${curr.time}`;
+                if (!acc[key]) {
+                  acc[key] = [];
+                }
+                acc[key].push(curr);
+                return acc;
+              }, {});
+
+              // Update the classes with the correct student counts and values
+              const updatedClassesWithValues = newClasses.map(cls => {
+                const key = `${cls.date}-${cls.day}-${cls.time}`;
+                const studentCount = classesByDayTime[key]?.length || 0;
+                return {
+                  ...cls,
+                  studentCount,
+                  value: editableValues[studentCount] || 0,
+                  color: colorMap[studentCount] || '',
+                };
+              });
+
+              // Sort classes for display
+              updatedClassesWithValues.sort((a, b) => {
+                const dateA = new Date(a.date);
+                const dateB = new Date(b.date);
+                if (dateA.getTime() !== dateB.getTime()) {
+                  return dateA.getTime() - dateB.getTime();
+                }
+                const dayIndexA = dayOptions.indexOf(a.day);
+                const dayIndexB = dayOptions.indexOf(b.day);
+                if (dayIndexA !== dayIndexB) {
+                  return dayIndexA - dayIndexB;
+                }
+                const timeIndexA = timeOptions.indexOf(a.time);
+                const timeIndexB = timeOptions.indexOf(b.time);
+                return timeIndexA - timeIndexB;
+              });
+
+              return updatedClassesWithValues;
+            });
+
+            // After processing all changes, stop loading
+            setIsProcessing(false);
+            setLoading(false);
+          }, 0);
         }, (error) => {
           console.error("Error fetching classes:", error);
           setLoading(false);
+          setIsProcessing(false);
         });
       };
 
-      // This effect is now the heart of the optimization. It recalculates reports only when
-      // classes or editableValues change, and shows a processing indicator while it's working.
-      useEffect(() => {
-        if (authReadyRef.current && classes.length > 0) {
-          setIsProcessingReports(true);
-          // Use a timeout to not block the main thread and let the spinner render
-          setTimeout(() => {
-            const updatedClasses = calculateClassData(classes, editableValues);
-            setClasses(updatedClasses);
-            calculateReports(updatedClasses);
-            setIsProcessingReports(false);
-          }, 0); // Execute immediately in a separate task
-        } else if (authReadyRef.current && classes.length === 0) {
-           // If there are no classes, just update the reports to be empty and stop processing
-            setWeeklyReports([]);
-            setMonthlyReports([]);
-            setIsProcessingReports(false);
-        }
-      }, [classes, editableValues, authReadyRef.current]);
+      // A helper function to get week and month keys
+      const getReportKeys = (dateString) => {
+        const date = new Date(dateString + 'T00:00:00');
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const monthName = monthNames[month];
 
-      // A new helper function to calculate student counts and values for each class
-      const calculateClassData = (currentClasses, currentValues) => {
-        const classesByDayTime = currentClasses.reduce((acc, curr) => {
-          const key = `${curr.date}-${curr.day}-${curr.time}`;
-          if (!acc[key]) {
-            acc[key] = [];
+        const firstDayOfYear = new Date(year, 0, 1);
+        const pastDays = (date - firstDayOfYear) / 86400000;
+        const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
+
+        return {
+          weekKey: `${year}-Semana ${weekNumber}`,
+          monthKey: `${monthName} ${year}`
+        };
+      };
+
+      // Function to incrementally update reports based on a single class change
+      const updateReportsForClass = (cls, type) => {
+        const { weekKey, monthKey } = getReportKeys(cls.date);
+
+        const isAdded = type === 'added';
+        const modifier = isAdded ? 1 : -1;
+
+        // Update weekly reports
+        setWeeklyReports(prevReports => {
+          const newReports = [...prevReports];
+          let report = newReports.find(r => r.week === weekKey);
+          if (!report) {
+            if (isAdded) {
+              newReports.push({ week: weekKey, totalClasses: 1, totalEarnings: cls.value });
+            }
+          } else {
+            report.totalClasses += modifier;
+            report.totalEarnings += cls.value * modifier;
           }
-          acc[key].push(curr);
-          return acc;
-        }, {});
-
-        return currentClasses.map(cls => {
-          const key = `${cls.date}-${cls.day}-${cls.time}`;
-          const studentCount = classesByDayTime[key].length;
-          return {
-            ...cls,
-            studentCount,
-            value: currentValues[studentCount] || 0,
-            color: colorMap[studentCount] || '',
-          };
+          return newReports.filter(r => r.totalClasses > 0).sort((a,b) => a.week.localeCompare(b.week));
         });
-      };
 
-      // Function to calculate the weekly and monthly reports
-      const calculateReports = (updatedClasses) => {
-        const weeklyReportMap = new Map();
-        const monthlyReportMap = new Map();
-
-        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
-        const processedClassKeys = new Set();
-        updatedClasses.forEach(cls => {
-          const classKey = `${cls.date}-${cls.day}-${cls.time}`;
-          if (!processedClassKeys.has(classKey)) {
-            processedClassKeys.add(classKey);
-
-            const date = new Date(cls.date + 'T00:00:00'); // Normalize to avoid timezone issues
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            const monthName = monthNames[month];
-
-            // Calculate week number (simple approximation)
-            const firstDayOfYear = new Date(year, 0, 1);
-            const pastDays = (date - firstDayOfYear) / 86400000;
-            const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
-
-            const weekKey = `${year}-Semana ${weekNumber}`;
-            const monthKey = `${monthName} ${year}`;
-
-            // Update weekly report
-            if (!weeklyReportMap.has(weekKey)) {
-              weeklyReportMap.set(weekKey, { totalClasses: 0, totalEarnings: 0 });
+        // Update monthly reports
+        setMonthlyReports(prevReports => {
+          const newReports = [...prevReports];
+          let report = newReports.find(r => r.month === monthKey);
+          if (!report) {
+            if (isAdded) {
+              const newCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+              newCounts[cls.studentCount] = 1;
+              newReports.push({ month: monthKey, totalClasses: 1, totalEarnings: cls.value, countsByStudent: newCounts });
             }
-            const weeklyReport = weeklyReportMap.get(weekKey);
-            weeklyReport.totalClasses++;
-            weeklyReport.totalEarnings += cls.value;
-
-            // Update monthly report
-            if (!monthlyReportMap.has(monthKey)) {
-              monthlyReportMap.set(monthKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
-            }
-            const monthlyReport = monthlyReportMap.get(monthKey);
-            monthlyReport.totalClasses++;
-            monthlyReport.totalEarnings += cls.value;
+          } else {
+            report.totalClasses += modifier;
+            report.totalEarnings += cls.value * modifier;
             if (cls.studentCount >= 1 && cls.studentCount <= 4) {
-              monthlyReport.countsByStudent[cls.studentCount]++;
+              report.countsByStudent[cls.studentCount] += modifier;
             }
           }
+          return newReports.filter(r => r.totalClasses > 0).sort((a,b) => {
+              const [monthA, yearA] = a.month.split(' ');
+              const [monthB, yearB] = b.month.split(' ');
+              const dateA = new Date(yearA, monthNames.indexOf(monthA));
+              const dateB = new Date(yearB, monthNames.indexOf(monthB));
+              return dateA - dateB;
+          });
         });
-
-        // Convert maps to arrays for rendering
-        const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
-        const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
-
-        // Sort the reports for better readability
-        weeklyReportsArray.sort((a,b) => a.week.localeCompare(b.week));
-        monthlyReportsArray.sort((a,b) => {
-            const [monthA, yearA] = a.month.split(' ');
-            const [monthB, yearB] = b.month.split(' ');
-            const dateA = new Date(yearA, monthNames.indexOf(monthA));
-            const dateB = new Date(yearB, monthNames.indexOf(monthB));
-            return dateA - dateB;
-        });
-
-        setWeeklyReports(weeklyReportsArray);
-        setMonthlyReports(monthlyReportsArray);
       };
-
 
       // Handle input changes in the form
       const handleInputChange = (e) => {
@@ -375,7 +410,7 @@
               </div>
             ) : (
               <>
-                {isProcessingReports && (
+                {isProcessing && (
                   <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
                     <div className="bg-white rounded-lg p-8 shadow-xl text-center">
                       <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
