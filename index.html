@@ -10,10 +10,10 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  
+
   <!-- jsPDF library for PDF generation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
-  
+
   <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -46,18 +46,18 @@
 
     // Default values for class earnings based on student count
     const defaultValueMap = {
-        1: 12000,
-        2: 19000,
-        3: 24000,
-        4: 26000,
+      1: 12000,
+      2: 19000,
+      3: 24000,
+      4: 26000,
     };
 
     // Background colors for the table rows
     const colorMap = {
-        1: 'bg-orange-100',
-        2: 'bg-green-100',
-        3: 'bg-blue-100',
-        4: 'bg-red-100',
+      1: 'bg-orange-100',
+      2: 'bg-green-100',
+      3: 'bg-blue-100',
+      4: 'bg-red-100',
     };
 
     const App = () => {
@@ -73,16 +73,15 @@
       const [monthlyReports, setMonthlyReports] = useState([]);
       const [loading, setLoading] = useState(true);
       const [userId, setUserId] = useState(null);
-      const [appId, setAppId] = useState(null);
-      
+
       // New state to manage the editable values
       const [editableValues, setEditableValues] = useState(defaultValueMap);
       const [pdfLoading, setPdfLoading] = useState(false); // State for PDF generation loading
-      
+
       const dbRef = useRef(null);
       const authRef = useRef(null);
-      const userRef = useRef(null);
-      const appRef = useRef(null);
+      const appIdRef = useRef(null);
+      const authReadyRef = useRef(false);
 
       // Refs to access the report sections for PDF generation
       const weeklyReportRef = useRef(null);
@@ -102,7 +101,7 @@
         setPdfLoading(true);
         const element = reportType === 'weekly' ? weeklyReportRef.current : monthlyReportRef.current;
         const filename = reportType === 'weekly' ? 'Informe_Semanal_Padel.pdf' : 'Informe_Mensual_Padel.pdf';
-        
+
         if (element) {
           const opt = {
             margin:       10,
@@ -111,82 +110,42 @@
             html2canvas:  { scale: 2 },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
           };
-          
+
           html2pdf().from(element).set(opt).save();
         }
         setPdfLoading(false);
       };
 
-      // Initialize Firebase and set up a reliable auth state listener
+      // This effect handles Firebase initialization and auth state changes.
+      // It runs only once on component mount.
       useEffect(() => {
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        
+        appIdRef.current = appId;
+
         if (!firebaseConfig) {
           console.error("Firebase config is not available.");
+          setLoading(false);
           return;
         }
 
         const app = firebase.initializeApp(firebaseConfig);
         const auth = firebase.getAuth(app);
         const db = firebase.getFirestore(app);
-
-        dbRef.current = db;
         authRef.current = auth;
-        appRef.current = appId;
-        
-        // This listener ensures we only proceed once the user is authenticated.
+        dbRef.current = db;
+
+        // The onAuthStateChanged listener is the most reliable way to handle auth state.
+        // It's a key part of ensuring the connection is stable before proceeding.
         const unsubscribe = firebase.onAuthStateChanged(auth, async (user) => {
           if (user) {
+            console.log("Usuario autenticado:", user.uid);
             setUserId(user.uid);
-            userRef.current = user.uid;
-            
-            // Set up real-time listeners for data once the user is authenticated
-            const userClassesRef = firebase.collection(db, `artifacts/${appId}/users/${user.uid}/clases_padel`);
-            const userValuesDocRef = firebase.doc(db, `artifacts/${appId}/users/${user.uid}/valores_clase/precios`);
-            
-            // Listen for changes to editable values
-            const unsubscribeValues = firebase.onSnapshot(userValuesDocRef, (docSnap) => {
-              if (docSnap.exists()) {
-                const data = docSnap.data();
-                const newValues = {
-                  1: data['1'] || defaultValueMap[1],
-                  2: data['2'] || defaultValueMap[2],
-                  3: data['3'] || defaultValueMap[3],
-                  4: data['4'] || defaultValueMap[4],
-                };
-                setEditableValues(newValues);
-                updateClassesAndReports(classes, newValues); // Recalculate with new values
-              } else {
-                setEditableValues(defaultValueMap);
-                firebase.setDoc(userValuesDocRef, defaultValueMap);
-              }
-            }, (error) => {
-              console.error("Error fetching editable values:", error);
-            });
-            
-            // Listen for changes to classes
-            const unsubscribeClasses = firebase.onSnapshot(userClassesRef, (snapshot) => {
-              const fetchedClasses = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-              }));
-              updateClassesAndReports(fetchedClasses, editableValues);
-              setLoading(false);
-            }, (error) => {
-              console.error("Error fetching classes:", error);
-              setLoading(false);
-            });
-
-            // Clean up the listeners when the component unmounts
-            return () => {
-                unsubscribeValues();
-                unsubscribeClasses();
-            };
-            
+            authReadyRef.current = true;
+            setupFirestoreListeners(user.uid);
           } else {
-            // No user is signed in, try to sign in
+            console.log("No hay usuario. Intentando autenticación.");
             try {
               if (initialAuthToken) {
                 await firebase.signInWithCustomToken(auth, initialAuthToken);
@@ -194,16 +153,63 @@
                 await firebase.signInAnonymously(auth);
               }
             } catch (error) {
-              console.error("Error during initial authentication:", error);
+              console.error("Error durante la autenticación inicial:", error);
+              // Si la autenticación falla, dejamos de cargar para no bloquear la interfaz.
               setLoading(false);
             }
           }
         });
-        
-        // Clean up the auth state listener when the component unmounts
+
+        // Cleanup function for the listener
         return () => unsubscribe();
-        
       }, []);
+
+      // This function sets up the real-time listeners for the Firestore data.
+      // It is only called once a user is authenticated.
+      const setupFirestoreListeners = (uid) => {
+        const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${uid}/valores_clase/precios`);
+        const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${uid}/clases_padel`);
+
+        // Listener for the editable values
+        firebase.onSnapshot(userValuesDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const newValues = {
+              1: data['1'] || defaultValueMap[1],
+              2: data['2'] || defaultValueMap[2],
+              3: data['3'] || defaultValueMap[3],
+              4: data['4'] || defaultValueMap[4],
+            };
+            setEditableValues(newValues);
+          } else {
+            setEditableValues(defaultValueMap);
+            firebase.setDoc(userValuesDocRef, defaultValueMap);
+          }
+        }, (error) => {
+          console.error("Error fetching editable values:", error);
+        });
+
+        // Listener for the classes
+        firebase.onSnapshot(userClassesRef, (snapshot) => {
+          const fetchedClasses = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          updateClassesAndReports(fetchedClasses, editableValues);
+          setLoading(false);
+        }, (error) => {
+          console.error("Error fetching classes:", error);
+          setLoading(false);
+        });
+      };
+
+      // This effect ensures that if editableValues changes, the reports are updated
+      // It's a key part of making the app reactive.
+      useEffect(() => {
+        if (authReadyRef.current) {
+          updateClassesAndReports(classes, editableValues);
+        }
+      }, [editableValues]);
 
       // Function to calculate and update all values, colors, and reports
       const updateClassesAndReports = (currentClasses, currentValues) => {
@@ -310,27 +316,27 @@
         const { name, value } = e.target;
         setNewEntry(prev => ({ ...prev, [name]: value }));
       };
-      
+
       // Handle changes to the editable value inputs and update Firestore
       const handleValueChange = async (e) => {
         const { name, value } = e.target;
         const newValues = { ...editableValues, [name]: Number(value) };
         setEditableValues(newValues);
         try {
-          const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appRef.current}/users/${userRef.current}/valores_clase/precios`);
+          const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/valores_clase/precios`);
           await firebase.setDoc(userValuesDocRef, newValues);
         } catch (error) {
           console.error("Error updating values in Firestore:", error);
         }
       };
-      
+
       // Handle adding a new class and save to Firestore
       const handleAddClass = async (e) => {
         e.preventDefault();
-        if (newEntry.studentName.trim() === '') return;
+        if (newEntry.studentName.trim() === '' || !userId) return;
 
         try {
-          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appRef.current}/users/${userRef.current}/clases_padel`);
+          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`);
           await firebase.addDoc(userClassesRef, newEntry);
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reset only student name
         } catch (error) {
@@ -340,14 +346,15 @@
 
       // Handle deleting a class and delete from Firestore
       const handleDeleteClass = async (id) => {
+        if (!userId) return;
         try {
-          const userClassesDocRef = firebase.doc(dbRef.current, `artifacts/${appRef.current}/users/${userRef.current}/clases_padel/${id}`);
+          const userClassesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${id}`);
           await firebase.deleteDoc(userClassesDocRef);
         } catch (error) {
           console.error("Error deleting class from Firestore:", error);
         }
       };
-      
+
       const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Conectando a la nube...";
 
       return (
@@ -359,7 +366,6 @@
             <p className="text-center text-sm mb-6 text-gray-500 italic">
               {userIdDisplay}
             </p>
-            
 
             {loading ? (
               <div className="flex justify-center items-center h-48">
@@ -432,7 +438,7 @@
                       <p className="text-sm text-gray-500 italic">No hay informes semanales disponibles.</p>
                     )}
                   </div>
-                  
+
                   {/* Monthly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner" ref={monthlyReportRef}>
                     <div className="flex justify-between items-center mb-4">
@@ -549,6 +555,7 @@
                       <button
                         type="submit"
                         className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                        disabled={!userId}
                       >
                         Añadir
                       </button>
@@ -650,6 +657,8 @@
   </script>
 </body>
 </html>
+
+
 
 
 
