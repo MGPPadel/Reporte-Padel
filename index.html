@@ -73,8 +73,7 @@
       const [monthlyReports, setMonthlyReports] = useState([]);
       const [loading, setLoading] = useState(true);
       const [userId, setUserId] = useState(null);
-
-      // New state to manage the editable values
+      const [isAdding, setIsAdding] = useState(false); // New state to show adding progress
       const [editableValues, setEditableValues] = useState(defaultValueMap);
       const [pdfLoading, setPdfLoading] = useState(false); // State for PDF generation loading
 
@@ -195,8 +194,13 @@
             id: doc.id,
             ...doc.data()
           }));
-          updateClassesAndReports(fetchedClasses, editableValues);
-          setLoading(false);
+
+          // We've received the data, so we can now start processing it
+          setLoading(true);
+          updateClassesAndReports(fetchedClasses, editableValues, () => {
+            // Once the processing is done, we can set loading to false
+            setLoading(false);
+          });
         }, (error) => {
           console.error("Error fetching classes:", error);
           setLoading(false);
@@ -204,15 +208,15 @@
       };
 
       // This effect ensures that if editableValues changes, the reports are updated
-      // It's a key part of making the app reactive.
       useEffect(() => {
-        if (authReadyRef.current) {
-          updateClassesAndReports(classes, editableValues);
+        if (authReadyRef.current && !loading) {
+          updateClassesAndReports(classes, editableValues, () => {});
         }
       }, [editableValues]);
 
       // Function to calculate and update all values, colors, and reports
-      const updateClassesAndReports = (currentClasses, currentValues) => {
+      // The callback function is now used to signal when processing is complete
+      const updateClassesAndReports = (currentClasses, currentValues, onComplete) => {
         // Group classes by day and time to count students
         const classesByDayTime = currentClasses.reduce((acc, curr) => {
           const key = `${curr.date}-${curr.day}-${curr.time}`;
@@ -254,6 +258,7 @@
 
         setClasses(updatedClasses);
         calculateReports(updatedClasses);
+        onComplete();
       };
 
       // Function to calculate the weekly and monthly reports
@@ -335,6 +340,7 @@
         e.preventDefault();
         if (newEntry.studentName.trim() === '' || !userId) return;
 
+        setIsAdding(true);
         try {
           const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`);
           await firebase.addDoc(userClassesRef, newEntry);
@@ -342,6 +348,7 @@
         } catch (error) {
           console.error("Error adding class to Firestore:", error);
         }
+        setIsAdding(false);
       };
 
       // Handle deleting a class and delete from Firestore
@@ -370,7 +377,7 @@
             {loading ? (
               <div className="flex justify-center items-center h-48">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                <p className="ml-4 text-gray-600">Conectando a la nube y cargando datos...</p>
+                <p className="ml-4 text-gray-600">Cargando y procesando datos...</p>
               </div>
             ) : (
               <>
@@ -554,10 +561,10 @@
                     <div className="md:col-span-1">
                       <button
                         type="submit"
-                        className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                        disabled={!userId}
+                        className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+                        disabled={!userId || isAdding}
                       >
-                        Añadir
+                        {isAdding ? "Añadiendo..." : "Añadir"}
                       </button>
                     </div>
                   </div>
@@ -657,6 +664,8 @@
   </script>
 </body>
 </html>
+
+
 
 
 
