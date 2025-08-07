@@ -43,7 +43,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+    const { useState, useEffect, useRef, useCallback } = React;
 
     // Default values for class earnings based on student count
     const defaultValueMap = {
@@ -59,6 +59,15 @@
       2: 'bg-green-100',
       3: 'bg-blue-100',
       4: 'bg-red-100',
+    };
+
+    // Helper function to create a debounced function
+    const debounce = (func, delay) => {
+      let timeout;
+      return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), delay);
+      };
     };
 
     const App = () => {
@@ -82,7 +91,6 @@
       const dbRef = useRef(null);
       const authRef = useRef(null);
       const appIdRef = useRef(null);
-      const authReadyRef = useRef(false);
 
       // Refs to access the report sections for PDF generation
       const weeklyReportRef = useRef(null);
@@ -118,6 +126,81 @@
         setPdfLoading(false);
       };
 
+      // This is the core function for calculating reports, now wrapped with useCallback
+      const calculateReports = useCallback((allClasses, currentValues) => {
+        setIsProcessing(true);
+        // Using a timeout to ensure this calculation doesn't block the UI
+        setTimeout(() => {
+          const weeklyReportMap = new Map();
+          const monthlyReportMap = new Map();
+
+          const classesByTimeSlot = allClasses.reduce((acc, curr) => {
+            const key = `${curr.date}-${curr.day}-${curr.time}`;
+            if (!acc[key]) {
+              acc[key] = [];
+            }
+            acc[key].push(curr);
+            return acc;
+          }, {});
+        
+          Object.values(classesByTimeSlot).forEach(timeSlotClasses => {
+              const firstClass = timeSlotClasses[0];
+              const studentCount = timeSlotClasses.length;
+              const totalValue = currentValues[studentCount] || 0;
+
+              const date = new Date(firstClass.date + 'T00:00:00');
+              const year = date.getFullYear();
+              const month = date.getMonth();
+              const monthName = monthNames[month];
+              const firstDayOfYear = new Date(year, 0, 1);
+              const pastDays = (date - firstDayOfYear) / 86400000;
+              const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
+              const weekKey = `${year}-Semana ${weekNumber}`;
+              const monthKey = `${monthName} ${year}`;
+            
+              // Update weekly report
+              weeklyReportMap.set(weekKey, {
+                  totalClasses: (weeklyReportMap.get(weekKey)?.totalClasses || 0) + 1,
+                  totalEarnings: (weeklyReportMap.get(weekKey)?.totalEarnings || 0) + totalValue,
+              });
+
+              // Update monthly report
+              const monthlyReport = monthlyReportMap.get(monthKey) || {
+                totalClasses: 0,
+                totalEarnings: 0,
+                countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 }
+              };
+              monthlyReport.totalClasses++;
+              monthlyReport.totalEarnings += totalValue;
+              if (studentCount >= 1 && studentCount <= 4) {
+                monthlyReport.countsByStudent[studentCount]++;
+              }
+              monthlyReportMap.set(monthKey, monthlyReport);
+          });
+          
+          const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
+          const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
+
+          weeklyReportsArray.sort((a,b) => a.week.localeCompare(b.week));
+          monthlyReportsArray.sort((a,b) => {
+              const [monthA, yearA] = a.month.split(' ');
+              const [monthB, yearB] = b.month.split(' ');
+              const dateA = new Date(yearA, monthNames.indexOf(monthA));
+              const dateB = new Date(yearB, monthNames.indexOf(monthB));
+              return dateA - dateB;
+          });
+
+          setWeeklyReports(weeklyReportsArray);
+          setMonthlyReports(monthlyReportsArray);
+          setIsProcessing(false);
+        }, 0);
+      }, [monthNames, editableValues]);
+
+      // Debounced version of calculateReports
+      const debouncedCalculateReports = useCallback(debounce(calculateReports, 300), [calculateReports]);
+
+      // This effect handles Firebase initialization and auth state changes.
+      // It runs only once on component mount.
       useEffect(() => {
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -139,7 +222,6 @@
         const unsubscribe = firebase.onAuthStateChanged(auth, async (user) => {
           if (user) {
             setUserId(user.uid);
-            authReadyRef.current = true;
             setupFirestoreListeners(user.uid);
           } else {
             try {
@@ -155,6 +237,7 @@
           }
         });
 
+        // Cleanup function for the listener
         return () => unsubscribe();
       }, []);
 
@@ -181,16 +264,35 @@
           console.error("Error fetching editable values:", error);
         });
 
-        // Listener for the classes
+        // Listener for the classes with incremental updates
         firebase.onSnapshot(userClassesRef, (snapshot) => {
-          setIsProcessing(true);
           const fetchedClasses = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
           }));
 
+          const classesByTimeSlot = fetchedClasses.reduce((acc, curr) => {
+            const key = `${curr.date}-${curr.day}-${curr.time}`;
+            if (!acc[key]) {
+              acc[key] = [];
+            }
+            acc[key].push(curr);
+            return acc;
+          }, {});
+        
+          const updatedClassesWithValues = fetchedClasses.map(cls => {
+            const key = `${cls.date}-${cls.day}-${cls.time}`;
+            const studentCount = classesByTimeSlot[key]?.length || 0;
+            return {
+              ...cls,
+              studentCount,
+              value: editableValues[studentCount] || 0,
+              color: colorMap[studentCount] || '',
+            };
+          });
+
           // Sort classes for display
-          fetchedClasses.sort((a, b) => {
+          updatedClassesWithValues.sort((a, b) => {
             const dateA = new Date(a.date);
             const dateB = new Date(b.date);
             if (dateA.getTime() !== dateB.getTime()) {
@@ -206,78 +308,14 @@
             return timeIndexA - timeIndexB;
           });
 
-          setClasses(fetchedClasses);
-          calculateReports(fetchedClasses, editableValues);
-          setIsProcessing(false);
+          setClasses(updatedClassesWithValues);
+          // Use the debounced function for calculation
+          debouncedCalculateReports(updatedClassesWithValues, editableValues);
           setLoading(false);
         }, (error) => {
           console.error("Error fetching classes:", error);
           setLoading(false);
-          setIsProcessing(false);
         });
-      };
-
-      // This function now just aggregates values that are already stored in the documents.
-      const calculateReports = (allClasses, currentValues) => {
-        const weeklyReportMap = new Map();
-        const monthlyReportMap = new Map();
-
-        const processedClassKeys = new Set();
-        allClasses.forEach(cls => {
-            // Check if this is the first document for a specific class time slot
-            const classKey = `${cls.date}-${cls.day}-${cls.time}`;
-            if (processedClassKeys.has(classKey)) {
-                return;
-            }
-            processedClassKeys.add(classKey);
-
-            const date = new Date(cls.date + 'T00:00:00');
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            const monthName = monthNames[month];
-            const firstDayOfYear = new Date(year, 0, 1);
-            const pastDays = (date - firstDayOfYear) / 86400000;
-            const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
-
-            const weekKey = `${year}-Semana ${weekNumber}`;
-            const monthKey = `${monthName} ${year}`;
-            
-            const totalValue = currentValues[cls.studentCount] || 0;
-
-            // Update weekly report
-            weeklyReportMap.set(weekKey, {
-                totalClasses: (weeklyReportMap.get(weekKey)?.totalClasses || 0) + 1,
-                totalEarnings: (weeklyReportMap.get(weekKey)?.totalEarnings || 0) + totalValue,
-            });
-
-            // Update monthly report
-            const monthlyReport = monthlyReportMap.get(monthKey) || {
-              totalClasses: 0,
-              totalEarnings: 0,
-              countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 }
-            };
-            monthlyReport.totalClasses++;
-            monthlyReport.totalEarnings += totalValue;
-            if (cls.studentCount >= 1 && cls.studentCount <= 4) {
-              monthlyReport.countsByStudent[cls.studentCount]++;
-            }
-            monthlyReportMap.set(monthKey, monthlyReport);
-        });
-
-        const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
-        const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
-
-        weeklyReportsArray.sort((a,b) => a.week.localeCompare(b.week));
-        monthlyReportsArray.sort((a,b) => {
-            const [monthA, yearA] = a.month.split(' ');
-            const [monthB, yearB] = b.month.split(' ');
-            const dateA = new Date(yearA, monthNames.indexOf(monthA));
-            const dateB = new Date(yearB, monthNames.indexOf(monthB));
-            return dateA - dateB;
-        });
-
-        setWeeklyReports(weeklyReportsArray);
-        setMonthlyReports(monthlyReportsArray);
       };
 
       const handleInputChange = (e) => {
@@ -285,6 +323,7 @@
         setNewEntry(prev => ({ ...prev, [name]: value }));
       };
 
+      // Handler for editable value change
       const handleValueChange = async (e) => {
         const { name, value } = e.target;
         const newValues = { ...editableValues, [name]: Number(value) };
@@ -292,110 +331,36 @@
         try {
           const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/valores_clase/precios`);
           await firebase.setDoc(userValuesDocRef, newValues);
-
-          // Now, update all existing classes to reflect the new pricing
-          if (classes.length > 0) {
-            setIsProcessing(true);
-            const batch = firebase.writeBatch(dbRef.current);
-            classes.forEach(cls => {
-              const classDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${cls.id}`);
-              const newValue = newValues[cls.studentCount] || 0;
-              batch.set(classDocRef, { value: newValue }, { merge: true });
-            });
-            await batch.commit();
-            setIsProcessing(false);
-          }
         } catch (error) {
           console.error("Error updating values in Firestore:", error);
-          setIsProcessing(false);
         }
       };
 
+      // Handle adding a new class
       const handleAddClass = async (e) => {
         e.preventDefault();
         if (newEntry.studentName.trim() === '' || !userId) return;
 
         setIsAdding(true);
         try {
-          // Find existing classes for the same day, time, and date
-          const q = firebase.query(
-            firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`),
-            firebase.where("date", "==", newEntry.date),
-            firebase.where("day", "==", newEntry.day),
-            firebase.where("time", "==", newEntry.time)
-          );
-          const querySnapshot = await firebase.getDocs(q);
-
-          const studentCount = querySnapshot.docs.length + 1;
-          const classValue = editableValues[studentCount] || 0;
-
-          const batch = firebase.writeBatch(dbRef.current);
-
-          // Update existing classes
-          querySnapshot.docs.forEach(doc => {
-            const docRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${doc.id}`);
-            batch.set(docRef, { studentCount: studentCount, value: classValue, color: colorMap[studentCount] }, { merge: true });
-          });
-
-          // Add the new class
-          const newClassRef = firebase.doc(firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`));
-          batch.set(newClassRef, {
-            ...newEntry,
-            studentCount: studentCount,
-            value: classValue,
-            color: colorMap[studentCount] || '',
-          });
-
-          await batch.commit();
-          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
+          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`);
+          await firebase.addDoc(userClassesRef, newEntry);
+          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reset only student name
         } catch (error) {
           console.error("Error adding class to Firestore:", error);
         }
         setIsAdding(false);
       };
 
+      // Handle deleting a class
       const handleDeleteClass = async (id) => {
         if (!userId) return;
-
-        setIsProcessing(true);
         try {
-          const classToDelete = classes.find(c => c.id === id);
-          if (!classToDelete) {
-            setIsProcessing(false);
-            return;
-          }
-
-          // Find other classes in the same time slot
-          const q = firebase.query(
-            firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`),
-            firebase.where("date", "==", classToDelete.date),
-            firebase.where("day", "==", classToDelete.day),
-            firebase.where("time", "==", classToDelete.time)
-          );
-          const querySnapshot = await firebase.getDocs(q);
-
-          const newStudentCount = querySnapshot.docs.length - 1;
-          const newClassValue = editableValues[newStudentCount] || 0;
-
-          const batch = firebase.writeBatch(dbRef.current);
-
-          // Update remaining classes
-          querySnapshot.docs.forEach(doc => {
-            if (doc.id !== id) {
-              const docRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${doc.id}`);
-              batch.set(docRef, { studentCount: newStudentCount, value: newClassValue, color: colorMap[newStudentCount] || '' }, { merge: true });
-            }
-          });
-
-          // Delete the class
-          const classDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${id}`);
-          batch.delete(classDocRef);
-
-          await batch.commit();
+          const userClassesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${id}`);
+          await firebase.deleteDoc(userClassesDocRef);
         } catch (error) {
           console.error("Error deleting class from Firestore:", error);
         }
-        setIsProcessing(false);
       };
 
       const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Conectando a la nube...";
@@ -410,15 +375,21 @@
               {userIdDisplay}
             </p>
 
-            {loading || isProcessing ? (
+            {loading ? (
               <div className="flex justify-center items-center h-48">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                <p className="ml-4 text-gray-600">
-                  {loading ? "Cargando datos..." : "Procesando datos..."}
-                </p>
+                <p className="ml-4 text-gray-600">Conectando a la nube y cargando datos...</p>
               </div>
             ) : (
               <>
+                {isProcessing && (
+                  <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
+                    <div className="bg-white rounded-lg p-8 shadow-xl text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+                      <p className="text-gray-700 font-semibold">Calculando informes...</p>
+                    </div>
+                  </div>
+                )}
                 {/* Editable Values Section */}
                 <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
                   <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
@@ -700,6 +671,7 @@
   </script>
 </body>
 </html>
+
 
 
 
