@@ -81,11 +81,10 @@
       });
       const [weeklyReports, setWeeklyReports] = useState([]);
       const [monthlyReports, setMonthlyReports] = useState([]);
-      const [loadingClasses, setLoadingClasses] = useState(true);
-      const [loadingValues, setLoadingValues] = useState(true);
+      const [loading, setLoading] = useState(true); // Single loading state for the whole app
       const [userId, setUserId] = useState(null);
       const [isAdding, setIsAdding] = useState(false);
-      const [isProcessing, setIsProcessing] = useState(false);
+      const [isProcessingReports, setIsProcessingReports] = useState(false);
       const [editableValues, setEditableValues] = useState(defaultValueMap);
       const [pdfLoading, setPdfLoading] = useState(false);
 
@@ -129,8 +128,7 @@
 
       // This is the core function for calculating reports, now wrapped with useCallback
       const calculateReports = useCallback((allClasses, currentValues) => {
-        setIsProcessing(true);
-        // Using a timeout to ensure this calculation doesn't block the UI
+        setIsProcessingReports(true);
         setTimeout(() => {
           const weeklyReportMap = new Map();
           const monthlyReportMap = new Map();
@@ -193,7 +191,7 @@
 
           setWeeklyReports(weeklyReportsArray);
           setMonthlyReports(monthlyReportsArray);
-          setIsProcessing(false);
+          setIsProcessingReports(false);
         }, 0);
       }, [monthNames, editableValues]);
 
@@ -201,6 +199,7 @@
       const debouncedCalculateReports = useCallback(debounce(calculateReports, 300), [calculateReports]);
 
       // This effect handles Firebase initialization and auth state changes.
+      // It runs only once on component mount.
       useEffect(() => {
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -209,8 +208,7 @@
 
         if (!firebaseConfig) {
           console.error("Firebase config is not available.");
-          setLoadingClasses(false);
-          setLoadingValues(false);
+          setLoading(false);
           return;
         }
 
@@ -233,8 +231,7 @@
               }
             } catch (error) {
               console.error("Error during initial authentication:", error);
-              setLoadingClasses(false);
-              setLoadingValues(false);
+              setLoading(false);
             }
           }
         });
@@ -246,6 +243,16 @@
       const setupFirestoreListeners = (uid) => {
         const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${uid}/valores_clase/precios`);
         const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${uid}/clases_padel`);
+
+        // This promise tracks when both listeners have fired for the first time
+        let hasLoadedValues = false;
+        let hasLoadedClasses = false;
+
+        const checkInitialLoad = () => {
+          if (hasLoadedValues && hasLoadedClasses) {
+            setLoading(false);
+          }
+        };
 
         // Listener for the editable values
         firebase.onSnapshot(userValuesDocRef, (docSnap) => {
@@ -262,13 +269,15 @@
             setEditableValues(defaultValueMap);
             firebase.setDoc(userValuesDocRef, defaultValueMap);
           }
-          setLoadingValues(false);
+          hasLoadedValues = true;
+          checkInitialLoad();
         }, (error) => {
           console.error("Error fetching editable values:", error);
-          setLoadingValues(false);
+          hasLoadedValues = true;
+          checkInitialLoad();
         });
 
-        // Listener for the classes with incremental updates
+        // Listener for the classes
         firebase.onSnapshot(userClassesRef, (snapshot) => {
           const fetchedClasses = snapshot.docs.map(doc => ({
             id: doc.id,
@@ -313,12 +322,13 @@
           });
 
           setClasses(updatedClassesWithValues);
-          // Use the debounced function for calculation
           debouncedCalculateReports(updatedClassesWithValues, editableValues);
-          setLoadingClasses(false);
+          hasLoadedClasses = true;
+          checkInitialLoad();
         }, (error) => {
           console.error("Error fetching classes:", error);
-          setLoadingClasses(false);
+          hasLoadedClasses = true;
+          checkInitialLoad();
         });
       };
 
@@ -369,8 +379,6 @@
 
       const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Conectando a la nube...";
 
-      const overallLoading = loadingClasses || loadingValues;
-
       return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
           <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
@@ -381,15 +389,15 @@
               {userIdDisplay}
             </p>
 
-            {/* This loading screen will only be shown initially and will disappear as soon as the first data snapshots are received */}
-            {overallLoading ? (
+            {/* This loading screen will only be shown initially and will disappear after everything is loaded */}
+            {loading ? (
               <div className="flex justify-center items-center h-48">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                <p className="ml-4 text-gray-600">Cargando datos...</p>
+                <p className="ml-4 text-gray-600">Cargando datos y conectando...</p>
               </div>
             ) : (
               <>
-                {isProcessing && (
+                {isProcessingReports && (
                   <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
                     <div className="bg-white rounded-lg p-8 shadow-xl text-center">
                       <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
@@ -678,6 +686,8 @@
   </script>
 </body>
 </html>
+
+
 
 
 
