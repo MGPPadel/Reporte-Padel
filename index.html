@@ -190,20 +190,26 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         appIdRef.current = appId;
-
+        
         if (!firebaseConfig) {
           setError("Error: No se encontró la configuración de Firebase.");
           setIsLoading(false);
           return;
         }
 
-        const app = firebase.initializeApp(firebaseConfig);
-        const auth = firebase.getAuth(app);
-        const db = firebase.getFirestore(app);
+        if (!window.firebase) {
+          setError("Error: El SDK de Firebase no se cargó correctamente.");
+          setIsLoading(false);
+          return;
+        }
+
+        const app = window.firebase.initializeApp(firebaseConfig);
+        const auth = window.firebase.getAuth(app);
+        const db = window.firebase.getFirestore(app);
         authRef.current = auth;
         dbRef.current = db;
 
-        const unsubscribeAuth = firebase.onAuthStateChanged(auth, async (user) => {
+        const unsubscribeAuth = window.firebase.onAuthStateChanged(auth, async (user) => {
           if (!isMounted.current) return;
           if (user) {
             setUserId(user.uid);
@@ -212,9 +218,9 @@
           } else {
             try {
               if (initialAuthToken) {
-                await firebase.signInWithCustomToken(auth, initialAuthToken);
+                await window.firebase.signInWithCustomToken(auth, initialAuthToken);
               } else {
-                await firebase.signInAnonymously(auth);
+                await window.firebase.signInAnonymously(auth);
               }
             } catch (authError) {
               console.error("Error durante la autenticación inicial:", authError);
@@ -231,27 +237,28 @@
       }, [debouncedCalculateReports, editableValues]);
 
       const setupFirestoreListeners = useCallback((uid, db, appId) => {
-        if (!isMounted.current) return;
-        const userValuesDocRef = firebase.doc(db, `artifacts/${appId}/users/${uid}/valores_clase/precios`);
-        const userClassesRef = firebase.collection(db, `artifacts/${appId}/users/${uid}/clases_padel`);
+        if (!isMounted.current || !db) return;
+        
+        const userValuesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${uid}/valores_clase/precios`);
+        const userClassesRef = window.firebase.collection(db, `artifacts/${appId}/users/${uid}/clases_padel`);
         
         let unsubscribeValues = null;
         let unsubscribeClasses = null;
 
-        unsubscribeValues = firebase.onSnapshot(userValuesDocRef, (docSnap) => {
+        unsubscribeValues = window.firebase.onSnapshot(userValuesDocRef, (docSnap) => {
           if (!isMounted.current) return;
           if (docSnap.exists()) {
             setEditableValues(docSnap.data());
           } else {
             setEditableValues(defaultValueMap);
-            firebase.setDoc(userValuesDocRef, defaultValueMap);
+            window.firebase.setDoc(userValuesDocRef, defaultValueMap);
           }
         }, (error) => {
           console.error("Error fetching editable values:", error);
           setError("Error al cargar los valores de clase.");
         });
 
-        unsubscribeClasses = firebase.onSnapshot(userClassesRef, (snapshot) => {
+        unsubscribeClasses = window.firebase.onSnapshot(userClassesRef, (snapshot) => {
           if (!isMounted.current) return;
           const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -307,9 +314,10 @@
         const { name, value } = e.target;
         const newValues = { ...editableValues, [name]: Number(value) };
         setEditableValues(newValues);
+        if (!dbRef.current || !userId) return;
         try {
-          const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/valores_clase/precios`);
-          await firebase.setDoc(userValuesDocRef, newValues);
+          const userValuesDocRef = window.firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/valores_clase/precios`);
+          await window.firebase.setDoc(userValuesDocRef, newValues);
         } catch (error) {
           console.error("Error actualizando valores en Firestore:", error);
         }
@@ -317,11 +325,11 @@
 
       const handleAddClass = async (e) => {
         e.preventDefault();
-        if (newEntry.studentName.trim() === '' || !userId) return;
+        if (newEntry.studentName.trim() === '' || !userId || !dbRef.current) return;
         setIsAdding(true);
         try {
-          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`);
-          await firebase.addDoc(userClassesRef, newEntry);
+          const userClassesRef = window.firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`);
+          await window.firebase.addDoc(userClassesRef, newEntry);
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
         } catch (error) {
           console.error("Error adding class to Firestore:", error);
@@ -330,10 +338,10 @@
       };
 
       const handleDeleteClass = async (id) => {
-        if (!userId) return;
+        if (!userId || !dbRef.current) return;
         try {
-          const userClassesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${id}`);
-          await firebase.deleteDoc(userClassesDocRef);
+          const userClassesDocRef = window.firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${id}`);
+          await window.firebase.deleteDoc(userClassesDocRef);
         } catch (error) {
           console.error("Error deleting class from Firestore:", error);
         }
