@@ -15,7 +15,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     window.firebase = {
       initializeApp,
       getAuth,
@@ -30,7 +30,8 @@
       collection,
       query,
       addDoc,
-      getDocs
+    getDocs,
+      deleteDoc
     };
   </script>
 </head>
@@ -40,7 +41,7 @@
 
   <!-- The React app script, wrapped in a Babel tag -->
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
 
     // Main App component
     const App = () => {
@@ -73,9 +74,16 @@
       const [loading, setLoading] = useState(true);
       const [userId, setUserId] = useState(null);
       const [appId, setAppId] = useState(null);
+      const [showConfigModal, setShowConfigModal] = useState(false);
+      const [userFirebaseConfig, setUserFirebaseConfig] = useState('');
       
       // New state to manage the editable values
       const [editableValues, setEditableValues] = useState(defaultValueMap);
+      
+      const firebaseConfigRef = useRef(null);
+      const dbRef = useRef(null);
+      const authRef = useRef(null);
+      const userRef = useRef(null);
 
       // Options for form dropdowns
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
@@ -88,27 +96,46 @@
 
       // Initialize Firebase and setup listeners
       useEffect(() => {
-        const initFirebase = async () => {
-          try {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const loadConfig = () => {
+            const storedConfig = localStorage.getItem('firebaseConfig');
+            if (storedConfig) {
+                try {
+                    firebaseConfigRef.current = JSON.parse(storedConfig);
+                    setUserFirebaseConfig(storedConfig);
+                    return true;
+                } catch (e) {
+                    console.error("Error parsing stored Firebase config", e);
+                    localStorage.removeItem('firebaseConfig');
+                    return false;
+                }
+            }
+            return false;
+        };
 
-            const app = firebase.initializeApp(firebaseConfig);
+        const initFirebase = async () => {
+          setLoading(true);
+          try {
+            const appId = 'default-padel-app'; // Using a fixed app id for consistency
+            setAppId(appId);
+
+            if (!firebaseConfigRef.current) {
+                setShowConfigModal(true);
+                setLoading(false);
+                return;
+            }
+
+            const app = firebase.initializeApp(firebaseConfigRef.current);
             const auth = firebase.getAuth(app);
             const db = firebase.getFirestore(app);
 
-            let currentUser = null;
-            if (initialAuthToken) {
-              await firebase.signInWithCustomToken(auth, initialAuthToken);
-              currentUser = auth.currentUser;
-            } else {
-              await firebase.signInAnonymously(auth);
-              currentUser = auth.currentUser;
-            }
-            const currentUserId = currentUser?.uid || crypto.randomUUID();
+            dbRef.current = db;
+            authRef.current = auth;
+
+            // Use anonymous sign-in for simplicity
+            await firebase.signInAnonymously(auth);
+            const currentUserId = auth.currentUser?.uid;
             setUserId(currentUserId);
-            setAppId(appId);
+            userRef.current = currentUserId;
 
             // Set up real-time listeners for classes and values
             const userClassesRef = firebase.collection(db, `artifacts/${appId}/users/${currentUserId}/clases_padel`);
@@ -145,30 +172,24 @@
 
           } catch (error) {
             console.error("Error initializing Firebase:", error);
+            // Show the config modal if initialization fails (e.g., wrong credentials)
+            setShowConfigModal(true);
             setLoading(false);
           }
         };
+        
+        // Initial check and setup
+        const configFound = loadConfig();
+        if (configFound) {
+            initFirebase();
+        } else {
+            setLoading(false);
+            setShowConfigModal(true);
+        }
 
-        initFirebase();
       }, []);
 
-      // Function to save classes to Firestore
-      const saveClassesToFirestore = async (classesToSave) => {
-        try {
-          const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-          const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-          const app = firebase.initializeApp(firebaseConfig);
-          const db = firebase.getFirestore(app);
-          const userClassesRef = firebase.collection(db, `artifacts/${appId}/users/${userId}/clases_padel`);
-          // This is a simplified approach. A more robust solution would update/delete specific docs.
-          // For now, we will add new classes and let the snapshot listener handle the UI update.
-        } catch (error) {
-          console.error("Error saving classes to Firestore:", error);
-        }
-      };
-
       // Function to calculate and update all values, colors, and reports
-      // Now it takes the current values as an argument
       const updateClassesAndReports = (currentClasses, currentValues) => {
         // Group classes by day and time to count students
         const classesByDayTime = currentClasses.reduce((acc, curr) => {
@@ -280,30 +301,20 @@
         const newValues = { ...editableValues, [name]: Number(value) };
         setEditableValues(newValues);
         try {
-          const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-          const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-          const app = firebase.initializeApp(firebaseConfig);
-          const db = firebase.getFirestore(app);
-          const userValuesDocRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
+          const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
           await firebase.setDoc(userValuesDocRef, newValues);
         } catch (error) {
           console.error("Error updating values in Firestore:", error);
         }
       };
-
-
+      
       // Handle adding a new class and save to Firestore
       const handleAddClass = async (e) => {
         e.preventDefault();
         if (newEntry.studentName.trim() === '') return;
 
         try {
-          const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-          const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-          const app = firebase.initializeApp(firebaseConfig);
-          const db = firebase.getFirestore(app);
-          const userClassesRef = firebase.collection(db, `artifacts/${appId}/users/${userId}/clases_padel`);
-
+          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
           await firebase.addDoc(userClassesRef, newEntry);
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reset only student name
         } catch (error) {
@@ -314,14 +325,24 @@
       // Handle deleting a class and delete from Firestore
       const handleDeleteClass = async (id) => {
         try {
-          const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-          const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-          const app = firebase.initializeApp(firebaseConfig);
-          const db = firebase.getFirestore(app);
-          const userClassesDocRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
+          const userClassesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
           await firebase.deleteDoc(userClassesDocRef);
         } catch (error) {
           console.error("Error deleting class from Firestore:", error);
+        }
+      };
+      
+      // Handle config modal submit
+      const handleConfigSubmit = (e) => {
+        e.preventDefault();
+        try {
+          const config = JSON.parse(userFirebaseConfig);
+          localStorage.setItem('firebaseConfig', JSON.stringify(config));
+          setShowConfigModal(false);
+          firebaseConfigRef.current = config;
+          window.location.reload(); // Reload the page to initialize with the new config
+        } catch (error) {
+          alert('Configuración de Firebase no válida. Asegúrate de que sea un JSON válido.');
         }
       };
       
@@ -336,6 +357,33 @@
             <p className="text-center text-sm mb-6 text-gray-500 italic">
               {userIdDisplay}
             </p>
+            
+            {showConfigModal && (
+              <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+                  <h2 className="text-2xl font-bold mb-4 text-gray-900">
+                    Introduce tu Configuración de Firebase
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    Para que la aplicación funcione en la web, necesitas tu propia configuración de Firebase. Puedes encontrarla en la consola de Firebase.
+                  </p>
+                  <form onSubmit={handleConfigSubmit}>
+                    <textarea
+                      value={userFirebaseConfig}
+                      onChange={(e) => setUserFirebaseConfig(e.target.value)}
+                      className="w-full h-40 p-3 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                      placeholder='Pega tu objeto JSON aquí: { "apiKey": "...", "authDomain": "...", ... }'
+                    />
+                    <button
+                      type="submit"
+                      className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                    >
+                      Guardar y Conectar
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
             
             {loading ? (
               <div className="flex justify-center items-center h-48">
@@ -591,3 +639,21 @@
                             No hay clases registradas. ¡Añade una para empezar!
                           </td>
                         </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    // Render the App component
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(<App />);
+  </script>
+</body>
+</html>
