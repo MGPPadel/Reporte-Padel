@@ -4,21 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Informe de Clases de Padel</title>
-  <!-- CDN links for React, ReactDOM, Babel, Tailwind CSS and Font Awesome -->
+  <!-- Enlaces CDN para React, ReactDOM, Babel, Tailwind CSS y Font Awesome -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-  <!-- jsPDF library for PDF generation -->
+  <!-- Librería jsPDF para la generación de PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
 
-  <!-- Firebase SDKs -->
+  <!-- SDK de Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc, getDocs, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    // Exponemos las funciones de Firebase al ámbito global para que React pueda usarlas
     window.firebase = {
       initializeApp,
       getAuth,
@@ -45,7 +46,7 @@
   <script type="text/babel">
     const { useState, useEffect, useRef, useCallback } = React;
 
-    // Default values for class earnings based on student count
+    // Valores predeterminados para las ganancias de las clases según la cantidad de alumnos
     const defaultValueMap = {
       1: 12000,
       2: 19000,
@@ -53,7 +54,7 @@
       4: 26000,
     };
 
-    // Background colors for the table rows
+    // Colores de fondo para las filas de la tabla
     const colorMap = {
       1: 'bg-orange-100',
       2: 'bg-green-100',
@@ -61,7 +62,7 @@
       4: 'bg-red-100',
     };
 
-    // Helper function to create a debounced function
+    // Función auxiliar para crear una función "debounced"
     const debounce = (func, delay) => {
       let timeout;
       return (...args) => {
@@ -71,17 +72,17 @@
     };
 
     const App = () => {
-      // State to manage the list of classes, new class input, and reports
+      // Estado para gestionar la lista de clases, la entrada de nueva clase y los informes
       const [classes, setClasses] = useState([]);
       const [newEntry, setNewEntry] = useState({
         studentName: '',
         day: 'Lunes',
         time: '8:00 a. m.',
-        date: new Date().toISOString().slice(0, 10), // Default to today's date
+        date: new Date().toISOString().slice(0, 10), // Fecha por defecto: hoy
       });
       const [weeklyReports, setWeeklyReports] = useState([]);
       const [monthlyReports, setMonthlyReports] = useState([]);
-      const [isLoading, setIsLoading] = useState(true);
+      const [isLoading, setIsLoading] = useState(true); // Estado de carga único y principal
       const [userId, setUserId] = useState(null);
       const [isAdding, setIsAdding] = useState(false);
       const [isProcessingReports, setIsProcessingReports] = useState(false);
@@ -93,21 +94,21 @@
       const authRef = useRef(null);
       const appIdRef = useRef(null);
 
-      // Refs to access the report sections for PDF generation
+      // Referencias para acceder a las secciones de informes para la generación de PDF
       const weeklyReportRef = useRef(null);
       const monthlyReportRef = useRef(null);
 
-      // Options for form dropdowns
+      // Opciones para los menús desplegables del formulario
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
       const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
       const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-      // Helper function to format currency
+      // Función auxiliar para formatear la moneda
       const formatCurrency = (value) => {
         return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
       };
 
-      // Function to generate the PDF report
+      // Función para generar el informe PDF
       const generatePdfReport = async (reportType) => {
         setPdfLoading(true);
         const element = reportType === 'weekly' ? weeklyReportRef.current : monthlyReportRef.current;
@@ -127,7 +128,7 @@
         setPdfLoading(false);
       };
 
-      // This is the core function for calculating reports, now wrapped with useCallback
+      // Función principal para calcular los informes, envuelta en useCallback
       const calculateReports = useCallback((allClasses, currentValues) => {
         setIsProcessingReports(true);
         setTimeout(() => {
@@ -158,13 +159,13 @@
               const weekKey = `${year}-Semana ${weekNumber}`;
               const monthKey = `${monthName} ${year}`;
 
-              // Update weekly report
+              // Actualizar informe semanal
               weeklyReportMap.set(weekKey, {
                   totalClasses: (weeklyReportMap.get(weekKey)?.totalClasses || 0) + 1,
                   totalEarnings: (weeklyReportMap.get(weekKey)?.totalEarnings || 0) + totalValue,
               });
 
-              // Update monthly report
+              // Actualizar informe mensual
               const monthlyReport = monthlyReportMap.get(monthKey) || {
                 totalClasses: 0,
                 totalEarnings: 0,
@@ -196,11 +197,11 @@
         }, 0);
       }, [monthNames, editableValues]);
 
-      // Debounced version of calculateReports
+      // Versión debounced de calculateReports
       const debouncedCalculateReports = useCallback(debounce(calculateReports, 300), [calculateReports]);
 
-      // This effect handles Firebase initialization and auth state changes.
-      // It runs only once on component mount.
+      // Este efecto maneja la inicialización de Firebase y los cambios de estado de autenticación.
+      // Se ejecuta solo una vez al montar el componente.
       useEffect(() => {
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -222,8 +223,10 @@
         const unsubscribe = firebase.onAuthStateChanged(auth, async (user) => {
           if (user) {
             setUserId(user.uid);
+            // Una vez que el usuario está autenticado, configuramos los listeners de Firestore.
             setupFirestoreListeners(user.uid);
           } else {
+            // Si no hay usuario, intentamos iniciar sesión.
             try {
               if (initialAuthToken) {
                 await firebase.signInWithCustomToken(auth, initialAuthToken);
@@ -238,7 +241,7 @@
           }
         });
 
-        // Cleanup function for the listener
+        // Función de limpieza para el listener
         return () => unsubscribe();
       }, []);
 
@@ -246,93 +249,77 @@
         const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${uid}/valores_clase/precios`);
         const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${uid}/clases_padel`);
 
-        let hasLoadedValues = false;
-        let hasLoadedClasses = false;
+        // Promesas para esperar que ambos listeners se carguen por primera vez
+        const valuesPromise = new Promise((resolve, reject) => {
+          const unsubscribe = firebase.onSnapshot(userValuesDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+              setEditableValues(docSnap.data());
+            } else {
+              setEditableValues(defaultValueMap);
+              firebase.setDoc(userValuesDocRef, defaultValueMap);
+            }
+            unsubscribe(); // Detenemos el listener después de la primera carga exitosa
+            resolve();
+          }, (error) => {
+            console.error("Error fetching editable values:", error);
+            reject("Error al cargar los valores de clase.");
+          });
+        });
 
-        const checkInitialLoad = () => {
-          if (hasLoadedValues && hasLoadedClasses) {
+        const classesPromise = new Promise((resolve, reject) => {
+          const unsubscribe = firebase.onSnapshot(userClassesRef, (snapshot) => {
+            const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            const classesByTimeSlot = fetchedClasses.reduce((acc, curr) => {
+              const key = `${curr.date}-${curr.day}-${curr.time}`;
+              if (!acc[key]) {
+                acc[key] = [];
+              }
+              acc[key].push(curr);
+              return acc;
+            }, {});
+
+            const updatedClassesWithValues = fetchedClasses.map(cls => {
+              const key = `${cls.date}-${cls.day}-${cls.time}`;
+              const studentCount = classesByTimeSlot[key]?.length || 0;
+              return {
+                ...cls,
+                studentCount,
+                value: editableValues[studentCount] || 0,
+                color: colorMap[studentCount] || '',
+              };
+            });
+            
+            updatedClassesWithValues.sort((a, b) => {
+              const dateA = new Date(a.date);
+              const dateB = new Date(b.date);
+              if (dateA.getTime() !== dateB.getTime()) return dateA.getTime() - dateB.getTime();
+              const dayIndexA = dayOptions.indexOf(a.day);
+              const dayIndexB = dayOptions.indexOf(b.day);
+              if (dayIndexA !== dayIndexB) return dayIndexA - dayIndexB;
+              const timeIndexA = timeOptions.indexOf(a.time);
+              const timeIndexB = timeOptions.indexOf(b.time);
+              return timeIndexA - timeIndexB;
+            });
+            
+            setClasses(updatedClassesWithValues);
+            debouncedCalculateReports(updatedClassesWithValues, editableValues);
+            
+            unsubscribe(); // Detenemos el listener después de la primera carga exitosa
+            resolve();
+          }, (error) => {
+            console.error("Error fetching classes:", error);
+            reject("Error al cargar las clases.");
+          });
+        });
+
+        // Esperamos a que ambos listeners iniciales se resuelvan antes de ocultar la pantalla de carga
+        Promise.all([valuesPromise, classesPromise])
+          .then(() => setIsLoading(false))
+          .catch((err) => {
+            setError(err);
             setIsLoading(false);
-          }
-        };
-
-        // Listener for the editable values
-        firebase.onSnapshot(userValuesDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            const newValues = {
-              1: data['1'] || defaultValueMap[1],
-              2: data['2'] || defaultValueMap[2],
-              3: data['3'] || defaultValueMap[3],
-              4: data['4'] || defaultValueMap[4],
-            };
-            setEditableValues(newValues);
-          } else {
-            setEditableValues(defaultValueMap);
-            firebase.setDoc(userValuesDocRef, defaultValueMap);
-          }
-          hasLoadedValues = true;
-          checkInitialLoad();
-        }, (error) => {
-          console.error("Error fetching editable values:", error);
-          setError("Error al cargar los valores de clase.");
-          hasLoadedValues = true;
-          checkInitialLoad();
-        });
-
-        // Listener for the classes
-        firebase.onSnapshot(userClassesRef, (snapshot) => {
-          const fetchedClasses = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-
-          const classesByTimeSlot = fetchedClasses.reduce((acc, curr) => {
-            const key = `${curr.date}-${curr.day}-${curr.time}`;
-            if (!acc[key]) {
-              acc[key] = [];
-            }
-            acc[key].push(curr);
-            return acc;
-          }, {});
-
-          const updatedClassesWithValues = fetchedClasses.map(cls => {
-            const key = `${cls.date}-${cls.day}-${cls.time}`;
-            const studentCount = classesByTimeSlot[key]?.length || 0;
-            return {
-              ...cls,
-              studentCount,
-              value: editableValues[studentCount] || 0,
-              color: colorMap[studentCount] || '',
-            };
           });
-
-          // Sort classes for display
-          updatedClassesWithValues.sort((a, b) => {
-            const dateA = new Date(a.date);
-            const dateB = new Date(b.date);
-            if (dateA.getTime() !== dateB.getTime()) {
-              return dateA.getTime() - dateB.getTime();
-            }
-            const dayIndexA = dayOptions.indexOf(a.day);
-            const dayIndexB = dayOptions.indexOf(b.day);
-            if (dayIndexA !== dayIndexB) {
-              return dayIndexA - dayIndexB;
-            }
-            const timeIndexA = timeOptions.indexOf(a.time);
-            const timeIndexB = timeOptions.indexOf(b.time);
-            return timeIndexA - timeIndexB;
-          });
-
-          setClasses(updatedClassesWithValues);
-          debouncedCalculateReports(updatedClassesWithValues, editableValues);
-          hasLoadedClasses = true;
-          checkInitialLoad();
-        }, (error) => {
-          console.error("Error fetching classes:", error);
-          setError("Error al cargar las clases.");
-          hasLoadedClasses = true;
-          checkInitialLoad();
-        });
       };
 
       const handleInputChange = (e) => {
@@ -340,7 +327,7 @@
         setNewEntry(prev => ({ ...prev, [name]: value }));
       };
 
-      // Handler for editable value change
+      // Manejador para el cambio de valores editables
       const handleValueChange = async (e) => {
         const { name, value } = e.target;
         const newValues = { ...editableValues, [name]: Number(value) };
@@ -349,27 +336,28 @@
           const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/valores_clase/precios`);
           await firebase.setDoc(userValuesDocRef, newValues);
         } catch (error) {
-          console.error("Error updating values in Firestore:", error);
+          console.error("Error actualizando valores en Firestore:", error);
         }
       };
 
-      // Handle adding a new class
+      // Manejador para añadir una nueva clase
       const handleAddClass = async (e) => {
         e.preventDefault();
+        // El botón solo estará habilitado si userId es válido, por lo que esta comprobación es un seguro.
         if (newEntry.studentName.trim() === '' || !userId) return;
 
         setIsAdding(true);
         try {
           const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`);
           await firebase.addDoc(userClassesRef, newEntry);
-          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reset only student name
+          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reseteamos solo el nombre del alumno
         } catch (error) {
           console.error("Error adding class to Firestore:", error);
         }
         setIsAdding(false);
       };
 
-      // Handle deleting a class
+      // Manejador para eliminar una clase
       const handleDeleteClass = async (id) => {
         if (!userId) return;
         try {
@@ -382,7 +370,7 @@
 
       const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Conectando a la nube...";
 
-      // Conditional rendering based on the loading state
+      // Renderizado condicional basado en el estado de carga
       const renderContent = () => {
         if (error) {
           return (
@@ -405,6 +393,7 @@
           );
         }
 
+        // Si no está cargando ni hay error, renderizamos la interfaz completa
         return (
           <>
             {isProcessingReports && (
@@ -415,7 +404,7 @@
                 </div>
               </div>
             )}
-            {/* Editable Values Section */}
+            {/* Sección de valores editables */}
             <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                 <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
@@ -443,9 +432,9 @@
               </div>
             </div>
 
-            {/* Reports Section */}
+            {/* Sección de informes */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {/* Weekly Reports */}
+              {/* Informes semanales */}
               <div className="p-6 bg-gray-50 rounded-lg shadow-inner" ref={weeklyReportRef}>
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
@@ -480,7 +469,7 @@
                 )}
               </div>
 
-              {/* Monthly Reports */}
+              {/* Informes mensuales */}
               <div className="p-6 bg-gray-50 rounded-lg shadow-inner" ref={monthlyReportRef}>
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
@@ -527,7 +516,7 @@
               </div>
             </div>
 
-            {/* Form to add new classes */}
+            {/* Formulario para añadir nuevas clases */}
             <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                 <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
@@ -596,7 +585,7 @@
                   <button
                     type="submit"
                     className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
-                    disabled={!userId || isAdding}
+                    disabled={isAdding} // Solo se deshabilita mientras se está enviando el formulario
                   >
                     {isAdding ? "Añadiendo..." : "Añadir"}
                   </button>
@@ -604,7 +593,7 @@
               </div>
             </form>
 
-            {/* Table to display classes */}
+            {/* Tabla para mostrar las clases */}
             <div className="overflow-x-auto rounded-lg shadow-md">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-100">
