@@ -74,15 +74,10 @@
       const [loading, setLoading] = useState(true);
       const [userId, setUserId] = useState(null);
       const [appId, setAppId] = useState(null);
-      const [showConfigModal, setShowConfigModal] = useState(false);
-      const [userFirebaseConfig, setUserFirebaseConfig] = useState('');
-      const [configError, setConfigError] = useState('');
       
       // New state to manage the editable values
       const [editableValues, setEditableValues] = useState(defaultValueMap);
-      const [showSuccessMessage, setShowSuccessMessage] = useState(false);
       
-      const firebaseConfigRef = useRef(null);
       const dbRef = useRef(null);
       const authRef = useRef(null);
       const userRef = useRef(null);
@@ -98,43 +93,36 @@
 
       // Initialize Firebase and setup listeners
       useEffect(() => {
-        const loadConfig = () => {
-            const storedConfig = localStorage.getItem('firebaseConfig');
-            if (storedConfig) {
-                try {
-                    firebaseConfigRef.current = JSON.parse(storedConfig);
-                    setUserFirebaseConfig(storedConfig);
-                    return true;
-                } catch (e) {
-                    console.error("Error parsing stored Firebase config", e);
-                    localStorage.removeItem('firebaseConfig');
-                    return false;
-                }
-            }
-            return false;
-        };
-
         const initFirebase = async () => {
           setLoading(true);
           try {
-            const appId = 'default-padel-app'; // Using a fixed app id for consistency
-            setAppId(appId);
+            // Check for the global variables provided by the Canvas environment
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-            if (!firebaseConfigRef.current) {
-                setShowConfigModal(true);
-                setLoading(false);
-                return;
+            if (!firebaseConfig) {
+              console.error("Firebase config is not available.");
+              setLoading(false);
+              return;
             }
 
-            const app = firebase.initializeApp(firebaseConfigRef.current);
+            // Initialize Firebase App and services
+            const app = firebase.initializeApp(firebaseConfig);
             const auth = firebase.getAuth(app);
             const db = firebase.getFirestore(app);
 
             dbRef.current = db;
             authRef.current = auth;
+            setAppId(appId);
 
-            // Use anonymous sign-in for simplicity
-            await firebase.signInAnonymously(auth);
+            // Use the provided custom auth token for a persistent session
+            // Fallback to anonymous sign-in if the token is not available
+            if (initialAuthToken) {
+              await firebase.signInWithCustomToken(auth, initialAuthToken);
+            } else {
+              await firebase.signInAnonymously(auth);
+            }
             const currentUserId = auth.currentUser?.uid;
             setUserId(currentUserId);
             userRef.current = currentUserId;
@@ -174,22 +162,11 @@
 
           } catch (error) {
             console.error("Error initializing Firebase:", error);
-            // Show the config modal if initialization fails (e.g., wrong credentials)
-            setShowConfigModal(true);
-            setConfigError('Error al conectar a Firebase. Revisa tu configuración e inténtalo de nuevo.');
             setLoading(false);
           }
         };
         
-        // Initial check and setup
-        const configFound = loadConfig();
-        if (configFound) {
-            initFirebase();
-        } else {
-            setLoading(false);
-            setShowConfigModal(true);
-        }
-
+        initFirebase();
       }, []);
 
       // Function to calculate and update all values, colors, and reports
@@ -335,24 +312,7 @@
         }
       };
       
-      // Handle config modal submit
-      const handleConfigSubmit = (e) => {
-        e.preventDefault();
-        try {
-          const config = JSON.parse(userFirebaseConfig);
-          localStorage.setItem('firebaseConfig', JSON.stringify(config));
-          console.log('Configuración de Firebase guardada en el almacenamiento local.'); // Log a success message
-          setShowConfigModal(false);
-          setShowSuccessMessage(true);
-          setTimeout(() => setShowSuccessMessage(false), 3000); // Hide message after 3 seconds
-          firebaseConfigRef.current = config;
-          window.location.reload(); // Reload the page to initialize with the new config
-        } catch (error) {
-          setConfigError('Configuración de Firebase no válida. Asegúrate de que sea un JSON válido.');
-        }
-      };
-      
-      const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
+      const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Conectando a la nube...";
 
       return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
@@ -364,46 +324,6 @@
               {userIdDisplay}
             </p>
             
-            {showConfigModal && (
-              <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-                  <h2 className="text-2xl font-bold mb-4 text-gray-900">
-                    Introduce tu Configuración de Firebase
-                  </h2>
-                  <p className="text-gray-600 mb-6">
-                    Para que la aplicación funcione en la web, necesitas tu propia configuración de Firebase. Puedes encontrarla en la consola de Firebase.
-                  </p>
-                  <form onSubmit={handleConfigSubmit}>
-                    <textarea
-                      value={userFirebaseConfig}
-                      onChange={(e) => {
-                        setUserFirebaseConfig(e.target.value);
-                        setConfigError(''); // Clear error on new input
-                      }}
-                      className="w-full h-40 p-3 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                      placeholder='Pega tu objeto JSON aquí: { "apiKey": "...", "authDomain": "...", ... }'
-                    />
-                    {configError && (
-                      <div className="text-red-500 text-sm mb-4">
-                        {configError}
-                      </div>
-                    )}
-                    <button
-                      type="submit"
-                      className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                    >
-                      Guardar y Conectar
-                    </button>
-                  </form>
-                </div>
-              </div>
-            )}
-            
-            {showSuccessMessage && (
-                <div className="fixed bottom-4 right-4 p-4 bg-green-500 text-white rounded-lg shadow-lg z-50 transition-transform transform translate-y-0">
-                    <p>¡Configuración guardada exitosamente! Recargando...</p>
-                </div>
-            )}
 
             {loading ? (
               <div className="flex justify-center items-center h-48">
@@ -677,4 +597,5 @@
   </script>
 </body>
 </html>
+
 
