@@ -73,7 +73,8 @@
       const [monthlyReports, setMonthlyReports] = useState([]);
       const [loading, setLoading] = useState(true);
       const [userId, setUserId] = useState(null);
-      const [isAdding, setIsAdding] = useState(false); // New state to show adding progress
+      const [isAdding, setIsAdding] = useState(false);
+      const [isProcessingReports, setIsProcessingReports] = useState(false); // New state for processing
       const [editableValues, setEditableValues] = useState(defaultValueMap);
       const [pdfLoading, setPdfLoading] = useState(false); // State for PDF generation loading
 
@@ -135,8 +136,6 @@
         authRef.current = auth;
         dbRef.current = db;
 
-        // The onAuthStateChanged listener is the most reliable way to handle auth state.
-        // It's a key part of ensuring the connection is stable before proceeding.
         const unsubscribe = firebase.onAuthStateChanged(auth, async (user) => {
           if (user) {
             console.log("Usuario autenticado:", user.uid);
@@ -153,7 +152,6 @@
               }
             } catch (error) {
               console.error("Error durante la autenticación inicial:", error);
-              // Si la autenticación falla, dejamos de cargar para no bloquear la interfaz.
               setLoading(false);
             }
           }
@@ -194,30 +192,37 @@
             id: doc.id,
             ...doc.data()
           }));
-
-          // We've received the data, so we can now start processing it
-          setLoading(true);
-          updateClassesAndReports(fetchedClasses, editableValues, () => {
-            // Once the processing is done, we can set loading to false
-            setLoading(false);
-          });
+          setClasses(fetchedClasses);
+          // We can set loading to false here because the data is now in state
+          setLoading(false);
         }, (error) => {
           console.error("Error fetching classes:", error);
           setLoading(false);
         });
       };
 
-      // This effect ensures that if editableValues changes, the reports are updated
+      // This effect is now the heart of the optimization. It recalculates reports only when
+      // classes or editableValues change, and shows a processing indicator while it's working.
       useEffect(() => {
-        if (authReadyRef.current && !loading) {
-          updateClassesAndReports(classes, editableValues, () => {});
+        if (authReadyRef.current && classes.length > 0) {
+          setIsProcessingReports(true);
+          // Use a timeout to not block the main thread and let the spinner render
+          setTimeout(() => {
+            const updatedClasses = calculateClassData(classes, editableValues);
+            setClasses(updatedClasses);
+            calculateReports(updatedClasses);
+            setIsProcessingReports(false);
+          }, 0); // Execute immediately in a separate task
+        } else if (authReadyRef.current && classes.length === 0) {
+           // If there are no classes, just update the reports to be empty and stop processing
+            setWeeklyReports([]);
+            setMonthlyReports([]);
+            setIsProcessingReports(false);
         }
-      }, [editableValues]);
+      }, [classes, editableValues, authReadyRef.current]);
 
-      // Function to calculate and update all values, colors, and reports
-      // The callback function is now used to signal when processing is complete
-      const updateClassesAndReports = (currentClasses, currentValues, onComplete) => {
-        // Group classes by day and time to count students
+      // A new helper function to calculate student counts and values for each class
+      const calculateClassData = (currentClasses, currentValues) => {
         const classesByDayTime = currentClasses.reduce((acc, curr) => {
           const key = `${curr.date}-${curr.day}-${curr.time}`;
           if (!acc[key]) {
@@ -227,8 +232,7 @@
           return acc;
         }, {});
 
-        // Map through the classes to update their values and colors using the currentValues
-        const updatedClasses = currentClasses.map(cls => {
+        return currentClasses.map(cls => {
           const key = `${cls.date}-${cls.day}-${cls.time}`;
           const studentCount = classesByDayTime[key].length;
           return {
@@ -238,27 +242,6 @@
             color: colorMap[studentCount] || '',
           };
         });
-
-        // Sort the classes by date, then day, then time for better readability
-        updatedClasses.sort((a, b) => {
-          const dateA = new Date(a.date);
-          const dateB = new Date(b.date);
-          if (dateA.getTime() !== dateB.getTime()) {
-            return dateA.getTime() - dateB.getTime();
-          }
-          const dayIndexA = dayOptions.indexOf(a.day);
-          const dayIndexB = dayOptions.indexOf(b.day);
-          if (dayIndexA !== dayIndexB) {
-            return dayIndexA - dayIndexB;
-          }
-          const timeIndexA = timeOptions.indexOf(a.time);
-          const timeIndexB = timeOptions.indexOf(b.time);
-          return timeIndexA - timeIndexB;
-        });
-
-        setClasses(updatedClasses);
-        calculateReports(updatedClasses);
-        onComplete();
       };
 
       // Function to calculate the weekly and monthly reports
@@ -312,9 +295,20 @@
         const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
         const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
 
+        // Sort the reports for better readability
+        weeklyReportsArray.sort((a,b) => a.week.localeCompare(b.week));
+        monthlyReportsArray.sort((a,b) => {
+            const [monthA, yearA] = a.month.split(' ');
+            const [monthB, yearB] = b.month.split(' ');
+            const dateA = new Date(yearA, monthNames.indexOf(monthA));
+            const dateB = new Date(yearB, monthNames.indexOf(monthB));
+            return dateA - dateB;
+        });
+
         setWeeklyReports(weeklyReportsArray);
         setMonthlyReports(monthlyReportsArray);
       };
+
 
       // Handle input changes in the form
       const handleInputChange = (e) => {
@@ -377,10 +371,18 @@
             {loading ? (
               <div className="flex justify-center items-center h-48">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                <p className="ml-4 text-gray-600">Cargando y procesando datos...</p>
+                <p className="ml-4 text-gray-600">Conectando a la nube y cargando datos...</p>
               </div>
             ) : (
               <>
+                {isProcessingReports && (
+                  <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
+                    <div className="bg-white rounded-lg p-8 shadow-xl text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+                      <p className="text-gray-700 font-semibold">Calculando informes...</p>
+                    </div>
+                  </div>
+                )}
                 {/* Editable Values Section */}
                 <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
                   <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
