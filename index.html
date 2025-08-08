@@ -15,7 +15,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   
   <!-- Firebase Imports -->
-  <!-- We'll import the Firebase libraries here to use them in the React component. -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -93,6 +92,7 @@
       const [authReady, setAuthReady] = useState(false);
       const [userId, setUserId] = useState(null);
       const [pdfLoading, setPdfLoading] = useState(false); // New state for PDF loading
+      const [firebaseConfig, setFirebaseConfig] = useState(null);
 
       // Refs for Firebase instances and PDF generation
       const dbRef = useRef(null);
@@ -315,6 +315,13 @@
       useEffect(() => {
         let unsubscribe = () => {};
 
+        // Check for Firebase config before proceeding
+        if (Object.keys(window.__firebase_config).length === 0) {
+            console.error("Firebase configuration is missing.");
+            setLoading(false);
+            return;
+        }
+        
         // Async function for Firebase setup
         const setupFirebase = async () => {
           try {
@@ -331,13 +338,13 @@
             }
           } catch (error) {
             console.error("Error de autenticación:", error);
+            // In case of an authentication error, stop loading and display a message
+            setLoading(false);
+            setAuthReady(false);
+            return;
           }
-        };
-
-        setupFirebase();
-        
-        // Listen for authentication state changes after setup is complete
-        if (authRef.current) {
+          
+          // Listen for authentication state changes after successful setup
           const authUnsubscribe = onAuthStateChanged(authRef.current, async (user) => {
             if (user) {
               setUserId(user.uid);
@@ -375,7 +382,10 @@
             authUnsubscribe();
             unsubscribe();
           };
-        }
+        };
+
+        setupFirebase();
+        
       }, []); // Empty dependency array means this runs once on mount
 
       return (
@@ -384,6 +394,9 @@
             <h1 className="text-3xl font-bold mb-6 text-center text-gray-900">
               Informe de Clases de Padel (Cloud)
             </h1>
+            <p className="text-center text-sm text-gray-500 mb-4">
+              ID de usuario: <span className="font-mono bg-gray-200 px-2 py-1 rounded-md">{userId || "Cargando..."}</span>
+            </p>
 
             {!authReady ? (
               <div className="flex justify-center items-center h-48">
@@ -689,6 +702,8 @@
   </script>
 </body>
 </html>
+
+
 
 
 
