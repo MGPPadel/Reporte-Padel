@@ -15,7 +15,9 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    
+    // Exportar las funciones de Firebase al ámbito global de la ventana
     window.firebase = {
       initializeApp,
       getAuth,
@@ -28,9 +30,7 @@
       onSnapshot,
       collection,
       addDoc,
-      deleteDoc,
-      query,
-      where
+      deleteDoc
     };
   </script>
   <!-- Librería jsPDF para la generación de PDF -->
@@ -68,7 +68,7 @@
       });
       const [weeklyReports, setWeeklyReports] = useState([]);
       const [monthlyReports, setMonthlyReports] = useState([]);
-      const [dbStatus, setDbStatus] = useState('loading'); // Nuevo estado para el diagnóstico
+      const [dbStatus, setDbStatus] = useState('loading'); // 'loading', 'connected', 'error'
       const [isAdding, setIsAdding] = useState(false);
       const [isReportsUpdating, setIsReportsUpdating] = useState(false);
       const [editableValues, setEditableValues] = useState(defaultValueMap);
@@ -178,19 +178,19 @@
 
       // Efecto para la inicialización y autenticación de Firebase
       useEffect(() => {
-        console.log("Iniciando la configuración de Firebase...");
+        console.log("Paso 1: Iniciando la configuración de Firebase...");
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        // Comprobación de que las variables de entorno están disponibles
-        if (!firebaseConfig || !window.firebase || !currentAppId) {
-          console.error("Error: La configuración de Firebase o el ID de la app no están disponibles.");
+        if (!firebaseConfig || !window.firebase) {
+          console.error("Paso 1.1: ERROR. La configuración de Firebase o las dependencias no están disponibles.");
           setDbStatus('error');
           return;
         }
 
         try {
+          console.log("Paso 2: Intentando inicializar Firebase app...");
           const app = window.firebase.initializeApp(firebaseConfig);
           const authInstance = window.firebase.getAuth(app);
           const dbInstance = window.firebase.getFirestore(app);
@@ -198,21 +198,24 @@
           setDb(dbInstance);
           setAuth(authInstance);
 
+          console.log("Paso 3: Configurando listener de autenticación...");
           const unsubscribeAuth = window.firebase.onAuthStateChanged(authInstance, async (user) => {
             if (user) {
+              console.log("Paso 4: Usuario autenticado con éxito:", user.uid);
               setUserId(user.uid);
-              console.log("Usuario autenticado con éxito:", user.uid);
               setDbStatus('connected');
             } else {
-              console.log("Intentando autenticación anónima...");
+              console.log("Paso 4.1: Usuario no autenticado, intentando iniciar sesión anónimamente...");
               try {
                 if (initialAuthToken) {
                   await window.firebase.signInWithCustomToken(authInstance, initialAuthToken);
+                  console.log("Paso 4.2: Sesión iniciada con token personalizado.");
                 } else {
                   await window.firebase.signInAnonymously(authInstance);
+                  console.log("Paso 4.2: Sesión iniciada de forma anónima.");
                 }
               } catch (authError) {
-                console.error("Error durante la autenticación inicial:", authError);
+                console.error("Paso 4.3: ERROR durante la autenticación inicial:", authError);
                 setDbStatus('error');
               }
             }
@@ -220,7 +223,7 @@
 
           return () => unsubscribeAuth();
         } catch (initError) {
-          console.error("Error al inicializar Firebase:", initError);
+          console.error("Paso 2.1: ERROR al inicializar la aplicación de Firebase:", initError);
           setDbStatus('error');
         }
       }, []);
@@ -229,24 +232,26 @@
       useEffect(() => {
         if (dbStatus !== 'connected' || !db || !userId || !appId) {
           if (dbStatus === 'error') {
-            console.error("No se pueden configurar los listeners de Firestore. Estado de la DB:", dbStatus);
+            console.error("Paso 5: No se pueden configurar los listeners de Firestore. Estado de la DB:", dbStatus);
           }
           return;
         }
         
-        console.log("Configurando listeners de Firestore para el usuario:", userId);
+        console.log("Paso 5.1: Configurando listeners de Firestore para el usuario:", userId);
         const userValuesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
         const userClassesRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/clases_padel`);
         
         const unsubscribeValues = window.firebase.onSnapshot(userValuesDocRef, (docSnap) => {
           if (docSnap.exists()) {
+            console.log("Paso 6: Valores de clase recibidos con éxito.");
             setEditableValues(docSnap.data());
           } else {
+            console.log("Paso 6.1: Valores de clase no encontrados, estableciendo valores predeterminados.");
             setEditableValues(defaultValueMap);
             window.firebase.setDoc(userValuesDocRef, defaultValueMap);
           }
         }, (error) => {
-          console.error("Error fetching editable values:", error);
+          console.error("Paso 6.2: ERROR al recibir los valores editables:", error);
           setDbStatus('error');
         });
 
@@ -257,6 +262,7 @@
           setIsReportsUpdating(true);
           
           processingTimeoutRef.current = setTimeout(() => {
+            console.log("Paso 7: Clases recibidas, procesando datos...");
             const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             const classesByTimeSlot = fetchedClasses.reduce((acc, curr) => {
@@ -291,9 +297,10 @@
 
             setClasses(updatedClassesWithValues);
             calculateReports(updatedClassesWithValues, editableValues);
+            console.log("Paso 7.1: Clases procesadas y estados actualizados.");
           }, 300);
         }, (error) => {
-          console.error("Error fetching classes:", error);
+          console.error("Paso 7.2: ERROR al recibir las clases:", error);
           setDbStatus('error');
         });
 
@@ -316,15 +323,16 @@
         const newValues = { ...editableValues, [name]: Number(value) };
         setEditableValues(newValues);
         if (dbStatus !== 'connected' || !db || !userId) {
-          console.warn("No se pudo actualizar el valor. La base de datos no está conectada.");
+          console.warn("ADVERTENCIA: No se pudo actualizar el valor. La base de datos no está conectada.");
           setSubmissionError("No se pudo actualizar. Revisa tu conexión.");
           return;
         }
         try {
           const userValuesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
           await window.firebase.setDoc(userValuesDocRef, newValues);
+          console.log("Paso 8: Valores actualizados con éxito en Firestore.");
         } catch (error) {
-          console.error("Error actualizando valores en Firestore:", error);
+          console.error("Paso 8.1: ERROR al actualizar valores en Firestore:", error);
           setSubmissionError("Error al actualizar los precios. Revisa tu conexión.");
         }
       };
@@ -339,18 +347,20 @@
         }
         
         if (dbStatus !== 'connected' || !userId || !db) {
-          console.error("No se pudo añadir la clase. dbStatus:", dbStatus, "userId:", userId, "db:", db);
+          console.error("Paso 9: ERROR. No se pudo añadir la clase. dbStatus:", dbStatus, "userId:", userId, "db:", db);
           setSubmissionError("Error: La base de datos no está conectada o la conexión está inestable. Por favor, refresca la página.");
           return;
         }
         
         setIsAdding(true);
         try {
+          console.log("Paso 10: Intentando añadir una nueva clase...");
           const userClassesRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/clases_padel`);
           await window.firebase.addDoc(userClassesRef, newEntry);
+          console.log("Paso 10.1: Clase añadida con éxito a Firestore.");
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
         } catch (error) {
-          console.error("Error adding class to Firestore:", error);
+          console.error("Paso 10.2: ERROR al añadir la clase a Firestore:", error);
           setSubmissionError("Error al añadir la clase: " + error.message);
         } finally {
           setIsAdding(false);
@@ -359,14 +369,16 @@
 
       const handleDeleteClass = async (id) => {
         if (dbStatus !== 'connected' || !userId || !db) {
-          console.warn("No se pudo eliminar la clase. La base de datos no está conectada.");
+          console.warn("ADVERTENCIA: No se pudo eliminar la clase. La base de datos no está conectada.");
           return;
         }
         try {
+          console.log("Paso 11: Intentando eliminar la clase con ID:", id);
           const userClassesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
           await window.firebase.deleteDoc(userClassesDocRef);
+          console.log("Paso 11.1: Clase eliminada con éxito de Firestore.");
         } catch (error) {
-          console.error("Error deleting class from Firestore:", error);
+          console.error("Paso 11.2: ERROR al eliminar la clase de Firestore:", error);
         }
       };
 
@@ -379,7 +391,7 @@
           return { message: "Conectado a la base de datos.", color: "bg-green-100 border-green-400 text-green-700" };
         }
         if (dbStatus === 'error') {
-          return { message: "Error: No se pudo conectar a la base de datos. Por favor, refresca la página.", color: "bg-red-100 border-red-400 text-red-700" };
+          return { message: "Error: No se pudo conectar a la base de datos.", color: "bg-red-100 border-red-400 text-red-700" };
         }
         return { message: "", color: "" };
       };
@@ -391,7 +403,7 @@
             <div className="flex justify-center items-center h-48 text-center p-4">
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
                 <p className="font-bold">¡Lo sentimos! Hubo un error al conectar.</p>
-                <p className="text-sm mt-2">No se pudo inicializar la aplicación. Por favor, refresca la página.</p>
+                <p className="text-sm mt-2">No se pudo inicializar la aplicación. Por favor, refresca la página y revisa la consola para ver los detalles del error.</p>
               </div>
             </div>
           );
@@ -713,6 +725,8 @@
   </script>
 </body>
 </html>
+
+
 
 
 
