@@ -52,10 +52,12 @@
       const [loading, setLoading] = useState(true);
       const [editableValues, setEditableValues] = useState(defaultValueMap);
       const [pdfLoading, setPdfLoading] = useState(false); // New state for PDF loading
+      const [message, setMessage] = useState({ text: '', type: '' }); // New state for messages
 
-      // Refs for PDF generation
+      // Refs for PDF generation and file input
       const weeklyReportRef = useRef(null);
       const monthlyReportRef = useRef(null);
+      const fileInputRef = useRef(null);
 
       // Options for form dropdowns
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
@@ -137,9 +139,8 @@
 
       // Function to calculate the weekly and monthly reports
       const calculateReports = (updatedClasses) => {
-        const weeklyReportMap = new Map();
+        const weeklyReportMapByMonth = new Map();
         const monthlyReportMap = new Map();
-
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
         const processedClassKeys = new Set();
@@ -153,19 +154,22 @@
             const month = date.getMonth();
             const monthName = monthNames[month];
 
-            // Calculate week number (simple approximation)
-            const firstDayOfYear = new Date(year, 0, 1);
-            const pastDays = (date - firstDayOfYear) / 86400000;
-            const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
+            // Calculate week number relative to the start of the month
+            // Simple calculation: day of month / 7, rounded up.
+            const weekNumber = Math.ceil(date.getDate() / 7);
 
-            const weekKey = `${year}-Semana ${weekNumber}`;
             const monthKey = `${monthName} ${year}`;
+            const weekKey = `Semana ${weekNumber}`;
 
-            // Update weekly report
-            if (!weeklyReportMap.has(weekKey)) {
-              weeklyReportMap.set(weekKey, { totalClasses: 0, totalEarnings: 0 });
+            // Update weekly report, grouped by month
+            if (!weeklyReportMapByMonth.has(monthKey)) {
+                weeklyReportMapByMonth.set(monthKey, { weeks: new Map() });
             }
-            const weeklyReport = weeklyReportMap.get(weekKey);
+            const monthReport = weeklyReportMapByMonth.get(monthKey);
+            if (!monthReport.weeks.has(weekKey)) {
+                monthReport.weeks.set(weekKey, { totalClasses: 0, totalEarnings: 0 });
+            }
+            const weeklyReport = monthReport.weeks.get(weekKey);
             weeklyReport.totalClasses++;
             weeklyReport.totalEarnings += cls.value;
 
@@ -183,12 +187,16 @@
         });
 
         // Convert maps to arrays for rendering
-        const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
+        const weeklyReportsArray = Array.from(weeklyReportMapByMonth.entries()).map(([month, reportData]) => ({
+            month,
+            weeks: Array.from(reportData.weeks.entries()).map(([week, value]) => ({ week, ...value }))
+        }));
         const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
 
         setWeeklyReports(weeklyReportsArray);
         setMonthlyReports(monthlyReportsArray);
       };
+
 
       // Function to generate and download PDF
       const generatePdf = async (reportType) => {
@@ -262,6 +270,57 @@
         updateClassesAndReports(newClasses, editableValues);
       };
 
+      // Show a temporary message
+      const showMessage = (text, type = 'success') => {
+        setMessage({ text, type });
+        setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+      };
+
+      // Function to export data to a JSON file
+      const handleExportData = () => {
+        const dataToExport = {
+          classes,
+          editableValues,
+        };
+        const jsonData = JSON.stringify(dataToExport, null, 2);
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'informe-padel-datos.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showMessage('Datos exportados correctamente.', 'success');
+      };
+
+      // Function to handle data import from a JSON file
+      const handleImportData = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const importedData = JSON.parse(event.target.result);
+            if (importedData.classes && importedData.editableValues) {
+              setEditableValues(importedData.editableValues);
+              updateClassesAndReports(importedData.classes, importedData.editableValues);
+              showMessage('Datos importados correctamente.', 'success');
+            } else {
+              showMessage('El archivo no tiene el formato correcto.', 'error');
+            }
+          } catch (error) {
+            console.error("Error importing data:", error);
+            showMessage('Hubo un error al leer el archivo. Asegúrate de que sea un archivo JSON válido.', 'error');
+          }
+        };
+        reader.readAsText(file);
+        // Clear the file input value to allow importing the same file again
+        e.target.value = null;
+      };
+
       // Effect to load data from local storage on mount
       useEffect(() => {
         const { classes, values } = loadFromLocalStorage();
@@ -280,6 +339,12 @@
               Nota: Los datos se guardan directamente en este dispositivo.
             </p>
 
+            {message.text && (
+              <div className={`p-3 rounded-lg text-white font-medium mb-4 text-center ${message.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+                {message.text}
+              </div>
+            )}
+            
             {loading ? (
               <div className="flex justify-center items-center h-48">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
@@ -287,6 +352,36 @@
               </div>
             ) : (
               <>
+                {/* Data Management Section (Export/Import) */}
+                <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
+                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                    <i className="fas fa-database text-lg"></i> Gestión de Datos
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                      onClick={handleExportData}
+                      className="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+                    >
+                      <i className="fas fa-download mr-2"></i> Exportar Datos
+                    </button>
+                    <div>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImportData}
+                        className="hidden"
+                        accept=".json"
+                      />
+                      <button
+                        onClick={() => fileInputRef.current.click()}
+                        className="w-full bg-indigo-500 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+                      >
+                        <i className="fas fa-upload mr-2"></i> Importar Datos
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Editable Values Section */}
                 <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
                   <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
@@ -317,7 +412,7 @@
 
                 {/* Reports Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  {/* Weekly Reports */}
+                  {/* Weekly Reports, grouped by month */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
@@ -335,20 +430,29 @@
                     {/* The content to be captured for the PDF */}
                     <div ref={weeklyReportRef}>
                       {weeklyReports.length > 0 ? (
-                        weeklyReports.map(report => (
-                          <div key={report.week} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">{report.week}</h3>
-                            <div className="grid grid-cols-2 gap-4 text-center">
-                              <div>
-                                <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
-                                <p className="text-xs font-medium text-gray-600">Total Clases</p>
-                              </div>
-                              <div>
-                                <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
-                                <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
-                              </div>
+                        weeklyReports.map(monthReport => (
+                            <div key={monthReport.month} className="mb-6 p-4 bg-white rounded-lg shadow-md">
+                                <h3 className="text-lg font-bold text-gray-900 mb-2">{monthReport.month}</h3>
+                                {monthReport.weeks.length > 0 ? (
+                                    monthReport.weeks.map(weekReport => (
+                                        <div key={weekReport.week} className="mb-2 p-3 border-b border-gray-100 last:border-b-0">
+                                            <h4 className="text-md font-semibold text-gray-800 mb-1">{weekReport.week}</h4>
+                                            <div className="grid grid-cols-2 gap-4 text-center">
+                                                <div>
+                                                    <p className="text-lg font-bold text-gray-900">{weekReport.totalClasses}</p>
+                                                    <p className="text-xs font-medium text-gray-600">Total Clases</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-md font-bold text-gray-900">{formatCurrency(weekReport.totalEarnings)}</p>
+                                                    <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                  <p className="text-sm text-gray-500 italic">No hay clases en este mes.</p>
+                                )}
                             </div>
-                          </div>
                         ))
                       ) : (
                         <p className="text-sm text-gray-500 italic">No hay informes semanales disponibles.</p>
@@ -515,7 +619,7 @@
                       {loading ? (
                         <tr>
                           <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500 italic">
-                            Cargando clases locales...
+                            Cargando datos locales...
                           </td>
                         </tr>
                       ) : classes.length > 0 ? (
@@ -584,6 +688,7 @@
   </script>
 </body>
 </html>
+
 
 
 
