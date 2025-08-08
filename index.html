@@ -354,6 +354,8 @@
       };
       
       
+// ===== FUNCIONES EXTRA =====
+
 // Exportar reportes semanales a PDF
 const exportWeeklyPDF = () => {
   const { jsPDF } = window.jspdf;
@@ -437,6 +439,7 @@ const importDatabase = (event) => {
   };
   reader.readAsText(file);
 };
+// ===== FIN FUNCIONES EXTRA =====
 
 const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
 
@@ -561,7 +564,7 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
                   
                   {/* Monthly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                       <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
                     </h2>
                     {monthlyReports.length > 0 ? (
@@ -599,7 +602,7 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
 
                 {/* Form to add new classes */}
                 <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
-                  <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                     <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -768,6 +771,7 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
   </script>
 </body>
 </html>
+
 
 
 
