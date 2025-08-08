@@ -1,15 +1,3 @@
-Es muy probable que el problema se deba a que el botón "Añadir" no está guardando los datos en el estado de React de manera correcta antes de intentar enviarlos a Firestore. He revisado el código que proporcionaste y he encontrado el error.
-
-El problema está en la función handleAddClass. Dentro de esta función, después de guardar la clase en Firestore, la línea setNewEntry({ ...newEntry, studentName: '' }); limpia el campo del nombre del alumno, pero mantiene el valor de la fecha, día y horario del estado newEntry. Esto es correcto. Sin embargo, en el formulario de la interfaz de usuario, la línea onChange={handleInputChange} solo actualiza el valor del campo que el usuario está editando. Si el usuario no vuelve a tocar la fecha o el horario, el estado newEntry mantendrá los valores del último registro.
-
-He detectado que el problema está específicamente en la línea que limpia el nombre del alumno después de agregar la clase. El resto del formulario parece estar bien, ya que el estado del formulario se reinicia y se mantiene el date correctamente.
-
-Para solucionar este problema, he ajustado la función handleAddClass para que no solo limpie el nombre del alumno, sino que también fuerce la actualización del estado de newEntry con los valores correctos después de cada adición.
-
-He optimizado el código para que sea más claro y funcione correctamente. Aquí tienes la versión corregida del script de React:
-
-HTML
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -692,6 +680,7 @@ HTML
   </script>
 </body>
 </html>
+
 
 
 
