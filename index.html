@@ -10,21 +10,40 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <!-- jsPDF and html2canvas for PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
   <!-- Firebase Imports -->
+  <!-- We'll import the Firebase libraries here to use them in the React component. -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+    // Global variables for Firebase services
+    window.initializeApp = initializeApp;
+    window.getAuth = getAuth;
+    window.signInAnonymously = signInAnonymously;
+    window.signInWithCustomToken = signInWithCustomToken;
+    window.onAuthStateChanged = onAuthStateChanged;
+    window.getFirestore = getFirestore;
+    window.doc = doc;
+    window.getDoc = getDoc;
+    window.addDoc = addDoc;
+    window.setDoc = setDoc;
+    window.updateDoc = updateDoc;
+    window.deleteDoc = deleteDoc;
+    window.onSnapshot = onSnapshot;
+    window.collection = collection;
+    window.query = query;
+    window.where = where;
+    window.getDocs = getDocs;
+
     // These variables are provided by the environment for automatic setup
     window.__firebase_config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
     window.__initial_auth_token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
     window.__app_id = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-    // Global variables for Firebase services
-    window.app = initializeApp(window.__firebase_config);
-    window.auth = getAuth(window.app);
-    window.db = getFirestore(window.app);
 
     console.log("Firebase initialized.");
   </script>
@@ -35,7 +54,11 @@
 
   <!-- The React app script, wrapped in a Babel tag -->
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
+    const {
+        initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+        getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection
+    } = window;
 
     // Main App component
     const App = () => {
@@ -69,14 +92,29 @@
       const [editableValues, setEditableValues] = useState(defaultValueMap);
       const [authReady, setAuthReady] = useState(false);
       const [userId, setUserId] = useState(null);
+      const [pdfLoading, setPdfLoading] = useState(false); // New state for PDF loading
+
+      // Refs for Firebase instances and PDF generation
+      const dbRef = useRef(null);
+      const authRef = useRef(null);
+      const weeklyReportRef = useRef(null);
+      const monthlyReportRef = useRef(null);
 
       // Options for form dropdowns
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-      const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
+      // Hardcoded time options to ensure 12 a.m. is correct
+      const timeOptions = ['8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 a. m.'];
 
       // Helper function to format currency
       const formatCurrency = (value) => {
         return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
+      };
+
+      // Helper function to format date from YYYY-MM-DD to DD/MM/YYYY
+      const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}/${month}/${year}`;
       };
 
       // Helper function to calculate and update all values, colors, and reports
@@ -179,6 +217,44 @@
         setMonthlyReports(monthlyReportsArray);
       };
 
+      // Function to generate and download PDF
+      const generatePdf = async (reportType) => {
+        setPdfLoading(true);
+        const input = reportType === 'weekly' ? weeklyReportRef.current : monthlyReportRef.current;
+        const reportTitle = reportType === 'weekly' ? 'Informe Semanal' : 'Informe Mensual';
+
+        if (input) {
+          try {
+            const canvas = await html2canvas(input, {
+              scale: 2, // Higher scale for better resolution
+              useCORS: true,
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+
+            const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+            const finalWidth = imgWidth * ratio;
+            const finalHeight = imgHeight * ratio;
+
+            const x = (pdfWidth - finalWidth) / 2;
+            const y = (pdfHeight - finalHeight) / 2;
+
+            pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
+            pdf.save(`${reportTitle}.pdf`);
+          } catch (error) {
+            console.error("Error al generar el PDF:", error);
+          } finally {
+            setPdfLoading(false);
+          }
+        }
+      };
+
+
       // Handle input changes in the form
       const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -192,10 +268,12 @@
         setEditableValues(newValues);
         
         try {
-          // Update the values document in Firestore
-          await setDoc(doc(db, `artifacts/${__app_id}/users/${userId}/app_data/values`), { values: newValues });
-          // Re-calculate all classes and reports with the new values
-          updateClassesAndReports(classes, newValues);
+          const db = dbRef.current;
+          const userId = authRef.current.currentUser?.uid;
+          if (db && userId) {
+            await setDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/app_data/values`), { values: newValues });
+            updateClassesAndReports(classes, newValues);
+          }
         } catch (error) {
           console.error("Error al actualizar los valores:", error);
         }
@@ -205,11 +283,15 @@
       const handleAddClass = async (e) => {
         e.preventDefault();
         if (newEntry.studentName.trim() === '' || !authReady) return;
-
+        
         try {
-          const classRef = collection(db, `artifacts/${__app_id}/users/${userId}/classes`);
-          await addDoc(classRef, newEntry);
-          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reset only student name
+          const db = dbRef.current;
+          const userId = authRef.current.currentUser?.uid;
+          if (db && userId) {
+            const classRef = collection(db, `artifacts/${window.__app_id}/users/${userId}/classes`);
+            await addDoc(classRef, newEntry);
+            setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
+          }
         } catch (error) {
           console.error("Error al añadir la clase:", error);
         }
@@ -219,7 +301,11 @@
       const handleDeleteClass = async (id) => {
         if (!authReady) return;
         try {
-          await deleteDoc(doc(db, `artifacts/${__app_id}/users/${userId}/classes`, id));
+          const db = dbRef.current;
+          const userId = authRef.current.currentUser?.uid;
+          if (db && userId) {
+            await deleteDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/classes`, id));
+          }
         } catch (error) {
           console.error("Error al eliminar la clase:", error);
         }
@@ -232,61 +318,64 @@
         // Async function for Firebase setup
         const setupFirebase = async () => {
           try {
+            const app = initializeApp(window.__firebase_config);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            authRef.current = auth;
+            dbRef.current = db;
+
             if (window.__initial_auth_token) {
-              await signInWithCustomToken(window.auth, window.__initial_auth_token);
+              await signInWithCustomToken(auth, window.__initial_auth_token);
             } else {
-              await signInAnonymously(window.auth);
+              await signInAnonymously(auth);
             }
-            console.log("Authentication successful.");
           } catch (error) {
             console.error("Error de autenticación:", error);
           }
         };
 
-        // Listen for authentication state changes
-        const authUnsubscribe = onAuthStateChanged(window.auth, async (user) => {
-          if (user) {
-            console.log("User is signed in. UID:", user.uid);
-            setUserId(user.uid);
-            setAuthReady(true);
-            setLoading(true);
-
-            // Fetch editable values first
-            const valuesRef = doc(db, `artifacts/${__app_id}/users/${user.uid}/app_data/values`);
-            const valuesSnap = await getDoc(valuesRef);
-            const fetchedValues = valuesSnap.exists() ? valuesSnap.data().values : defaultValueMap;
-            setEditableValues(fetchedValues);
-            
-            // Listen for real-time updates to classes
-            const classesQuery = collection(db, `artifacts/${__app_id}/users/${user.uid}/classes`);
-            unsubscribe = onSnapshot(classesQuery, (snapshot) => {
-              const fetchedClasses = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-              }));
-              updateClassesAndReports(fetchedClasses, fetchedValues);
-              setLoading(false);
-            }, (error) => {
-              console.error("Error de onSnapshot:", error);
-              setLoading(false);
-            });
-
-          } else {
-            console.log("No user is signed in.");
-            setUserId(null);
-            setAuthReady(false);
-            setClasses([]);
-            setLoading(false);
-          }
-        });
-
         setupFirebase();
+        
+        // Listen for authentication state changes after setup is complete
+        if (authRef.current) {
+          const authUnsubscribe = onAuthStateChanged(authRef.current, async (user) => {
+            if (user) {
+              setUserId(user.uid);
+              setAuthReady(true);
+              setLoading(true);
 
-        // Cleanup function for listeners
-        return () => {
-          authUnsubscribe();
-          unsubscribe();
-        };
+              // Fetch editable values first
+              const db = dbRef.current;
+              const valuesRef = doc(db, `artifacts/${window.__app_id}/users/${user.uid}/app_data/values`);
+              const valuesSnap = await getDoc(valuesRef);
+              const fetchedValues = valuesSnap.exists() ? valuesSnap.data().values : defaultValueMap;
+              setEditableValues(fetchedValues);
+              
+              // Listen for real-time updates to classes
+              const classesQuery = collection(db, `artifacts/${window.__app_id}/users/${user.uid}/classes`);
+              unsubscribe = onSnapshot(classesQuery, (snapshot) => {
+                const fetchedClasses = snapshot.docs.map(doc => ({
+                  id: doc.id,
+                  ...doc.data(),
+                }));
+                updateClassesAndReports(fetchedClasses, fetchedValues);
+                setLoading(false);
+              }, (error) => {
+                console.error("Error de onSnapshot:", error);
+                setLoading(false);
+              });
+            } else {
+              setUserId(null);
+              setAuthReady(false);
+              setClasses([]);
+              setLoading(false);
+            }
+          });
+          return () => {
+            authUnsubscribe();
+            unsubscribe();
+          };
+        }
       }, []); // Empty dependency array means this runs once on mount
 
       return (
@@ -335,65 +424,91 @@
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   {/* Weekly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                      <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
-                    </h2>
-                    {weeklyReports.length > 0 ? (
-                      weeklyReports.map(report => (
-                        <div key={report.week} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">{report.week}</h3>
-                          <div className="grid grid-cols-2 gap-4 text-center">
-                            <div>
-                              <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
-                              <p className="text-xs font-medium text-gray-600">Total Clases</p>
-                            </div>
-                            <div>
-                              <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
-                              <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                        <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
+                      </h2>
+                      <button
+                        onClick={() => generatePdf('weekly')}
+                        disabled={pdfLoading}
+                        className="bg-blue-600 text-white font-bold py-1 px-3 rounded-md text-sm shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors flex items-center gap-1"
+                      >
+                        <i className="fas fa-download"></i>
+                        {pdfLoading ? 'Cargando...' : 'PDF'}
+                      </button>
+                    </div>
+                    {/* The content to be captured for the PDF */}
+                    <div ref={weeklyReportRef}>
+                      {weeklyReports.length > 0 ? (
+                        weeklyReports.map(report => (
+                          <div key={report.week} className="mb-4 p-4 bg-white rounded-lg shadow-md">
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">{report.week}</h3>
+                            <div className="grid grid-cols-2 gap-4 text-center">
+                              <div>
+                                <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
+                                <p className="text-xs font-medium text-gray-600">Total Clases</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
+                                <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">No hay informes semanales disponibles.</p>
-                    )}
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">No hay informes semanales disponibles.</p>
+                      )}
+                    </div>
                   </div>
                   
                   {/* Monthly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                      <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
-                    </h2>
-                    {monthlyReports.length > 0 ? (
-                      monthlyReports.map(report => (
-                        <div key={report.month} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">{report.month}</h3>
-                          <div className="grid grid-cols-2 gap-4 text-center">
-                            <div>
-                              <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
-                              <p className="text-xs font-medium text-gray-600">Total Clases</p>
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                        <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
+                      </h2>
+                      <button
+                        onClick={() => generatePdf('monthly')}
+                        disabled={pdfLoading}
+                        className="bg-blue-600 text-white font-bold py-1 px-3 rounded-md text-sm shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors flex items-center gap-1"
+                      >
+                        <i className="fas fa-download"></i>
+                        {pdfLoading ? 'Cargando...' : 'PDF'}
+                      </button>
+                    </div>
+                    {/* The content to be captured for the PDF */}
+                    <div ref={monthlyReportRef}>
+                      {monthlyReports.length > 0 ? (
+                        monthlyReports.map(report => (
+                          <div key={report.month} className="mb-4 p-4 bg-white rounded-lg shadow-md">
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">{report.month}</h3>
+                            <div className="grid grid-cols-2 gap-4 text-center">
+                              <div>
+                                <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
+                                <p className="text-xs font-medium text-gray-600">Total Clases</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
+                                <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
-                              <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                              <p className="text-sm font-semibold text-gray-700 mb-2">Clases por Alumno:</p>
+                              <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                                {Object.entries(report.countsByStudent).map(([count, total]) => (
+                                  <div key={count} className="p-2 bg-gray-50 rounded-lg shadow-sm">
+                                    <span className="font-bold text-gray-900">{total}</span>
+                                    <span className="text-gray-600 ml-1">con {count} alumno{count > 1 ? 's' : ''}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </div>
-                          <div className="mt-4 pt-4 border-t border-gray-200">
-                            <p className="text-sm font-semibold text-gray-700 mb-2">Clases por Alumno:</p>
-                            <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                              {Object.entries(report.countsByStudent).map(([count, total]) => (
-                                <div key={count} className="p-2 bg-gray-50 rounded-lg shadow-sm">
-                                  <span className="font-bold text-gray-900">{total}</span>
-                                  <span className="text-gray-600 ml-1">con {count} alumno{count > 1 ? 's' : ''}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">No hay informes mensuales disponibles.</p>
-                    )}
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">No hay informes mensuales disponibles.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -520,7 +635,7 @@
                           return (
                             <tr key={cls.id} className={cls.color}>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {cls.date}
+                                {formatDate(cls.date)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {cls.day}
@@ -574,6 +689,7 @@
   </script>
 </body>
 </html>
+
 
 
 
