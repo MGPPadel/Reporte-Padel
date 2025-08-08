@@ -22,20 +22,20 @@
     
     // Asigna las referencias globales para que el script de React pueda usarlas
     window.firebase = {
-        initializeApp,
-        getAuth,
-        signInAnonymously,
-        onAuthStateChanged,
-        signInWithCustomToken,
-        getFirestore,
-        doc,
-        collection,
-        addDoc,
-        onSnapshot,
-        query,
-        serverTimestamp,
-        setDoc,
-        deleteDoc
+      initializeApp,
+      getAuth,
+      signInAnonymously,
+      onAuthStateChanged,
+      signInWithCustomToken,
+      getFirestore,
+      doc,
+      collection,
+      addDoc,
+      onSnapshot,
+      query,
+      serverTimestamp,
+      setDoc,
+      deleteDoc
     };
   </script>
 
@@ -58,13 +58,13 @@
     const firebaseConfig = typeof __firebase_config !== 'undefined'
       ? JSON.parse(__firebase_config)
       : {
-          apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
-          authDomain: "app-de-padel.firebaseapp.com",
-          projectId: "app-de-padel",
-          storageBucket: "app-de-padel.firebasestorage.app",
-          messagingSenderId: "731771747398",
-          appId: "1:731771747398:web:ebc8b723fe220869fade47"
-        };
+        apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+        authDomain: "app-de-padel.firebaseapp.com",
+        projectId: "app-de-padel",
+        storageBucket: "app-de-padel.firebasestorage.app",
+        messagingSenderId: "731771747398",
+        appId: "1:731771747398:web:ebc8b723fe220869fade47"
+      };
     const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.appId;
     const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
@@ -334,6 +334,7 @@
         }
       };
 
+      // Esta es la función que añade la nueva clase a Firestore
       const handleAddClass = async (e) => {
         e.preventDefault();
         if (newEntry.studentName.trim() === '') {
@@ -350,6 +351,7 @@
             timestamp: serverTimestamp(),
           });
           
+          // Limpia el campo de nombre del alumno después de añadirlo, manteniendo los demás campos
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
           showMessage('Clase añadida correctamente.', 'success');
         } catch (error) {
@@ -358,6 +360,7 @@
         }
       };
 
+      // Esta es la función que elimina una clase de Firestore
       const handleDeleteClass = async (id) => {
         try {
           if (!db || !userId) throw new Error("Database not ready.");
@@ -393,8 +396,6 @@
               </div>
             ) : (
               <>
-                {/* Nota: La gestión de datos (exportar/importar) ya no es necesaria, ya que los datos están en la nube */}
-                
                 <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
                   <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                     <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
@@ -522,7 +523,7 @@
                   <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                     <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <div className="md:col-span-1">
                       <label htmlFor="date" className="block text-sm font-medium text-gray-600">
                         Fecha
@@ -685,8 +686,6 @@
   </script>
 </body>
 </html>
-
-
 
 
 
