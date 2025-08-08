@@ -388,22 +388,31 @@
       
 // ===== FUNCIONES EXTRA =====
 
-// **FUNCIÓN MODIFICADA: Ahora exporta el PDF semanal con columnas separadas para el detalle de clases**
+// **FUNCIÓN MODIFICADA: Ahora exporta el PDF semanal con columnas separadas y con el nuevo formato de semana**
 const exportWeeklyPDF = () => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   doc.setFontSize(16);
   doc.text("Informe Semanal - Clases de Pádel", 14, 15);
   
-  const tableData = weeklyReports.map(r => [
-    r.week,
-    r.totalClasses,
-    formatCurrency(r.totalEarnings),
-    r.countsByStudent[1] || 0,
-    r.countsByStudent[2] || 0,
-    r.countsByStudent[3] || 0,
-    r.countsByStudent[4] || 0
-  ]);
+  const tableData = weeklyReports.map(r => {
+    // Extrae el número de semana y el año del `r.week`
+    const [year, weekText] = r.week.split('-');
+    const weekNumber = weekText.replace('Semana ', '');
+    const date = new Date(year, 0, 1 + (weekNumber - 1) * 7); // Calcula una fecha aproximada de la semana
+    const month = date.getMonth() + 1; // getMonth() es base 0
+    const formattedWeek = `Semana Nº ${weekNumber} del ${month}/${year}`;
+    
+    return [
+      formattedWeek,
+      r.totalClasses,
+      formatCurrency(r.totalEarnings),
+      r.countsByStudent[1] || 0,
+      r.countsByStudent[2] || 0,
+      r.countsByStudent[3] || 0,
+      r.countsByStudent[4] || 0
+    ];
+  });
   
   doc.autoTable({
     head: [["Semana", "Total Clases", "Ganancia Total", "1 Persona", "2 Personas", "3 Personas", "4 Personas"]],
@@ -416,21 +425,17 @@ const exportWeeklyPDF = () => {
   doc.save("informe_semanal.pdf");
 };
 
-// **FUNCIÓN MODIFICADA: Ahora exporta el PDF mensual con el detalle en una tabla separada**
+// **FUNCIÓN MODIFICADA: Ahora exporta el PDF mensual con el nombre del mes en el título**
 const exportMonthlyPDF = () => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFontSize(16);
-  doc.text("Informe Mensual - Clases de Pádel", 14, 15);
   
-  let finalY = 25; // Variable para rastrear la posición Y de la siguiente tabla
-
   monthlyReports.forEach(report => {
-    // Título del reporte mensual
-    doc.setFontSize(14);
-    doc.text(`Resumen: ${report.month}`, 14, finalY);
-    finalY += 10;
-    
+    doc.setFontSize(16);
+    doc.text(`Informe Mensual - Clases de Pádel - ${report.month}`, 14, 15);
+  
+    let finalY = 25; // Variable para rastrear la posición Y de la siguiente tabla
+
     // Tabla de resumen mensual
     doc.autoTable({
         head: [["Mes", "Total Clases", "Ganancia Total"]],
@@ -929,6 +934,7 @@ const filteredClasses = selectedMonth === 'Todos'
   </script>
 </body>
 </html>
+
 
 
 
