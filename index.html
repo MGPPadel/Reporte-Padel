@@ -10,29 +10,6 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <!-- CDN for Firebase -->
-  <script type="module">
-    // Firebase is loaded as a module to handle imports correctly
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, query, onSnapshot, addDoc, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    window.firebase = {
-      initializeApp,
-      getAuth,
-      signInAnonymously,
-      signInWithCustomToken,
-      onAuthStateChanged,
-      getFirestore,
-      collection,
-      query,
-      onSnapshot,
-      addDoc,
-      deleteDoc,
-      doc,
-      setDoc,
-      getDoc
-    };
-  </script>
 </head>
 <body class="bg-gray-100 font-sans">
   <!-- The container where the React app will be mounted -->
@@ -41,11 +18,10 @@
   <!-- The React app script, wrapped in a Babel tag -->
   <script type="text/babel">
     const { useState, useEffect } = React;
-    const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, collection, query, onSnapshot, addDoc, deleteDoc, doc, setDoc, getDoc } = window.firebase;
 
     // Main App component
     const App = () => {
-      // Valores por defecto para las ganancias de la clase según el número de alumnos
+      // Default values for class earnings based on student count
       const defaultValueMap = {
         1: 12000,
         2: 19000,
@@ -53,7 +29,7 @@
         4: 26000,
       };
 
-      // Colores de fondo para las filas de la tabla
+      // Background colors for the table rows
       const colorMap = {
         1: 'bg-orange-100',
         2: 'bg-green-100',
@@ -61,147 +37,56 @@
         4: 'bg-red-100',
       };
 
-      // Estados para gestionar la lista de clases, la nueva entrada y los informes
+      // State to manage the list of classes, new class input, and reports
       const [classes, setClasses] = useState([]);
       const [newEntry, setNewEntry] = useState({
         studentName: '',
         day: 'Lunes',
-        time: '8:00 a.m.',
-        date: new Date().toISOString().slice(0, 10),
+        time: '8:00 a. m.',
+        date: new Date().toISOString().slice(0, 10), // Default to today's date
       });
       const [weeklyReports, setWeeklyReports] = useState([]);
       const [monthlyReports, setMonthlyReports] = useState([]);
       const [loading, setLoading] = useState(true);
+
+      // New state to manage the editable values
       const [editableValues, setEditableValues] = useState(defaultValueMap);
-      const [userId, setUserId] = useState(null);
-      const [db, setDb] = useState(null);
-      const [error, setError] = useState(null);
-      const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
-      // Opciones para los menús desplegables del formulario
+      // Options for form dropdowns
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-      const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a.m.`);
+      const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
 
-      // Función de ayuda para formatear la moneda
+      // Helper function to format currency
       const formatCurrency = (value) => {
-        return new Intl.NumberFormat('es-AR', {
-          style: 'currency',
-          currency: 'ARS',
-        }).format(value);
+        return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
       };
 
-      // Hook para inicializar Firebase y autenticar al usuario
+      // We use localStorage to persist data for a local HTML file.
       useEffect(() => {
-        const initializeFirebase = async () => {
-          try {
-            // Inicializar la aplicación de Firebase
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const firebaseConfig = JSON.parse(
-              typeof __firebase_config !== 'undefined' ? __firebase_config : '{}'
-            );
-            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-            
-            const app = initializeApp(firebaseConfig);
-            const firestore = getFirestore(app);
-            const authInstance = getAuth(app);
-            
-            // Autenticar al usuario
-            if (initialAuthToken) {
-              await signInWithCustomToken(authInstance, initialAuthToken);
-            } else {
-              await signInAnonymously(authInstance);
-            }
-
-            // Una vez autenticado, obtener el userId y la instancia de db
-            onAuthStateChanged(authInstance, (user) => {
-              if (user) {
-                setUserId(user.uid);
-                setDb(firestore);
-                setIsFirebaseReady(true); // Marcar que Firebase está listo
-              } else {
-                setUserId(null);
-                setDb(null);
-                setIsFirebaseReady(false);
-                setError('Error de autenticación. Por favor, recarga la página.');
-                setLoading(false);
-              }
-            });
-
-          } catch (e) {
-            console.error('Firebase Initialization Error:', e);
-            setError('Error al iniciar la aplicación. Intenta de nuevo más tarde.');
-            setLoading(false);
-          }
-        };
-
-        initializeFirebase();
+        // Load classes from localStorage
+        const storedClasses = JSON.parse(localStorage.getItem('padelClasses')) || [];
+        // Load editable values from localStorage
+        const storedValues = JSON.parse(localStorage.getItem('classValues')) || defaultValueMap;
+        
+        setEditableValues(storedValues);
+        updateClassesAndReports(storedClasses, storedValues);
+        setLoading(false);
       }, []);
 
-      // Hook para cargar los datos de Firestore y suscribirse a cambios en tiempo real
-      useEffect(() => {
-        // Este hook solo se ejecuta si Firebase está listo
-        if (!isFirebaseReady) {
-          return;
-        }
+      // Function to save classes to localStorage
+      const saveClassesToLocalStorage = (classesToSave) => {
+        localStorage.setItem('padelClasses', JSON.stringify(classesToSave));
+      };
+      
+      // Function to save editable values to localStorage
+      const saveValuesToLocalStorage = (valuesToSave) => {
+        localStorage.setItem('classValues', JSON.stringify(valuesToSave));
+      };
 
-        // Referencia a la colección de clases
-        const classesCollectionRef = collection(
-          db,
-          'artifacts',
-          __app_id,
-          'users',
-          userId,
-          'padel-classes'
-        );
-
-        // Referencia al documento de precios
-        const pricesDocRef = doc(
-          db,
-          'artifacts',
-          __app_id,
-          'users',
-          userId,
-          'config',
-          'prices'
-        );
-
-        // Suscribirse a los cambios en los precios
-        const unsubscribePrices = onSnapshot(pricesDocRef, (docSnap) => {
-          const storedValues = docSnap.exists() ? docSnap.data() : defaultValueMap;
-          setEditableValues(storedValues);
-          
-          // Ahora, con los precios cargados, podemos suscribirnos a las clases
-          const unsubscribeClasses = onSnapshot(
-            classesCollectionRef,
-            (querySnapshot) => {
-              const firestoreClasses = querySnapshot.docs.map((d) => ({
-                ...d.data(),
-                id: d.id,
-              }));
-              updateClassesAndReports(firestoreClasses, storedValues);
-              setLoading(false);
-            },
-            (e) => {
-              console.error('Error fetching classes:', e);
-              setError('Error al cargar las clases. Por favor, recarga la página.');
-              setLoading(false);
-            }
-          );
-          
-          return () => unsubscribeClasses();
-        }, (e) => {
-          console.error('Error fetching prices:', e);
-          setError('Error al cargar los precios. Por favor, recarga la página.');
-          setLoading(false);
-        });
-
-        // Limpiar el listener cuando el componente se desmonte
-        return () => unsubscribePrices();
-      }, [isFirebaseReady]); // Este efecto ahora depende del estado de "listo"
-
-      // Función para actualizar los valores y reportes
+      // Function to calculate and update all values, colors, and reports
+      // Now it takes the current values as an argument
       const updateClassesAndReports = (currentClasses, currentValues) => {
-        // Agrupar clases por día y hora para contar los alumnos
+        // Group classes by day and time to count students
         const classesByDayTime = currentClasses.reduce((acc, curr) => {
           const key = `${curr.date}-${curr.day}-${curr.time}`;
           if (!acc[key]) {
@@ -211,10 +96,10 @@
           return acc;
         }, {});
 
-        // Mapear las clases para actualizar sus valores y colores
+        // Map through the classes to update their values and colors using the currentValues
         const updatedClasses = currentClasses.map(cls => {
           const key = `${cls.date}-${cls.day}-${cls.time}`;
-          const studentCount = classesByDayTime[key]?.length || 0;
+          const studentCount = classesByDayTime[key].length;
           return {
             ...cls,
             studentCount,
@@ -223,7 +108,7 @@
           };
         });
 
-        // Ordenar las clases por fecha, día y hora
+        // Sort the classes by date, then day, then time for better readability
         updatedClasses.sort((a, b) => {
           const dateA = new Date(a.date);
           const dateB = new Date(b.date);
@@ -242,9 +127,10 @@
 
         setClasses(updatedClasses);
         calculateReports(updatedClasses);
+        saveClassesToLocalStorage(updatedClasses); // Save to local storage after updating
       };
 
-      // Función para calcular los informes semanales y mensuales
+      // Function to calculate the weekly and monthly reports
       const calculateReports = (updatedClasses) => {
         const weeklyReportMap = new Map();
         const monthlyReportMap = new Map();
@@ -257,11 +143,12 @@
           if (!processedClassKeys.has(classKey)) {
             processedClassKeys.add(classKey);
 
-            const date = new Date(cls.date + 'T00:00:00');
+            const date = new Date(cls.date + 'T00:00:00'); // Normalize to avoid timezone issues
             const year = date.getFullYear();
             const month = date.getMonth();
             const monthName = monthNames[month];
 
+            // Calculate week number (simple approximation)
             const firstDayOfYear = new Date(year, 0, 1);
             const pastDays = (date - firstDayOfYear) / 86400000;
             const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
@@ -269,6 +156,7 @@
             const weekKey = `${year}-Semana ${weekNumber}`;
             const monthKey = `${monthName} ${year}`;
 
+            // Update weekly report
             if (!weeklyReportMap.has(weekKey)) {
               weeklyReportMap.set(weekKey, { totalClasses: 0, totalEarnings: 0 });
             }
@@ -276,6 +164,7 @@
             weeklyReport.totalClasses++;
             weeklyReport.totalEarnings += cls.value;
 
+            // Update monthly report
             if (!monthlyReportMap.has(monthKey)) {
               monthlyReportMap.set(monthKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
             }
@@ -288,6 +177,7 @@
           }
         });
 
+        // Convert maps to arrays for rendering
         const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
         const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
 
@@ -295,119 +185,63 @@
         setMonthlyReports(monthlyReportsArray);
       };
 
-      // Manejar cambios en los campos de entrada del formulario
+      // Handle input changes in the form
       const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setNewEntry((prev) => ({ ...prev, [name]: value }));
+        setNewEntry(prev => ({ ...prev, [name]: value }));
       };
       
-      // Manejar cambios en los valores editables
+      // Handle changes to the editable value inputs
       const handleValueChange = (e) => {
         const { name, value } = e.target;
         const newValues = { ...editableValues, [name]: Number(value) };
         setEditableValues(newValues);
-      };
-
-      // Guardar los valores editables en Firestore
-      const handleSavePrices = async () => {
-        if (!isFirebaseReady) return;
-        try {
-          const pricesDocRef = doc(
-            db,
-            'artifacts',
-            __app_id,
-            'users',
-            userId,
-            'config',
-            'prices'
-          );
-          await setDoc(pricesDocRef, editableValues);
-        } catch (e) {
-          console.error('Error saving prices:', e);
-          setError('Error al guardar la configuración de precios.');
-        }
+        saveValuesToLocalStorage(newValues);
+        // Re-calculate all classes and reports with the new values
+        updateClassesAndReports(classes, newValues);
       };
 
 
-      // Manejar el envío del formulario para agregar una clase
-      const handleAddClass = async (e) => {
+      // Handle adding a new class
+      const handleAddClass = (e) => {
         e.preventDefault();
-        if (newEntry.studentName.trim() === '' || !isFirebaseReady) return;
+        if (newEntry.studentName.trim() === '') return;
 
-        try {
-          const padelClassesRef = collection(
-            db,
-            'artifacts',
-            __app_id,
-            'users',
-            userId,
-            'padel-classes'
-          );
-          await addDoc(padelClassesRef, { ...newEntry });
-          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
-        } catch (e) {
-          console.error('Error adding document:', e);
-          setError('Error al añadir la clase.');
-        }
+        const newClassList = [
+          ...classes,
+          { ...newEntry, id: Date.now() + Math.random() },
+        ];
+        updateClassesAndReports(newClassList, editableValues);
+        setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reset only student name
       };
 
-      // Manejar la eliminación de una clase
-      const handleDeleteClass = async (id) => {
-        if (!isFirebaseReady) return;
-        try {
-          const padelClassDoc = doc(
-            db,
-            'artifacts',
-            __app_id,
-            'users',
-            userId,
-            'padel-classes',
-            id
-          );
-          await deleteDoc(padelClassDoc);
-        } catch (e) {
-          console.error('Error deleting document:', e);
-          setError('Error al eliminar la clase.');
-        }
+      // Handle deleting a class
+      const handleDeleteClass = (id) => {
+        const newClassList = classes.filter(cls => cls.id !== id);
+        updateClassesAndReports(newClassList, editableValues);
       };
-
-      if (error) {
-        return (
-          <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-              <strong className="font-bold">¡Error!</strong>
-              <span className="block sm:inline ml-2">{error}</span>
-            </div>
-          </div>
-        );
-      }
 
       return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
           <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
-            <h1 className="text-3xl font-bold mb-2 text-center text-gray-900">
+            <h1 className="text-3xl font-bold mb-6 text-center text-gray-900">
               Informe de Clases de Padel
             </h1>
-            {userId && (
-              <p className="text-center text-sm text-gray-500 mb-6">
-                Tu ID de usuario para guardar en la nube es: <span className="font-mono break-all">{userId}</span>
-              </p>
-            )}
             
             {loading ? (
               <div className="flex justify-center items-center h-48">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                <p className="ml-4 text-gray-600">Cargando datos desde la nube...</p>
+                <p className="ml-4 text-gray-600">Cargando datos...</p>
               </div>
             ) : (
               <>
-                {/* Sección de valores editables */}
+                {/* Editable Values Section */}
                 <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
                   <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                     <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
                   </h2>
                   <p className="text-sm text-gray-600 mb-4">
-                    Edita el valor de las clases según la cantidad de alumnos. Los cambios se guardarán en la nube cuando dejes de escribir.
+                    Edita el valor de las clases según la cantidad de alumnos. Los cambios se guardarán automáticamente.
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {Object.entries(editableValues).map(([count, value]) => (
@@ -421,7 +255,6 @@
                           type="number"
                           value={value}
                           onChange={handleValueChange}
-                          onBlur={handleSavePrices}
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2 text-center text-lg font-bold"
                           min="0"
                         />
@@ -430,9 +263,9 @@
                   </div>
                 </div>
 
-                {/* Sección de informes */}
+                {/* Reports Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  {/* Informes semanales */}
+                  {/* Weekly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
                     <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                       <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
@@ -458,7 +291,7 @@
                     )}
                   </div>
                   
-                  {/* Informes mensuales */}
+                  {/* Monthly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
                     <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                       <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
@@ -496,7 +329,7 @@
                   </div>
                 </div>
 
-                {/* Formulario para añadir nuevas clases */}
+                {/* Form to add new classes */}
                 <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
                   <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                     <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
@@ -572,7 +405,7 @@
                   </div>
                 </form>
 
-                {/* Tabla para mostrar las clases */}
+                {/* Table to display classes */}
                 <div className="overflow-x-auto rounded-lg shadow-md">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-100">
@@ -603,9 +436,11 @@
                     <tbody className="bg-white divide-y divide-gray-200">
                       {classes.length > 0 ? (
                         classes.map((cls, index) => {
+                          // Find the index of the first occurrence of this date, day, and time
                           const firstIndex = classes.findIndex(
                             (c) => c.date === cls.date && c.day === cls.day && c.time === cls.time
                           );
+                          // Render the value only for the first student in a given class time
                           const displayValue = firstIndex === index;
 
                           return (
@@ -658,13 +493,15 @@
       );
     };
 
-    // Renderizar la aplicación en el DOM
+    // Render the App component
     const container = document.getElementById('root');
     const root = ReactDOM.createRoot(container);
     root.render(<App />);
   </script>
 </body>
 </html>
+
+
 
 
 
