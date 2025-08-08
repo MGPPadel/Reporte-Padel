@@ -42,6 +42,7 @@
   <script type="text/babel">
     const { useState, useEffect, useRef, useCallback } = React;
 
+    // Valores predeterminados para las clases según la cantidad de alumnos
     const defaultValueMap = {
       1: 12000,
       2: 19000,
@@ -49,19 +50,12 @@
       4: 26000,
     };
 
+    // Mapa de colores para las filas de la tabla
     const colorMap = {
       1: 'bg-orange-100',
       2: 'bg-green-100',
       3: 'bg-blue-100',
       4: 'bg-red-100',
-    };
-
-    const debounce = (func, delay) => {
-      let timeout;
-      return (...args) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), delay);
-      };
     };
 
     const App = () => {
@@ -74,19 +68,18 @@
       });
       const [weeklyReports, setWeeklyReports] = useState([]);
       const [monthlyReports, setMonthlyReports] = useState([]);
-      const [isLoading, setIsLoading] = useState(true);
+      const [dbStatus, setDbStatus] = useState('loading'); // Nuevo estado para el diagnóstico
       const [isAdding, setIsAdding] = useState(false);
-      const [isProcessingReports, setIsProcessingReports] = useState(false);
+      const [isReportsUpdating, setIsReportsUpdating] = useState(false);
       const [editableValues, setEditableValues] = useState(defaultValueMap);
       const [pdfLoading, setPdfLoading] = useState(false);
-      const [error, setError] = useState(null);
+      const [submissionError, setSubmissionError] = useState(null);
       const [userId, setUserId] = useState(null);
+      const [db, setDb] = useState(null);
+      const [auth, setAuth] = useState(null);
+      const [appId, setAppId] = useState(null);
       
-      const dbRef = useRef(null);
-      const authRef = useRef(null);
-      const appIdRef = useRef(null);
-      const isMounted = useRef(false);
-
+      const processingTimeoutRef = useRef(null);
       const weeklyReportRef = useRef(null);
       const monthlyReportRef = useRef(null);
 
@@ -94,10 +87,12 @@
       const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
       const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
+      // Formato de moneda para Argentina
       const formatCurrency = (value) => {
         return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
       };
 
+      // Generación de PDF utilizando html2pdf
       const generatePdfReport = async (reportType) => {
         setPdfLoading(true);
         const element = reportType === 'weekly' ? weeklyReportRef.current : monthlyReportRef.current;
@@ -116,137 +111,133 @@
         setPdfLoading(false);
       };
 
+      // Función para calcular los informes semanales y mensuales
       const calculateReports = useCallback((allClasses, currentValues) => {
-        setIsProcessingReports(true);
-        setTimeout(() => {
-          const weeklyReportMap = new Map();
-          const monthlyReportMap = new Map();
+        const weeklyReportMap = new Map();
+        const monthlyReportMap = new Map();
 
-          const classesByTimeSlot = allClasses.reduce((acc, curr) => {
-            const key = `${curr.date}-${curr.day}-${curr.time}`;
-            if (!acc[key]) acc[key] = [];
-            acc[key].push(curr);
-            return acc;
-          }, {});
+        const classesByTimeSlot = allClasses.reduce((acc, curr) => {
+          const key = `${curr.date}-${curr.day}-${curr.time}`;
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(curr);
+          return acc;
+        }, {});
 
-          Object.values(classesByTimeSlot).forEach(timeSlotClasses => {
-              const firstClass = timeSlotClasses[0];
-              const studentCount = timeSlotClasses.length;
-              const totalValue = currentValues[studentCount] || 0;
+        Object.values(classesByTimeSlot).forEach(timeSlotClasses => {
+            const firstClass = timeSlotClasses[0];
+            const studentCount = timeSlotClasses.length;
+            const totalValue = currentValues[studentCount] || 0;
 
-              const date = new Date(firstClass.date + 'T00:00:00');
-              const year = date.getFullYear();
-              const month = date.getMonth();
-              const monthName = monthNames[month];
-              const firstDayOfYear = new Date(year, 0, 1);
-              const pastDays = (date - firstDayOfYear) / 86400000;
-              const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
-              const weekKey = `${year}-Semana ${weekNumber}`;
-              const monthKey = `${monthName} ${year}`;
+            const date = new Date(firstClass.date + 'T00:00:00');
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const monthName = monthNames[month];
+            const firstDayOfYear = new Date(year, 0, 1);
+            const pastDays = (date - firstDayOfYear) / 86400000;
+            const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
+            const weekKey = `${year}-Semana ${weekNumber}`;
+            const monthKey = `${monthName} ${year}`;
 
-              // Actualizar informe semanal
-              weeklyReportMap.set(weekKey, {
-                  totalClasses: (weeklyReportMap.get(weekKey)?.totalClasses || 0) + 1,
-                  totalEarnings: (weeklyReportMap.get(weekKey)?.totalEarnings || 0) + totalValue,
-              });
+            // Actualizar informe semanal
+            const currentWeeklyReport = weeklyReportMap.get(weekKey) || { totalClasses: 0, totalEarnings: 0 };
+            weeklyReportMap.set(weekKey, {
+                totalClasses: currentWeeklyReport.totalClasses + 1,
+                totalEarnings: currentWeeklyReport.totalEarnings + totalValue,
+            });
 
-              // Actualizar informe mensual
-              const monthlyReport = monthlyReportMap.get(monthKey) || {
-                totalClasses: 0,
-                totalEarnings: 0,
-                countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 }
-              };
-              monthlyReport.totalClasses++;
-              monthlyReport.totalEarnings += totalValue;
-              if (studentCount >= 1 && studentCount <= 4) {
-                monthlyReport.countsByStudent[studentCount]++;
-              }
-              monthlyReportMap.set(monthKey, monthlyReport);
-          });
-
-          const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
-          const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
-
-          weeklyReportsArray.sort((a,b) => a.week.localeCompare(b.week));
-          monthlyReportsArray.sort((a,b) => {
-              const [monthA, yearA] = a.month.split(' ');
-              const [monthB, yearB] = b.month.split(' ');
-              const dateA = new Date(yearA, monthNames.indexOf(monthA));
-              const dateB = new Date(yearB, monthNames.indexOf(monthB));
-              return dateA - dateB;
-          });
-
-          setWeeklyReports(weeklyReportsArray);
-          setMonthlyReports(monthlyReportsArray);
-          setIsProcessingReports(false);
-        }, 0);
-      }, [monthNames]);
-
-      const debouncedCalculateReports = useCallback(debounce(calculateReports, 300), [calculateReports]);
-
-      useEffect(() => {
-        isMounted.current = true;
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        appIdRef.current = appId;
-        
-        if (!firebaseConfig) {
-          setError("Error: No se encontró la configuración de Firebase.");
-          setIsLoading(false);
-          return;
-        }
-
-        if (!window.firebase) {
-          setError("Error: El SDK de Firebase no se cargó correctamente.");
-          setIsLoading(false);
-          return;
-        }
-
-        const app = window.firebase.initializeApp(firebaseConfig);
-        const auth = window.firebase.getAuth(app);
-        const db = window.firebase.getFirestore(app);
-        authRef.current = auth;
-        dbRef.current = db;
-
-        const unsubscribeAuth = window.firebase.onAuthStateChanged(auth, async (user) => {
-          if (!isMounted.current) return;
-          if (user) {
-            setUserId(user.uid);
-            setupFirestoreListeners(user.uid, db, appId, editableValues, setClasses, debouncedCalculateReports);
-            setIsLoading(false);
-          } else {
-            try {
-              if (initialAuthToken) {
-                await window.firebase.signInWithCustomToken(auth, initialAuthToken);
-              } else {
-                await window.firebase.signInAnonymously(auth);
-              }
-            } catch (authError) {
-              console.error("Error durante la autenticación inicial:", authError);
-              setError("Error de autenticación. Por favor, refresca la página.");
-              setIsLoading(false);
+            // Actualizar informe mensual
+            const monthlyReport = monthlyReportMap.get(monthKey) || {
+              totalClasses: 0,
+              totalEarnings: 0,
+              countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 }
+            };
+            monthlyReport.totalClasses++;
+            monthlyReport.totalEarnings += totalValue;
+            if (studentCount >= 1 && studentCount <= 4) {
+              monthlyReport.countsByStudent[studentCount]++;
             }
-          }
+            monthlyReportMap.set(monthKey, monthlyReport);
         });
 
-        return () => {
-          isMounted.current = false;
-          unsubscribeAuth();
-        };
-      }, [debouncedCalculateReports, editableValues]);
+        const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
+        const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
 
-      const setupFirestoreListeners = useCallback((uid, db, appId) => {
-        if (!isMounted.current || !db) return;
-        
-        const userValuesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${uid}/valores_clase/precios`);
-        const userClassesRef = window.firebase.collection(db, `artifacts/${appId}/users/${uid}/clases_padel`);
-        
-        let unsubscribeValues = null;
-        let unsubscribeClasses = null;
+        weeklyReportsArray.sort((a, b) => a.week.localeCompare(b.week));
+        monthlyReportsArray.sort((a, b) => {
+            const [monthA, yearA] = a.month.split(' ');
+            const [monthB, yearB] = b.month.split(' ');
+            const dateA = new Date(yearA, monthNames.indexOf(monthA));
+            const dateB = new Date(yearB, monthNames.indexOf(monthB));
+            return dateA - dateB;
+        });
 
-        unsubscribeValues = window.firebase.onSnapshot(userValuesDocRef, (docSnap) => {
-          if (!isMounted.current) return;
+        setWeeklyReports(weeklyReportsArray);
+        setMonthlyReports(monthlyReportsArray);
+        setIsReportsUpdating(false); // Desactiva el indicador de carga cuando los informes están listos
+      }, [monthNames]);
+
+      // Efecto para la inicialización y autenticación de Firebase
+      useEffect(() => {
+        console.log("Iniciando la configuración de Firebase...");
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        if (!firebaseConfig || !window.firebase) {
+          console.error("Error: La configuración de Firebase no está disponible.");
+          setDbStatus('error');
+          return;
+        }
+
+        try {
+          const app = window.firebase.initializeApp(firebaseConfig);
+          const authInstance = window.firebase.getAuth(app);
+          const dbInstance = window.firebase.getFirestore(app);
+          setAppId(currentAppId);
+          setDb(dbInstance);
+          setAuth(authInstance);
+
+          const unsubscribeAuth = window.firebase.onAuthStateChanged(authInstance, async (user) => {
+            if (user) {
+              setUserId(user.uid);
+              console.log("Usuario autenticado con éxito:", user.uid);
+              setDbStatus('connected');
+            } else {
+              console.log("Intentando autenticación anónima...");
+              try {
+                if (initialAuthToken) {
+                  await window.firebase.signInWithCustomToken(authInstance, initialAuthToken);
+                } else {
+                  await window.firebase.signInAnonymously(authInstance);
+                }
+              } catch (authError) {
+                console.error("Error durante la autenticación inicial:", authError);
+                setDbStatus('error');
+              }
+            }
+          });
+
+          return () => unsubscribeAuth();
+        } catch (initError) {
+          console.error("Error al inicializar Firebase:", initError);
+          setDbStatus('error');
+        }
+      }, []);
+
+      // Efecto para los "listeners" de Firestore, se ejecuta cuando el usuario está autenticado
+      useEffect(() => {
+        if (dbStatus !== 'connected' || !db || !userId || !appId) {
+          if (dbStatus === 'error') {
+            console.error("No se pueden configurar los listeners de Firestore. Estado de la DB:", dbStatus);
+          }
+          return;
+        }
+        
+        console.log("Configurando listeners de Firestore para el usuario:", userId);
+        const userValuesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
+        const userClassesRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/clases_padel`);
+        
+        const unsubscribeValues = window.firebase.onSnapshot(userValuesDocRef, (docSnap) => {
           if (docSnap.exists()) {
             setEditableValues(docSnap.data());
           } else {
@@ -255,55 +246,68 @@
           }
         }, (error) => {
           console.error("Error fetching editable values:", error);
-          setError("Error al cargar los valores de clase.");
+          setDbStatus('error');
         });
 
-        unsubscribeClasses = window.firebase.onSnapshot(userClassesRef, (snapshot) => {
-          if (!isMounted.current) return;
-          const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const unsubscribeClasses = window.firebase.onSnapshot(userClassesRef, (snapshot) => {
+          // Limpia cualquier timeout anterior para evitar el parpadeo
+          if (processingTimeoutRef.current) {
+            clearTimeout(processingTimeoutRef.current);
+          }
 
-          const classesByTimeSlot = fetchedClasses.reduce((acc, curr) => {
-            const key = `${curr.date}-${curr.day}-${curr.time}`;
-            if (!acc[key]) acc[key] = [];
-            acc[key].push(curr);
-            return acc;
-          }, {});
+          setIsReportsUpdating(true); // Activa el indicador de carga no bloqueante
+          
+          // Establece un nuevo timeout para dar tiempo a que las escrituras se consoliden
+          processingTimeoutRef.current = setTimeout(() => {
+            const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-          const updatedClassesWithValues = fetchedClasses.map(cls => {
-            const key = `${cls.date}-${cls.day}-${cls.time}`;
-            const studentCount = classesByTimeSlot[key]?.length || 0;
-            return {
-              ...cls,
-              studentCount,
-              value: editableValues[studentCount] || 0,
-              color: colorMap[studentCount] || '',
-            };
-          });
+            const classesByTimeSlot = fetchedClasses.reduce((acc, curr) => {
+              const key = `${curr.date}-${curr.day}-${curr.time}`;
+              if (!acc[key]) acc[key] = [];
+              acc[key].push(curr);
+              return acc;
+            }, {});
 
-          updatedClassesWithValues.sort((a, b) => {
-            const dateA = new Date(a.date);
-            const dateB = new Date(b.date);
-            if (dateA.getTime() !== dateB.getTime()) return dateA.getTime() - dateB.getTime();
-            const dayIndexA = dayOptions.indexOf(a.day);
-            const dayIndexB = dayOptions.indexOf(b.day);
-            if (dayIndexA !== dayIndexB) return dayIndexA - dayIndexB;
-            const timeIndexA = timeOptions.indexOf(a.time);
-            const timeIndexB = timeOptions.indexOf(b.time);
-            return timeIndexA - timeIndexB;
-          });
+            const updatedClassesWithValues = fetchedClasses.map(cls => {
+              const key = `${cls.date}-${cls.day}-${cls.time}`;
+              const studentCount = classesByTimeSlot[key]?.length || 0;
+              return {
+                ...cls,
+                studentCount,
+                value: editableValues[studentCount] || 0,
+                color: colorMap[studentCount] || '',
+              };
+            });
 
-          setClasses(updatedClassesWithValues);
-          debouncedCalculateReports(updatedClassesWithValues, editableValues);
+            updatedClassesWithValues.sort((a, b) => {
+              const dateA = new Date(a.date);
+              const dateB = new Date(b.date);
+              if (dateA.getTime() !== dateB.getTime()) return dateA.getTime() - dateB.getTime();
+              const dayIndexA = dayOptions.indexOf(a.day);
+              const dayIndexB = dayOptions.indexOf(b.day);
+              if (dayIndexA !== dayIndexB) return dayIndexA - dayIndexB;
+              const timeIndexA = timeOptions.indexOf(a.time);
+              const timeIndexB = timeOptions.indexOf(b.time);
+              return timeIndexA - timeIndexB;
+            });
+
+            setClasses(updatedClassesWithValues);
+            calculateReports(updatedClassesWithValues, editableValues);
+          }, 300); // Debounce de 300ms
         }, (error) => {
           console.error("Error fetching classes:", error);
-          setError("Error al cargar las clases.");
+          setDbStatus('error');
         });
 
+        // Función de limpieza para cancelar los "listeners" y el timeout
         return () => {
           if (unsubscribeValues) unsubscribeValues();
           if (unsubscribeClasses) unsubscribeClasses();
+          if (processingTimeoutRef.current) {
+            clearTimeout(processingTimeoutRef.current);
+          }
         };
-      }, [editableValues, debouncedCalculateReports]);
+      }, [db, userId, appId, editableValues, calculateReports, dbStatus]);
 
       const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -314,34 +318,57 @@
         const { name, value } = e.target;
         const newValues = { ...editableValues, [name]: Number(value) };
         setEditableValues(newValues);
-        if (!dbRef.current || !userId) return;
+        if (dbStatus !== 'connected' || !db || !userId) {
+          console.warn("No se pudo actualizar el valor. La base de datos no está conectada.");
+          setSubmissionError("No se pudo actualizar. Revisa tu conexión.");
+          return;
+        }
         try {
-          const userValuesDocRef = window.firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/valores_clase/precios`);
+          const userValuesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
           await window.firebase.setDoc(userValuesDocRef, newValues);
+          console.log("Valores actualizados en Firestore.");
         } catch (error) {
           console.error("Error actualizando valores en Firestore:", error);
+          setSubmissionError("Error al actualizar los precios. Revisa tu conexión.");
         }
       };
 
       const handleAddClass = async (e) => {
         e.preventDefault();
-        if (newEntry.studentName.trim() === '' || !userId || !dbRef.current) return;
+        setSubmissionError(null); // Limpia cualquier error anterior
+        
+        if (dbStatus !== 'connected' || newEntry.studentName.trim() === '' || !userId || !db) {
+          if (dbStatus !== 'connected') {
+            setSubmissionError("Error: La base de datos no está conectada. Por favor, refresca la página.");
+          } else {
+            setSubmissionError("Por favor, ingresa un nombre de alumno.");
+          }
+          return;
+        }
+        
         setIsAdding(true);
         try {
-          const userClassesRef = window.firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel`);
+          const userClassesRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/clases_padel`);
           await window.firebase.addDoc(userClassesRef, newEntry);
+          console.log("Clase añadida con éxito a Firestore.");
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
         } catch (error) {
           console.error("Error adding class to Firestore:", error);
+          setSubmissionError("Error al añadir la clase: " + error.message);
+        } finally {
+          setIsAdding(false);
         }
-        setIsAdding(false);
       };
 
       const handleDeleteClass = async (id) => {
-        if (!userId || !dbRef.current) return;
+        if (dbStatus !== 'connected' || !userId || !db) {
+          console.warn("No se pudo eliminar la clase. La base de datos no está conectada.");
+          return;
+        }
         try {
-          const userClassesDocRef = window.firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/clases_padel/${id}`);
+          const userClassesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
           await window.firebase.deleteDoc(userClassesDocRef);
+          console.log("Clase eliminada con éxito de Firestore.");
         } catch (error) {
           console.error("Error deleting class from Firestore:", error);
         }
@@ -350,19 +377,18 @@
       const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Conectando a la nube...";
 
       const renderContent = () => {
-        if (error) {
+        if (dbStatus === 'error') {
           return (
-            <div className="flex justify-center items-center h-screen text-center p-4">
+            <div className="flex justify-center items-center h-48 text-center p-4">
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
                 <p className="font-bold">¡Lo sentimos! Hubo un error al conectar.</p>
-                <p className="text-sm">{error}</p>
-                <p className="mt-2 text-sm">Por favor, refresca la página para intentarlo de nuevo.</p>
+                <p className="text-sm mt-2">No se pudo inicializar la aplicación. Por favor, refresca la página.</p>
               </div>
             </div>
           );
         }
 
-        if (isLoading) {
+        if (dbStatus === 'loading') {
           return (
             <div className="flex justify-center items-center h-48">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
@@ -373,14 +399,6 @@
 
         return (
           <>
-            {isProcessingReports && (
-              <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
-                <div className="bg-white rounded-lg p-8 shadow-xl text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-                  <p className="text-gray-700 font-semibold">Calculando informes...</p>
-                </div>
-              </div>
-            )}
             <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                 <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
@@ -407,6 +425,13 @@
                 ))}
               </div>
             </div>
+
+            {isReportsUpdating && (
+                <div className="flex items-center justify-center p-4 rounded-lg bg-blue-50 mb-6 shadow-md">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent mr-3"></div>
+                    <p className="text-blue-700 font-semibold">Calculando informes...</p>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div className="p-6 bg-gray-50 rounded-lg shadow-inner" ref={weeklyReportRef}>
@@ -493,6 +518,11 @@
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                 <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
               </h2>
+              {submissionError && ( // Muestra el mensaje de error si existe
+                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                    <span className="block sm:inline">{submissionError}</span>
+                  </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div className="md:col-span-1">
                   <label htmlFor="date" className="block text-sm font-medium text-gray-600">
@@ -557,7 +587,7 @@
                   <button
                     type="submit"
                     className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
-                    disabled={isAdding}
+                    disabled={isAdding || dbStatus !== 'connected'}
                   >
                     {isAdding ? "Añadiendo..." : "Añadir"}
                   </button>
@@ -668,6 +698,7 @@
   </script>
 </body>
 </html>
+
 
 
 
