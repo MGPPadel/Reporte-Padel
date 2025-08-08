@@ -306,10 +306,29 @@
         setMonthlyReports(monthlyReportsArray);
       };
 
-      // Handle input changes in the form
+      // **FUNCIÓN MODIFICADA: Ahora actualiza el día automáticamente**
       const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setNewEntry(prev => ({ ...prev, [name]: value }));
+        
+        // Objeto para mapear los números de día a los nombres en español
+        const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+        // Si el campo que se cambia es la fecha...
+        if (name === 'date') {
+            const dateObj = new Date(value + 'T00:00:00'); // Añadimos 'T00:00:00' para evitar problemas de zona horaria
+            const dayOfWeek = dateObj.getDay();
+            const newDayName = dayNames[dayOfWeek];
+
+            // Actualizamos tanto la fecha como el día
+            setNewEntry(prev => ({
+                ...prev,
+                [name]: value,
+                day: newDayName // El nuevo día calculado
+            }));
+        } else {
+            // Si es cualquier otro campo, solo actualizamos su valor
+            setNewEntry(prev => ({ ...prev, [name]: value }));
+        }
       };
       
       // Handle changes to the editable value inputs and update Firestore
@@ -821,6 +840,7 @@ const filteredClasses = selectedMonth === 'Todos'
   </script>
 </body>
 </html>
+
 
 
 
