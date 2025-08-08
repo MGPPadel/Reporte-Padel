@@ -8,7 +8,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
   
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -80,6 +80,10 @@
       
       // New state to manage the editable values
       const [editableValues, setEditableValues] = useState(defaultValueMap);
+
+      // State for filtering classes by month
+      const [selectedMonth, setSelectedMonth] = useState('Todos');
+      const [availableMonths, setAvailableMonths] = useState([]);
       
       const firebaseConfigRef = useRef(null);
       const dbRef = useRef(null);
@@ -95,22 +99,30 @@
         return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
       };
 
+      // Helper function to format date from YYYY-MM-DD to DD/MM/YYYY
+      const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}/${month}/${year}`;
+      };
+
       // Initialize Firebase and setup listeners
       useEffect(() => {
         const loadConfig = () => {
-            const storedConfig = localStorage.getItem('firebaseConfig');
-            if (storedConfig) {
-                try {
-                    firebaseConfigRef.current = JSON.parse(storedConfig);
-                    setUserFirebaseConfig(storedConfig);
-                    return true;
-                } catch (e) {
-                    console.error("Error parsing stored Firebase config", e);
-                    localStorage.removeItem('firebaseConfig');
-                    return false;
-                }
-            }
-            return false;
+            // Tu configuración de Firebase. Sustituye este objeto con tu propia configuración.
+            const myFirebaseConfig = {
+              "apiKey": "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+              "authDomain": "app-de-padel.firebaseapp.com",
+              "projectId": "app-de-padel",
+              "storageBucket": "app-de-padel.firebasestorage.app",
+              "messagingSenderId": "731771747398",
+              "appId": "1:731771747398:web:ebc8b723fe220869fade47"
+            };
+            
+            firebaseConfigRef.current = myFirebaseConfig;
+            
+            // Retornamos true para indicar que la configuración ya está lista y no se necesita el modal
+            return true;
         };
 
         const initFirebase = async () => {
@@ -234,6 +246,9 @@
 
         setClasses(updatedClasses);
         calculateReports(updatedClasses);
+        // Extract unique months for the filter buttons
+        const months = [...new Set(updatedClasses.map(cls => cls.date.substring(0, 7)))].sort();
+        setAvailableMonths(months);
       };
 
       // Function to calculate the weekly and monthly reports
@@ -437,6 +452,11 @@ const importDatabase = (event) => {
 // ===== FIN FUNCIONES EXTRA =====
 
 const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
+
+// Filter classes based on the selected month
+const filteredClasses = selectedMonth === 'Todos' 
+  ? classes 
+  : classes.filter(cls => cls.date.substring(0, 7) === selectedMonth);
 
       return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
@@ -681,6 +701,30 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
                     </div>
                   </div>
                 </form>
+                
+                {/* Monthly Filter Section */}
+                <div className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
+                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                        <i className="fas fa-calendar-check text-lg"></i> Ver Clases por Mes
+                    </h2>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={() => setSelectedMonth('Todos')}
+                            className={`px-4 py-2 rounded-md transition-colors ${selectedMonth === 'Todos' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-800 hover:bg-blue-200'}`}
+                        >
+                            Todos
+                        </button>
+                        {availableMonths.map(month => (
+                            <button
+                                key={month}
+                                onClick={() => setSelectedMonth(month)}
+                                className={`px-4 py-2 rounded-md transition-colors ${selectedMonth === month ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-800 hover:bg-blue-200'}`}
+                            >
+                                {month}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 {/* Table to display classes */}
                 <div className="overflow-x-auto rounded-lg shadow-md">
@@ -711,10 +755,10 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {classes.length > 0 ? (
-                        classes.map((cls, index) => {
+                      {filteredClasses.length > 0 ? (
+                        filteredClasses.map((cls, index) => {
                           // Find the index of the first occurrence of this date, day, and time
-                          const firstIndex = classes.findIndex(
+                          const firstIndex = filteredClasses.findIndex(
                             (c) => c.date === cls.date && c.day === cls.day && c.time === cls.time
                           );
                           // Render the value only for the first student in a given class time
@@ -723,7 +767,7 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
                           return (
                             <tr key={cls.id} className={cls.color}>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {cls.date}
+                                {formatDate(cls.date)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {cls.day}
@@ -777,6 +821,7 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
   </script>
 </body>
 </html>
+
 
 
 
