@@ -425,53 +425,59 @@ const exportWeeklyPDF = () => {
   doc.save("informe_semanal.pdf");
 };
 
-// **FUNCIÓN MODIFICADA: Ahora exporta el PDF mensual con el nombre del mes en el título**
+// **FUNCIÓN CORREGIDA: Ahora exporta todos los meses en un único documento PDF y corrige la columna de alumnos**
 const exportMonthlyPDF = () => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  
-  monthlyReports.forEach(report => {
-    doc.setFontSize(16);
-    doc.text(`Informe Mensual - Clases de Pádel - ${report.month}`, 14, 15);
-  
-    let finalY = 25; // Variable para rastrear la posición Y de la siguiente tabla
 
+  monthlyReports.forEach((report, index) => {
+    if (index > 0) {
+      doc.addPage();
+    }
+    
+    let finalY = 15; // Variable para rastrear la posición Y de la siguiente tabla
+
+    // Título del reporte mensual
+    doc.setFontSize(16);
+    doc.text(`Informe Mensual - Clases de Pádel - ${report.month}`, 14, finalY);
+    finalY += 10;
+  
     // Tabla de resumen mensual
     doc.autoTable({
-        head: [["Mes", "Total Clases", "Ganancia Total"]],
-        body: [[
-            report.month,
-            report.totalClasses,
-            formatCurrency(report.totalEarnings)
-        ]],
-        startY: finalY,
-        theme: 'grid',
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: '#ef4444' }
+      head: [["Mes", "Total Clases", "Ganancia Total"]],
+      body: [[
+        report.month,
+        report.totalClasses,
+        formatCurrency(report.totalEarnings)
+      ]],
+      startY: finalY,
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: '#ef4444' }
     });
     finalY = doc.autoTable.previous.finalY + 10;
 
-    // Tabla con el detalle de clases por alumno (la nueva sección)
+    // Tabla con el detalle de clases por alumno
     doc.setFontSize(12);
     doc.text(`Desglose de Clases por Alumno:`, 14, finalY);
     finalY += 5;
     
     const detailedCountData = [
-        ["1 Persona", "2 Personas", "3 Personas", "4 Personas"],
-        [
-            report.countsByStudent[1] || 0,
-            report.countsByStudent[2] || 0,
-            report.countsByStudent[3] || 0,
-            report.countsByStudent[4] || 0
-        ]
+      ["1 Persona", "2 Personas", "3 Personas", "4 Personas"],
+      [
+        report.countsByStudent[1] || 0,
+        report.countsByStudent[2] || 0,
+        report.countsByStudent[3] || 0,
+        report.countsByStudent[4] || 0
+      ]
     ];
     doc.autoTable({
-        head: [detailedCountData[0]],
-        body: [detailedCountData[1]],
-        startY: finalY,
-        theme: 'grid',
-        styles: { fontSize: 8, halign: 'center' },
-        headStyles: { fillColor: '#fca5a5' }
+      head: [detailedCountData[0]],
+      body: [detailedCountData[1]],
+      startY: finalY,
+      theme: 'grid',
+      styles: { fontSize: 8, halign: 'center' },
+      headStyles: { fillColor: '#fca5a5' }
     });
     finalY = doc.autoTable.previous.finalY + 10;
 
@@ -485,16 +491,23 @@ const exportMonthlyPDF = () => {
 
     // Tabla con el detalle de las clases del mes
     if (classesForMonth.length > 0) {
-      // Se crea un conjunto para contar las clases por día y horario una sola vez
       const processedClasses = new Set();
       const detailedTableData = classesForMonth.map(cls => {
         const classKey = `${cls.date}-${cls.day}-${cls.time}`;
-        if (processedClasses.has(classKey)) {
-          return [formatDate(cls.date), cls.day, cls.time, cls.studentName, cls.studentCount, ''];
-        } else {
+        const isFirstStudentInClass = !processedClasses.has(classKey);
+        
+        if (isFirstStudentInClass) {
           processedClasses.add(classKey);
-          return [formatDate(cls.date), cls.day, cls.time, cls.studentName, cls.studentCount, formatCurrency(cls.value)];
         }
+
+        return [
+          formatDate(cls.date),
+          cls.day,
+          cls.time,
+          cls.studentName,
+          isFirstStudentInClass ? cls.studentCount : '',
+          isFirstStudentInClass ? formatCurrency(cls.value) : ''
+        ];
       });
 
       doc.setFontSize(12);
@@ -509,15 +522,11 @@ const exportMonthlyPDF = () => {
         styles: { fontSize: 8 },
         headStyles: { fillColor: '#ef4444' }
       });
-      finalY = doc.autoTable.previous.finalY + 10;
     }
 
-    if (finalY > 280) { // Si la posición Y se acerca al final de la página, añade una nueva
-      doc.addPage();
-      finalY = 15;
-    }
   });
-
+  
+  // Guardar el documento una única vez después de procesar todos los reportes
   doc.save("informe_mensual_detallado.pdf");
 };
 
@@ -875,7 +884,7 @@ const filteredClasses = selectedMonth === 'Todos'
                             (c) => c.date === cls.date && c.day === cls.day && c.time === cls.time
                           );
                           // Render the value only for the first student in a given class time
-                          const displayValue = firstIndex === index;
+                          const displayValueAndCount = firstIndex === index;
 
                           return (
                             <tr key={cls.id} className={cls.color}>
@@ -892,10 +901,12 @@ const filteredClasses = selectedMonth === 'Todos'
                                 {cls.studentName}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {cls.studentCount}
+                                {displayValueAndCount
+                                  ? cls.studentCount
+                                  : ''}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {displayValue
+                                {displayValueAndCount
                                   ? formatCurrency(cls.value)
                                   : ''}
                               </td>
@@ -934,6 +945,7 @@ const filteredClasses = selectedMonth === 'Todos'
   </script>
 </body>
 </html>
+
 
 
 
