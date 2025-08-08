@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Informe de Clases de Padel (Local)</title>
+  <title>Informe de Clases de Padel (Cloud)</title>
+  
   <!-- CDN links for React, ReactDOM, Babel, Tailwind CSS, Font Awesome, jsPDF and html2canvas -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -12,25 +13,62 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
+  <!-- Importación de Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, collection, addDoc, onSnapshot, query, serverTimestamp, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    
+    // Asigna las referencias globales para que el script de React pueda usarlas
+    window.firebase = {
+        initializeApp,
+        getAuth,
+        signInAnonymously,
+        onAuthStateChanged,
+        signInWithCustomToken,
+        getFirestore,
+        doc,
+        collection,
+        addDoc,
+        onSnapshot,
+        query,
+        serverTimestamp,
+        setDoc,
+        deleteDoc
+    };
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    body {
+        font-family: 'Inter', sans-serif;
+    }
+  </style>
 </head>
 <body class="bg-gray-100 font-sans">
-  <!-- The container where the React app will be mounted -->
   <div id="root"></div>
 
-  <!-- The React app script, wrapped in a Babel tag -->
+  <!-- El script de React, ahora integrado con Firebase -->
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
+    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, collection, addDoc, onSnapshot, query, serverTimestamp, setDoc, deleteDoc } = window.firebase;
 
-    // Main App component
+    // Obtiene la configuración global de Canvas (o usa la que proporcionaste como fallback)
+    const firebaseConfig = typeof __firebase_config !== 'undefined'
+      ? JSON.parse(__firebase_config)
+      : {
+          apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+          authDomain: "app-de-padel.firebaseapp.com",
+          projectId: "app-de-padel",
+          storageBucket: "app-de-padel.firebasestorage.app",
+          messagingSenderId: "731771747398",
+          appId: "1:731771747398:web:ebc8b723fe220869fade47"
+        };
+    const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.appId;
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
     const App = () => {
-      // Default values for class earnings based on student count
-      const defaultValueMap = {
-        1: 12000,
-        2: 19000,
-        3: 24000,
-        4: 26000,
-      };
-
       // Background colors for the table rows
       const colorMap = {
         1: 'bg-orange-100',
@@ -39,61 +77,53 @@
         4: 'bg-red-100',
       };
 
-      // State to manage the list of classes, new class input, and reports
       const [classes, setClasses] = useState([]);
       const [newEntry, setNewEntry] = useState({
         studentName: '',
         day: 'Lunes',
         time: '8:00 a. m.',
-        date: new Date().toISOString().slice(0, 10), // Default to today's date
+        date: new Date().toISOString().slice(0, 10),
       });
       const [weeklyReports, setWeeklyReports] = useState([]);
       const [monthlyReports, setMonthlyReports] = useState([]);
       const [loading, setLoading] = useState(true);
-      const [editableValues, setEditableValues] = useState(defaultValueMap);
-      const [pdfLoading, setPdfLoading] = useState(false); // New state for PDF loading
-      const [message, setMessage] = useState({ text: '', type: '' }); // New state for messages
+      const [editableValues, setEditableValues] = useState({
+        1: 12000,
+        2: 19000,
+        3: 24000,
+        4: 26000,
+      });
+      const [pdfLoading, setPdfLoading] = useState(false);
+      const [message, setMessage] = useState({ text: '', type: '' });
+      const [isAuthReady, setIsAuthReady] = useState(false);
+      const [userId, setUserId] = useState(null);
+      const [db, setDb] = useState(null);
+      const [auth, setAuth] = useState(null);
 
-      // Refs for PDF generation and file input
       const weeklyReportRef = useRef(null);
       const monthlyReportRef = useRef(null);
-      const fileInputRef = useRef(null);
 
-      // Options for form dropdowns
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
       const timeOptions = ['8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 a. m.'];
 
-      // Helper function to format currency
       const formatCurrency = (value) => {
         return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
       };
 
-      // Helper function to format date from YYYY-MM-DD to DD/MM/YYYY
       const formatDate = (dateString) => {
         if (!dateString) return '';
         const [year, month, day] = dateString.split('-');
         return `${day}/${month}/${year}`;
       };
       
-      // Helper function to save data to local storage
-      const saveToLocalStorage = (classesToSave, valuesToSave) => {
-        localStorage.setItem('padelClasses', JSON.stringify(classesToSave));
-        localStorage.setItem('padelValues', JSON.stringify(valuesToSave));
-      };
-      
-      // Helper function to load data from local storage
-      const loadFromLocalStorage = () => {
-        const storedClasses = JSON.parse(localStorage.getItem('padelClasses'));
-        const storedValues = JSON.parse(localStorage.getItem('padelValues'));
-        return {
-          classes: storedClasses || [],
-          values: storedValues || defaultValueMap
-        };
+      const showMessage = (text, type = 'success') => {
+        setMessage({ text, type });
+        setTimeout(() => setMessage({ text: '', type: '' }), 5000);
       };
 
-      // Helper function to calculate and update all values, colors, and reports
-      const updateClassesAndReports = (currentClasses, currentValues) => {
-        // Group classes by day and time to count students
+      // Función para calcular y actualizar todos los reportes
+      const calculateReports = (currentClasses, currentValues) => {
+        // Agrupa las clases por día y hora para contar los alumnos
         const classesByDayTime = currentClasses.reduce((acc, curr) => {
           const key = `${curr.date}-${curr.day}-${curr.time}`;
           if (!acc[key]) {
@@ -103,7 +133,7 @@
           return acc;
         }, {});
 
-        // Map through the classes to update their values and colors using the currentValues
+        // Actualiza el valor y el color de cada clase basándose en la cantidad de alumnos
         const updatedClasses = currentClasses.map(cls => {
           const key = `${cls.date}-${cls.day}-${cls.time}`;
           const studentCount = classesByDayTime[key].length;
@@ -115,7 +145,6 @@
           };
         });
 
-        // Sort the classes by date, then day, then time for better readability
         updatedClasses.sort((a, b) => {
           const dateA = new Date(a.date);
           const dateB = new Date(b.date);
@@ -133,12 +162,7 @@
         });
 
         setClasses(updatedClasses);
-        calculateReports(updatedClasses);
-        saveToLocalStorage(updatedClasses, currentValues); // Save to local storage
-      };
 
-      // Function to calculate the weekly and monthly reports
-      const calculateReports = (updatedClasses) => {
         const weeklyReportMapByMonth = new Map();
         const monthlyReportMap = new Map();
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -149,19 +173,15 @@
           if (!processedClassKeys.has(classKey)) {
             processedClassKeys.add(classKey);
 
-            const date = new Date(cls.date + 'T00:00:00'); // Normalize to avoid timezone issues
+            const date = new Date(cls.date + 'T00:00:00');
             const year = date.getFullYear();
             const month = date.getMonth();
             const monthName = monthNames[month];
-
-            // Calculate week number relative to the start of the month
-            // Simple calculation: day of month / 7, rounded up.
             const weekNumber = Math.ceil(date.getDate() / 7);
 
             const monthKey = `${monthName} ${year}`;
             const weekKey = `Semana ${weekNumber}`;
 
-            // Update weekly report, grouped by month
             if (!weeklyReportMapByMonth.has(monthKey)) {
                 weeklyReportMapByMonth.set(monthKey, { weeks: new Map() });
             }
@@ -173,7 +193,6 @@
             weeklyReport.totalClasses++;
             weeklyReport.totalEarnings += cls.value;
 
-            // Update monthly report
             if (!monthlyReportMap.has(monthKey)) {
               monthlyReportMap.set(monthKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
             }
@@ -186,7 +205,6 @@
           }
         });
 
-        // Convert maps to arrays for rendering
         const weeklyReportsArray = Array.from(weeklyReportMapByMonth.entries()).map(([month, reportData]) => ({
             month,
             weeks: Array.from(reportData.weeks.entries()).map(([week, value]) => ({ week, ...value }))
@@ -197,19 +215,83 @@
         setMonthlyReports(monthlyReportsArray);
       };
 
+      // Effect para inicializar Firebase y los listeners de Firestore
+      useEffect(() => {
+        const app = initializeApp(firebaseConfig);
+        const authInstance = getAuth(app);
+        const dbInstance = getFirestore(app);
 
-      // Function to generate and download PDF
+        const unsubscribeAuth = onAuthStateChanged(authInstance, async (user) => {
+          if (user) {
+            setAuth(authInstance);
+            setDb(dbInstance);
+            setUserId(user.uid);
+            setIsAuthReady(true);
+            setLoading(false);
+          } else {
+            // Intenta autenticar con el token personalizado si está disponible, si no, anónimamente
+            try {
+              if (initialAuthToken) {
+                await signInWithCustomToken(authInstance, initialAuthToken);
+              } else {
+                await signInAnonymously(authInstance);
+              }
+            } catch (error) {
+              console.error("Error al autenticar:", error);
+              setLoading(false);
+              showMessage("Error al autenticar. Revisa la consola.", 'error');
+            }
+          }
+        });
+
+        return () => unsubscribeAuth();
+      }, []);
+
+      // Effect para configurar los listeners de Firestore una vez que la autenticación está lista
+      useEffect(() => {
+        if (!isAuthReady || !db || !userId) return;
+
+        // Listener para los valores editables (precios)
+        const valuesRef = doc(db, `/artifacts/${appId}/users/${userId}/padelValues/prices`);
+        const unsubscribeValues = onSnapshot(valuesRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setEditableValues(docSnap.data());
+          } else {
+            console.log("No se encontraron precios, usando valores por defecto.");
+          }
+        }, (error) => {
+          console.error("Error al escuchar los precios:", error);
+        });
+
+        // Listener para la colección de clases
+        const classesRef = collection(db, `/artifacts/${appId}/users/${userId}/padelClasses`);
+        const unsubscribeClasses = onSnapshot(classesRef, (snapshot) => {
+          const newClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setClasses(newClasses);
+        }, (error) => {
+          console.error("Error al escuchar las clases:", error);
+          showMessage("Error al cargar las clases. Revisa la consola.", 'error');
+        });
+
+        // Limpieza de los listeners al desmontar el componente
+        return () => {
+          unsubscribeValues();
+          unsubscribeClasses();
+        };
+      }, [isAuthReady, db, userId, appId]);
+
+      // Effect para recalcular reportes cuando cambian las clases o los valores
+      useEffect(() => {
+          calculateReports(classes, editableValues);
+      }, [classes, editableValues]);
+
       const generatePdf = async (reportType) => {
         setPdfLoading(true);
         const input = reportType === 'weekly' ? weeklyReportRef.current : monthlyReportRef.current;
         const reportTitle = reportType === 'weekly' ? 'Informe Semanal' : 'Informe Mensual';
-
         if (input) {
           try {
-            const canvas = await html2canvas(input, {
-              scale: 2, // Higher scale for better resolution
-              useCORS: true,
-            });
+            const canvas = await html2canvas(input, { scale: 2, useCORS: true });
             const imgData = canvas.toDataURL('image/png');
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('p', 'mm', 'a4');
@@ -217,14 +299,11 @@
             const pdfHeight = pdf.internal.pageSize.getHeight();
             const imgWidth = canvas.width;
             const imgHeight = canvas.height;
-
             const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
             const finalWidth = imgWidth * ratio;
             const finalHeight = imgHeight * ratio;
-
             const x = (pdfWidth - finalWidth) / 2;
             const y = (pdfHeight - finalHeight) / 2;
-
             pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
             pdf.save(`${reportTitle}.pdf`);
           } catch (error) {
@@ -235,108 +314,70 @@
         }
       };
 
-
-      // Handle input changes in the form
       const handleInputChange = (e) => {
         const { name, value } = e.target;
         setNewEntry(prev => ({ ...prev, [name]: value }));
       };
       
-      // Handle changes to the editable value inputs
-      const handleValueChange = (e) => {
+      const handleValueChange = async (e) => {
         const { name, value } = e.target;
         const newValues = { ...editableValues, [name]: Number(value) };
-        setEditableValues(newValues);
-        updateClassesAndReports(classes, newValues);
-      };
-
-      // Handle adding a new class
-      const handleAddClass = (e) => {
-        e.preventDefault();
-        if (newEntry.studentName.trim() === '') return;
+        setEditableValues(newValues); // Actualiza el estado local inmediatamente
         
-        // Generate a simple unique ID for local storage
-        const newClass = { ...newEntry, id: Date.now().toString() };
-        const newClasses = [...classes, newClass];
-        setClasses(newClasses);
-        updateClassesAndReports(newClasses, editableValues);
-        setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
+        try {
+          if (!db || !userId) throw new Error("Database not ready.");
+          const valuesRef = doc(db, `/artifacts/${appId}/users/${userId}/padelValues/prices`);
+          await setDoc(valuesRef, newValues);
+        } catch (error) {
+          console.error("Error al actualizar los precios:", error);
+          showMessage("Error al actualizar los precios. Revisa la consola.", 'error');
+        }
       };
 
-      // Handle deleting a class
-      const handleDeleteClass = (id) => {
-        const newClasses = classes.filter(cls => cls.id !== id);
-        setClasses(newClasses);
-        updateClassesAndReports(newClasses, editableValues);
+      const handleAddClass = async (e) => {
+        e.preventDefault();
+        if (newEntry.studentName.trim() === '') {
+          showMessage("Por favor, introduce un nombre de alumno.", 'error');
+          return;
+        }
+
+        try {
+          if (!db || !userId) throw new Error("Database not ready.");
+          const classesRef = collection(db, `/artifacts/${appId}/users/${userId}/padelClasses`);
+          
+          await addDoc(classesRef, {
+            ...newEntry,
+            timestamp: serverTimestamp(),
+          });
+          
+          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
+          showMessage('Clase añadida correctamente.', 'success');
+        } catch (error) {
+          console.error("Error al añadir la clase:", error);
+          showMessage("Error al añadir la clase. Revisa la consola.", 'error');
+        }
       };
 
-      // Show a temporary message
-      const showMessage = (text, type = 'success') => {
-        setMessage({ text, type });
-        setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+      const handleDeleteClass = async (id) => {
+        try {
+          if (!db || !userId) throw new Error("Database not ready.");
+          const classRef = doc(db, `/artifacts/${appId}/users/${userId}/padelClasses`, id);
+          await deleteDoc(classRef);
+          showMessage('Clase eliminada correctamente.', 'success');
+        } catch (error) {
+          console.error("Error al eliminar la clase:", error);
+          showMessage("Error al eliminar la clase. Revisa la consola.", 'error');
+        }
       };
-
-      // Function to export data to a JSON file
-      const handleExportData = () => {
-        const dataToExport = {
-          classes,
-          editableValues,
-        };
-        const jsonData = JSON.stringify(dataToExport, null, 2);
-        const blob = new Blob([jsonData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'informe-padel-datos.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showMessage('Datos exportados correctamente.', 'success');
-      };
-
-      // Function to handle data import from a JSON file
-      const handleImportData = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const importedData = JSON.parse(event.target.result);
-            if (importedData.classes && importedData.editableValues) {
-              setEditableValues(importedData.editableValues);
-              updateClassesAndReports(importedData.classes, importedData.editableValues);
-              showMessage('Datos importados correctamente.', 'success');
-            } else {
-              showMessage('El archivo no tiene el formato correcto.', 'error');
-            }
-          } catch (error) {
-            console.error("Error importing data:", error);
-            showMessage('Hubo un error al leer el archivo. Asegúrate de que sea un archivo JSON válido.', 'error');
-          }
-        };
-        reader.readAsText(file);
-        // Clear the file input value to allow importing the same file again
-        e.target.value = null;
-      };
-
-      // Effect to load data from local storage on mount
-      useEffect(() => {
-        const { classes, values } = loadFromLocalStorage();
-        setEditableValues(values);
-        updateClassesAndReports(classes, values);
-        setLoading(false);
-      }, []);
 
       return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
           <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
-            <h1 className="text-3xl font-bold mb-6 text-center text-gray-900">
-              Informe de Clases de Padel (Local)
+            <h1 className="text-3xl font-bold mb-2 text-center text-gray-900">
+              Informe de Clases de Padel (Cloud)
             </h1>
             <p className="text-center text-sm text-gray-500 mb-4">
-              Nota: Los datos se guardan directamente en este dispositivo.
+              ID de Usuario: <span className="font-mono bg-gray-200 p-1 rounded-md text-xs">{userId || "Cargando..."}</span>
             </p>
 
             {message.text && (
@@ -346,49 +387,20 @@
             )}
             
             {loading ? (
-              <div className="flex justify-center items-center h-48">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                <p className="ml-4 text-gray-600">Cargando datos locales...</p>
+              <div className="flex flex-col justify-center items-center h-48">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+                <p className="mt-4 text-gray-600">Conectando con la base de datos...</p>
               </div>
             ) : (
               <>
-                {/* Data Management Section (Export/Import) */}
-                <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
-                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                    <i className="fas fa-database text-lg"></i> Gestión de Datos
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button
-                      onClick={handleExportData}
-                      className="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
-                    >
-                      <i className="fas fa-download mr-2"></i> Exportar Datos
-                    </button>
-                    <div>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleImportData}
-                        className="hidden"
-                        accept=".json"
-                      />
-                      <button
-                        onClick={() => fileInputRef.current.click()}
-                        className="w-full bg-indigo-500 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
-                      >
-                        <i className="fas fa-upload mr-2"></i> Importar Datos
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Editable Values Section */}
+                {/* Nota: La gestión de datos (exportar/importar) ya no es necesaria, ya que los datos están en la nube */}
+                
                 <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
                   <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                     <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
                   </h2>
                   <p className="text-sm text-gray-600 mb-4">
-                    Edita el valor de las clases según la cantidad de alumnos. Los cambios se guardarán automáticamente en tu dispositivo.
+                    Edita el valor de las clases según la cantidad de alumnos. Los cambios se guardarán automáticamente en la nube.
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {Object.entries(editableValues).map(([count, value]) => (
@@ -402,7 +414,7 @@
                           type="number"
                           value={value}
                           onChange={handleValueChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2 text-center text-lg font-bold"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors p-2 text-center text-lg font-bold"
                           min="0"
                         />
                       </div>
@@ -410,9 +422,7 @@
                   </div>
                 </div>
 
-                {/* Reports Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  {/* Weekly Reports, grouped by month */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
@@ -421,13 +431,12 @@
                       <button
                         onClick={() => generatePdf('weekly')}
                         disabled={pdfLoading}
-                        className="bg-blue-600 text-white font-bold py-1 px-3 rounded-md text-sm shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors flex items-center gap-1"
+                        className="bg-indigo-600 text-white font-bold py-1 px-3 rounded-md text-sm shadow-md hover:bg-indigo-700 disabled:bg-gray-400 transition-colors flex items-center gap-1"
                       >
                         <i className="fas fa-download"></i>
                         {pdfLoading ? 'Cargando...' : 'PDF'}
                       </button>
                     </div>
-                    {/* The content to be captured for the PDF */}
                     <div ref={weeklyReportRef}>
                       {weeklyReports.length > 0 ? (
                         weeklyReports.map(monthReport => (
@@ -460,7 +469,6 @@
                     </div>
                   </div>
                   
-                  {/* Monthly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
@@ -469,13 +477,12 @@
                       <button
                         onClick={() => generatePdf('monthly')}
                         disabled={pdfLoading}
-                        className="bg-blue-600 text-white font-bold py-1 px-3 rounded-md text-sm shadow-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors flex items-center gap-1"
+                        className="bg-indigo-600 text-white font-bold py-1 px-3 rounded-md text-sm shadow-md hover:bg-indigo-700 disabled:bg-gray-400 transition-colors flex items-center gap-1"
                       >
                         <i className="fas fa-download"></i>
                         {pdfLoading ? 'Cargando...' : 'PDF'}
                       </button>
                     </div>
-                    {/* The content to be captured for the PDF */}
                     <div ref={monthlyReportRef}>
                       {monthlyReports.length > 0 ? (
                         monthlyReports.map(report => (
@@ -511,8 +518,7 @@
                   </div>
                 </div>
 
-                {/* Form to add new classes */}
-                <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
+                <form onSubmit={handleAddClass} className="mb-8 p-6 bg-indigo-50 rounded-lg shadow-inner">
                   <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                     <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
                   </h2>
@@ -527,7 +533,7 @@
                         type="date"
                         value={newEntry.date}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors p-2"
                       />
                     </div>
                     <div className="md:col-span-1">
@@ -539,7 +545,7 @@
                         name="day"
                         value={newEntry.day}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors p-2"
                       >
                         {dayOptions.map(day => (
                           <option key={day} value={day}>{day}</option>
@@ -555,7 +561,7 @@
                         name="time"
                         value={newEntry.time}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors p-2"
                       >
                         {timeOptions.map(time => (
                           <option key={time} value={time}>{time}</option>
@@ -573,13 +579,13 @@
                         value={newEntry.studentName}
                         onChange={handleInputChange}
                         placeholder="Ej: GABRIEL"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-colors p-2"
                       />
                     </div>
                     <div className="md:col-span-1">
                       <button
                         type="submit"
-                        className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                        className="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
                       >
                         Añadir
                       </button>
@@ -587,7 +593,6 @@
                   </div>
                 </form>
 
-                {/* Table to display classes */}
                 <div className="overflow-x-auto rounded-lg shadow-md">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-100">
@@ -616,19 +621,11 @@
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {loading ? (
-                        <tr>
-                          <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500 italic">
-                            Cargando datos locales...
-                          </td>
-                        </tr>
-                      ) : classes.length > 0 ? (
+                      {classes.length > 0 ? (
                         classes.map((cls, index) => {
-                          // Find the index of the first occurrence of this date, day, and time
                           const firstIndex = classes.findIndex(
                             (c) => c.date === cls.date && c.day === cls.day && c.time === cls.time
                           );
-                          // Render the value only for the first student in a given class time
                           const displayValue = firstIndex === index;
 
                           return (
@@ -688,6 +685,7 @@
   </script>
 </body>
 </html>
+
 
 
 
