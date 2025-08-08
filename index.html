@@ -1,730 +1,319 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Informe de Clases de Padel</title>
-  <!-- Enlaces CDN para React, ReactDOM, Babel, Tailwind CSS y Font Awesome -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  
-  <!-- SDK de Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    
-    // Exportar las funciones de Firebase al ámbito global de la ventana
-    window.firebase = {
-      initializeApp,
-      getAuth,
-      signInAnonymously,
-      signInWithCustomToken,
-      onAuthStateChanged,
-      getFirestore,
-      doc,
-      setDoc,
-      onSnapshot,
-      collection,
-      addDoc,
-      deleteDoc
-    };
-  </script>
-  <!-- Librería jsPDF para la generación de PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
-</head>
-<body class="bg-gray-100 font-sans">
-  <div id="root"></div>
-
-  <script type="text/babel">
-    const { useState, useEffect, useRef, useCallback } = React;
-
-    // Valores predeterminados para las clases según la cantidad de alumnos
-    const defaultValueMap = {
-      1: 12000,
-      2: 19000,
-      3: 24000,
-      4: 26000,
-    };
-
-    // Mapa de colores para las filas de la tabla
-    const colorMap = {
-      1: 'bg-orange-100',
-      2: 'bg-green-100',
-      3: 'bg-blue-100',
-      4: 'bg-red-100',
-    };
-
-    const App = () => {
-      const [classes, setClasses] = useState([]);
-      const [newEntry, setNewEntry] = useState({
-        studentName: '',
-        day: 'Lunes',
-        time: '8:00 a. m.',
-        date: new Date().toISOString().slice(0, 10),
-      });
-      const [weeklyReports, setWeeklyReports] = useState([]);
-      const [monthlyReports, setMonthlyReports] = useState([]);
-      const [dbStatus, setDbStatus] = useState('loading'); // 'loading', 'connected', 'error'
-      const [isAdding, setIsAdding] = useState(false);
-      const [isReportsUpdating, setIsReportsUpdating] = useState(false);
-      const [editableValues, setEditableValues] = useState(defaultValueMap);
-      const [pdfLoading, setPdfLoading] = useState(false);
-      const [submissionError, setSubmissionError] = useState(null);
-      const [userId, setUserId] = useState(null);
-      const [db, setDb] = useState(null);
-      const [auth, setAuth] = useState(null);
-      const [appId, setAppId] = useState(null);
-      
-      const processingTimeoutRef = useRef(null);
-      const weeklyReportRef = useRef(null);
-      const monthlyReportRef = useRef(null);
-
-      const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-      const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
-      const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
-      // Formato de moneda para Argentina
-      const formatCurrency = (value) => {
-        return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
-      };
-
-      // Generación de PDF utilizando html2pdf
-      const generatePdfReport = async (reportType) => {
-        setPdfLoading(true);
-        const element = reportType === 'weekly' ? weeklyReportRef.current : monthlyReportRef.current;
-        const filename = reportType === 'weekly' ? 'Informe_Semanal_Padel.pdf' : 'Informe_Mensual_Padel.pdf';
-
-        if (element) {
-          const opt = {
-            margin: 10,
-            filename: filename,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-          };
-          html2pdf().from(element).set(opt).save();
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe de Clases de Padel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
         }
-        setPdfLoading(false);
-      };
+        .container {
+            max-width: 800px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #4f46e5;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca;
+        }
+        .input-field {
+            border: 1px solid #d1d5db;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: border-color 0.2s;
+        }
+        .input-field:focus {
+            border-color: #4f46e5;
+            outline: none;
+        }
+        .message-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            color: white;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+        .message-success {
+            background-color: #10b981;
+        }
+        .message-error {
+            background-color: #ef4444;
+        }
+        .message-icon {
+            margin-right: 12px;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div id="app" class="container mx-auto p-6 space-y-6">
+        <!-- Título y estado de conexión -->
+        <header class="text-center">
+            <h1 class="text-4xl font-bold text-gray-800">Informe de Clases de Padel</h1>
+            <p id="status-message" class="mt-2 text-sm font-medium text-gray-500">Conectando a la nube...</p>
+        </header>
 
-      // Función para calcular los informes semanales y mensuales
-      const calculateReports = useCallback((allClasses, currentValues) => {
-        const weeklyReportMap = new Map();
-        const monthlyReportMap = new Map();
+        <!-- Formulario para añadir clases -->
+        <div id="main-content" class="card p-6 hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Añadir Nueva Clase</h2>
+            <form id="add-class-form" class="space-y-4">
+                <div class="flex flex-col">
+                    <label for="studentName" class="mb-1 font-medium text-gray-600">Nombre del Alumno:</label>
+                    <input type="text" id="studentName" placeholder="Ej. Juan Pérez" class="input-field" required>
+                </div>
+                <div class="flex flex-col">
+                    <label for="date" class="mb-1 font-medium text-gray-600">Fecha:</label>
+                    <input type="date" id="date" class="input-field" required>
+                </div>
+                <div class="flex flex-col">
+                    <label for="duration" class="mb-1 font-medium text-gray-600">Duración (minutos):</label>
+                    <input type="number" id="duration" placeholder="Ej. 60" class="input-field" required min="1">
+                </div>
+                <div class="flex flex-col">
+                    <label for="cost" class="mb-1 font-medium text-gray-600">Costo ($):</label>
+                    <input type="number" id="cost" placeholder="Ej. 2500" class="input-field" required min="0" step="any">
+                </div>
+                <button type="submit" class="w-full btn-primary transition-colors duration-200">Añadir Clase</button>
+            </form>
+        </div>
 
-        const classesByTimeSlot = allClasses.reduce((acc, curr) => {
-          const key = `${curr.date}-${curr.day}-${curr.time}`;
-          if (!acc[key]) acc[key] = [];
-          acc[key].push(curr);
-          return acc;
-        }, {});
+        <!-- Lista de clases -->
+        <div id="classes-list" class="card p-6 mt-6 hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Resumen de Clases</h2>
+            <div id="summary" class="bg-gray-50 p-4 rounded-lg mb-4 text-sm text-gray-700">
+                <p>Total de Clases: <span id="total-classes" class="font-bold">0</span></p>
+                <p>Costo Total: $<span id="total-cost" class="font-bold">0.00</span></p>
+            </div>
+            <div id="classes-container" class="space-y-4">
+                <!-- Las clases se renderizarán aquí -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contenedor para los mensajes de la aplicación -->
+    <div id="message-container"></div>
 
-        Object.values(classesByTimeSlot).forEach(timeSlotClasses => {
-            const firstClass = timeSlotClasses[0];
-            const studentCount = timeSlotClasses.length;
-            const totalValue = currentValues[studentCount] || 0;
+    <script type="module">
+        // Importar los módulos necesarios de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-            const date = new Date(firstClass.date + 'T00:00:00');
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            const monthName = monthNames[month];
-            const firstDayOfYear = new Date(year, 0, 1);
-            const pastDays = (date - firstDayOfYear) / 86400000;
-            const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
-            const weekKey = `${year}-Semana ${weekNumber}`;
-            const monthKey = `${monthName} ${year}`;
-
-            // Actualizar informe semanal
-            const currentWeeklyReport = weeklyReportMap.get(weekKey) || { totalClasses: 0, totalEarnings: 0 };
-            weeklyReportMap.set(weekKey, {
-                totalClasses: currentWeeklyReport.totalClasses + 1,
-                totalEarnings: currentWeeklyReport.totalEarnings + totalValue,
-            });
-
-            // Actualizar informe mensual
-            const monthlyReport = monthlyReportMap.get(monthKey) || {
-              totalClasses: 0,
-              totalEarnings: 0,
-              countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 }
-            };
-            monthlyReport.totalClasses++;
-            monthlyReport.totalEarnings += totalValue;
-            if (studentCount >= 1 && studentCount <= 4) {
-              monthlyReport.countsByStudent[studentCount]++;
-            }
-            monthlyReportMap.set(monthKey, monthlyReport);
-        });
-
-        const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
-        const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
-
-        weeklyReportsArray.sort((a, b) => a.week.localeCompare(b.week));
-        monthlyReportsArray.sort((a, b) => {
-            const [monthA, yearA] = a.month.split(' ');
-            const [monthB, yearB] = b.month.split(' ');
-            const dateA = new Date(yearA, monthNames.indexOf(monthA));
-            const dateB = new Date(yearB, monthNames.indexOf(monthB));
-            return dateA - dateB;
-        });
-
-        setWeeklyReports(weeklyReportsArray);
-        setMonthlyReports(monthlyReportsArray);
-        setIsReportsUpdating(false);
-      }, [monthNames]);
-
-      // Efecto para la inicialización y autenticación de Firebase
-      useEffect(() => {
-        console.log("Paso 1: Iniciando la configuración de Firebase...");
+        // Variables globales para la configuración de Firebase
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        if (!firebaseConfig || !window.firebase) {
-          console.error("Paso 1.1: ERROR. La configuración de Firebase o las dependencias no están disponibles.");
-          setDbStatus('error');
-          return;
+        // Elementos del DOM
+        const statusMessage = document.getElementById('status-message');
+        const mainContent = document.getElementById('main-content');
+        const classesList = document.getElementById('classes-list');
+        const addClassForm = document.getElementById('add-class-form');
+        const classesContainer = document.getElementById('classes-container');
+        const totalClassesSpan = document.getElementById('total-classes');
+        const totalCostSpan = document.getElementById('total-cost');
+        const messageContainer = document.getElementById('message-container');
+
+        let db, auth;
+        let userId = 'anon-user';
+        let isAuthReady = false;
+
+        // Función para mostrar mensajes temporales en la UI
+        function showMessage(text, type = 'success') {
+            const messageBox = document.createElement('div');
+            messageBox.className = `message-box ${type === 'success' ? 'message-success' : 'message-error'}`;
+            messageBox.innerHTML = `
+                <span class="message-icon">
+                    ${type === 'success' ? '✔️' : '❌'}
+                </span>
+                <span>${text}</span>
+            `;
+            messageContainer.appendChild(messageBox);
+            setTimeout(() => {
+                messageBox.remove();
+            }, 5000);
         }
 
-        try {
-          console.log("Paso 2: Intentando inicializar Firebase app...");
-          const app = window.firebase.initializeApp(firebaseConfig);
-          const authInstance = window.firebase.getAuth(app);
-          const dbInstance = window.firebase.getFirestore(app);
-          setAppId(currentAppId);
-          setDb(dbInstance);
-          setAuth(authInstance);
-
-          console.log("Paso 3: Configurando listener de autenticación...");
-          const unsubscribeAuth = window.firebase.onAuthStateChanged(authInstance, async (user) => {
-            if (user) {
-              console.log("Paso 4: Usuario autenticado con éxito:", user.uid);
-              setUserId(user.uid);
-              setDbStatus('connected');
-            } else {
-              console.log("Paso 4.1: Usuario no autenticado, intentando iniciar sesión anónimamente...");
-              try {
-                if (initialAuthToken) {
-                  await window.firebase.signInWithCustomToken(authInstance, initialAuthToken);
-                  console.log("Paso 4.2: Sesión iniciada con token personalizado.");
-                } else {
-                  await window.firebase.signInAnonymously(authInstance);
-                  console.log("Paso 4.2: Sesión iniciada de forma anónima.");
-                }
-              } catch (authError) {
-                console.error("Paso 4.3: ERROR durante la autenticación inicial:", authError);
-                setDbStatus('error');
-              }
+        // Inicialización de Firebase
+        async function initializeFirebase() {
+            console.log('Paso 1: Iniciando inicialización de Firebase...');
+            if (!firebaseConfig) {
+                console.error('Error: La configuración de Firebase no está disponible.');
+                statusMessage.textContent = '¡Lo sentimos! Hubo un error al conectar.';
+                showMessage('Error: No se encontró la configuración de Firebase.', 'error');
+                return;
             }
-          });
 
-          return () => unsubscribeAuth();
-        } catch (initError) {
-          console.error("Paso 2.1: ERROR al inicializar la aplicación de Firebase:", initError);
-          setDbStatus('error');
-        }
-      }, []);
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                console.log('Paso 2: Firebase inicializado. Intentando autenticación...');
 
-      // Efecto para los "listeners" de Firestore, se ejecuta cuando el usuario está autenticado
-      useEffect(() => {
-        if (dbStatus !== 'connected' || !db || !userId || !appId) {
-          if (dbStatus === 'error') {
-            console.error("Paso 5: No se pueden configurar los listeners de Firestore. Estado de la DB:", dbStatus);
-          }
-          return;
+                // Autenticar al usuario
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                userId = auth.currentUser?.uid || `anon-${crypto.randomUUID()}`;
+                isAuthReady = true;
+                console.log(`Paso 3: Autenticación exitosa. userId: ${userId}`);
+
+                statusMessage.textContent = 'Conectado a la nube.';
+                mainContent.classList.remove('hidden');
+                classesList.classList.remove('hidden');
+
+                setupRealtimeListener();
+            } catch (error) {
+                console.error("Error al inicializar Firebase:", error);
+                statusMessage.textContent = '¡Lo sentimos! Hubo un error al conectar.';
+                showMessage(`Error al conectar a Firebase: ${error.message}`, 'error');
+            }
         }
-        
-        console.log("Paso 5.1: Configurando listeners de Firestore para el usuario:", userId);
-        const userValuesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
-        const userClassesRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/clases_padel`);
-        
-        const unsubscribeValues = window.firebase.onSnapshot(userValuesDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            console.log("Paso 6: Valores de clase recibidos con éxito.");
-            setEditableValues(docSnap.data());
-          } else {
-            console.log("Paso 6.1: Valores de clase no encontrados, estableciendo valores predeterminados.");
-            setEditableValues(defaultValueMap);
-            window.firebase.setDoc(userValuesDocRef, defaultValueMap);
-          }
-        }, (error) => {
-          console.error("Paso 6.2: ERROR al recibir los valores editables:", error);
-          setDbStatus('error');
+
+        // Configurar el listener en tiempo real para las clases
+        function setupRealtimeListener() {
+            if (!isAuthReady) {
+                console.log('Esperando a que la autenticación esté lista para configurar el listener.');
+                return;
+            }
+            console.log('Paso 4: Configurando el listener en tiempo real...');
+            
+            // Usamos un path de colección para datos privados del usuario
+            const collectionPath = `/artifacts/${appId}/users/${userId}/classes`;
+            const q = query(collection(db, collectionPath));
+            
+            onSnapshot(q, (snapshot) => {
+                console.log('Paso 5: Datos recibidos. Actualizando la UI...');
+                classesContainer.innerHTML = '';
+                let totalCost = 0;
+                let totalClasses = 0;
+                const classes = [];
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    classes.push({ id: doc.id, ...data });
+                });
+                
+                // Ordenar los datos en el cliente por fecha descendente
+                classes.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                classes.forEach(cls => {
+                    totalClasses++;
+                    totalCost += parseFloat(cls.cost);
+                    renderClass(cls);
+                });
+
+                totalClassesSpan.textContent = totalClasses;
+                totalCostSpan.textContent = totalCost.toFixed(2);
+                console.log('Paso 6: UI actualizada.');
+            }, (error) => {
+                console.error("Error en onSnapshot:", error);
+                showMessage('Error al cargar las clases. Intenta refrescar la página.', 'error');
+            });
+            console.log('Paso 7: Listener en tiempo real configurado.');
+        }
+
+        // Renderiza una clase en el DOM
+        function renderClass(cls) {
+            const classItem = document.createElement('div');
+            classItem.className = 'card p-4 flex justify-between items-center bg-gray-50';
+            classItem.innerHTML = `
+                <div>
+                    <p class="font-medium text-gray-800">${cls.studentName}</p>
+                    <p class="text-sm text-gray-600">Fecha: ${cls.date}</p>
+                    <p class="text-sm text-gray-600">Duración: ${cls.duration} min</p>
+                    <p class="text-sm text-gray-600 font-bold">$${cls.cost}</p>
+                </div>
+                <button data-id="${cls.id}" class="delete-btn text-red-500 hover:text-red-700 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            `;
+            classesContainer.appendChild(classItem);
+        }
+
+        // Manejar el envío del formulario
+        addClassForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const studentName = document.getElementById('studentName').value;
+            const date = document.getElementById('date').value;
+            const duration = document.getElementById('duration').value;
+            const cost = document.getElementById('cost').value;
+
+            try {
+                const collectionPath = `/artifacts/${appId}/users/${userId}/classes`;
+                await addDoc(collection(db, collectionPath), {
+                    studentName,
+                    date,
+                    duration: parseInt(duration),
+                    cost: parseFloat(cost)
+                });
+                addClassForm.reset();
+                showMessage('Clase añadida con éxito!');
+            } catch (e) {
+                console.error("Error al añadir el documento:", e);
+                showMessage('Error al añadir la clase.', 'error');
+            }
         });
 
-        const unsubscribeClasses = window.firebase.onSnapshot(userClassesRef, (snapshot) => {
-          if (processingTimeoutRef.current) {
-            clearTimeout(processingTimeoutRef.current);
-          }
-          setIsReportsUpdating(true);
-          
-          processingTimeoutRef.current = setTimeout(() => {
-            console.log("Paso 7: Clases recibidas, procesando datos...");
-            const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            const classesByTimeSlot = fetchedClasses.reduce((acc, curr) => {
-              const key = `${curr.date}-${curr.day}-${curr.time}`;
-              if (!acc[key]) acc[key] = [];
-              acc[key].push(curr);
-              return acc;
-            }, {});
-
-            const updatedClassesWithValues = fetchedClasses.map(cls => {
-              const key = `${cls.date}-${cls.day}-${cls.time}`;
-              const studentCount = classesByTimeSlot[key]?.length || 0;
-              return {
-                ...cls,
-                studentCount,
-                value: editableValues[studentCount] || 0,
-                color: colorMap[studentCount] || '',
-              };
-            });
-
-            updatedClassesWithValues.sort((a, b) => {
-              const dateA = new Date(a.date);
-              const dateB = new Date(b.date);
-              if (dateA.getTime() !== dateB.getTime()) return dateA.getTime() - dateB.getTime();
-              const dayIndexA = dayOptions.indexOf(a.day);
-              const dayIndexB = dayOptions.indexOf(b.day);
-              if (dayIndexA !== dayIndexB) return dayIndexA - dayIndexB;
-              const timeIndexA = timeOptions.indexOf(a.time);
-              const timeIndexB = timeOptions.indexOf(b.time);
-              return timeIndexA - timeIndexB;
-            });
-
-            setClasses(updatedClassesWithValues);
-            calculateReports(updatedClassesWithValues, editableValues);
-            console.log("Paso 7.1: Clases procesadas y estados actualizados.");
-          }, 300);
-        }, (error) => {
-          console.error("Paso 7.2: ERROR al recibir las clases:", error);
-          setDbStatus('error');
+        // Manejar la eliminación de una clase
+        classesContainer.addEventListener('click', async (e) => {
+            if (e.target.closest('.delete-btn')) {
+                const id = e.target.closest('.delete-btn').dataset.id;
+                try {
+                    const collectionPath = `/artifacts/${appId}/users/${userId}/classes`;
+                    const docRef = doc(db, collectionPath, id);
+                    await deleteDoc(docRef);
+                    showMessage('Clase eliminada con éxito!');
+                } catch (e) {
+                    console.error("Error al eliminar el documento:", e);
+                    showMessage('Error al eliminar la clase.', 'error');
+                }
+            }
         });
 
-        return () => {
-          if (unsubscribeValues) unsubscribeValues();
-          if (unsubscribeClasses) unsubscribeClasses();
-          if (processingTimeoutRef.current) {
-            clearTimeout(processingTimeoutRef.current);
-          }
-        };
-      }, [db, userId, appId, editableValues, calculateReports, dbStatus]);
-
-      const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setNewEntry(prev => ({ ...prev, [name]: value }));
-      };
-
-      const handleValueChange = async (e) => {
-        const { name, value } = e.target;
-        const newValues = { ...editableValues, [name]: Number(value) };
-        setEditableValues(newValues);
-        if (dbStatus !== 'connected' || !db || !userId) {
-          console.warn("ADVERTENCIA: No se pudo actualizar el valor. La base de datos no está conectada.");
-          setSubmissionError("No se pudo actualizar. Revisa tu conexión.");
-          return;
-        }
-        try {
-          const userValuesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
-          await window.firebase.setDoc(userValuesDocRef, newValues);
-          console.log("Paso 8: Valores actualizados con éxito en Firestore.");
-        } catch (error) {
-          console.error("Paso 8.1: ERROR al actualizar valores en Firestore:", error);
-          setSubmissionError("Error al actualizar los precios. Revisa tu conexión.");
-        }
-      };
-
-      const handleAddClass = async (e) => {
-        e.preventDefault();
-        setSubmissionError(null);
-        
-        if (newEntry.studentName.trim() === '') {
-          setSubmissionError("Por favor, ingresa un nombre de alumno.");
-          return;
-        }
-        
-        if (dbStatus !== 'connected' || !userId || !db) {
-          console.error("Paso 9: ERROR. No se pudo añadir la clase. dbStatus:", dbStatus, "userId:", userId, "db:", db);
-          setSubmissionError("Error: La base de datos no está conectada o la conexión está inestable. Por favor, refresca la página.");
-          return;
-        }
-        
-        setIsAdding(true);
-        try {
-          console.log("Paso 10: Intentando añadir una nueva clase...");
-          const userClassesRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/clases_padel`);
-          await window.firebase.addDoc(userClassesRef, newEntry);
-          console.log("Paso 10.1: Clase añadida con éxito a Firestore.");
-          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
-        } catch (error) {
-          console.error("Paso 10.2: ERROR al añadir la clase a Firestore:", error);
-          setSubmissionError("Error al añadir la clase: " + error.message);
-        } finally {
-          setIsAdding(false);
-        }
-      };
-
-      const handleDeleteClass = async (id) => {
-        if (dbStatus !== 'connected' || !userId || !db) {
-          console.warn("ADVERTENCIA: No se pudo eliminar la clase. La base de datos no está conectada.");
-          return;
-        }
-        try {
-          console.log("Paso 11: Intentando eliminar la clase con ID:", id);
-          const userClassesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
-          await window.firebase.deleteDoc(userClassesDocRef);
-          console.log("Paso 11.1: Clase eliminada con éxito de Firestore.");
-        } catch (error) {
-          console.error("Paso 11.2: ERROR al eliminar la clase de Firestore:", error);
-        }
-      };
-
-      const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Conectando...";
-      const getDbStatusMessage = () => {
-        if (dbStatus === 'loading') {
-          return { message: "Conectando a la base de datos...", color: "bg-blue-100 border-blue-400 text-blue-700" };
-        }
-        if (dbStatus === 'connected') {
-          return { message: "Conectado a la base de datos.", color: "bg-green-100 border-green-400 text-green-700" };
-        }
-        if (dbStatus === 'error') {
-          return { message: "Error: No se pudo conectar a la base de datos.", color: "bg-red-100 border-red-400 text-red-700" };
-        }
-        return { message: "", color: "" };
-      };
-      const statusMessage = getDbStatusMessage();
-
-      const renderContent = () => {
-        if (dbStatus === 'error') {
-          return (
-            <div className="flex justify-center items-center h-48 text-center p-4">
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                <p className="font-bold">¡Lo sentimos! Hubo un error al conectar.</p>
-                <p className="text-sm mt-2">No se pudo inicializar la aplicación. Por favor, refresca la página y revisa la consola para ver los detalles del error.</p>
-              </div>
-            </div>
-          );
-        }
-
-        if (dbStatus === 'loading') {
-          return (
-            <div className="flex justify-center items-center h-48">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-              <p className="ml-4 text-gray-600">Cargando datos...</p>
-            </div>
-          );
-        }
-
-        return (
-          <>
-            <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
-              </h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Edita el valor de las clases según la cantidad de alumnos. Los cambios se guardarán automáticamente en la nube.
-              </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Object.entries(editableValues).map(([count, value]) => (
-                  <div key={count} className="p-4 bg-white rounded-lg shadow-md flex flex-col items-center">
-                    <label htmlFor={`value-${count}`} className="block text-sm font-medium text-gray-700 mb-1">
-                      Clase con {count} Alumno{count > 1 ? 's' : ''}
-                    </label>
-                    <input
-                      id={`value-${count}`}
-                      name={count}
-                      type="number"
-                      value={value}
-                      onChange={handleValueChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2 text-center text-lg font-bold"
-                      min="0"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {isReportsUpdating && (
-                <div className="flex items-center justify-center p-4 rounded-lg bg-blue-50 mb-6 shadow-md">
-                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent mr-3"></div>
-                    <p className="text-blue-700 font-semibold">Calculando informes...</p>
-                </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div className="p-6 bg-gray-50 rounded-lg shadow-inner" ref={weeklyReportRef}>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
-                    <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
-                  </h2>
-                  <button
-                    onClick={() => generatePdfReport('weekly')}
-                    disabled={pdfLoading || weeklyReports.length === 0}
-                    className="bg-red-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
-                  >
-                    {pdfLoading ? "Generando..." : "Exportar a PDF"}
-                  </button>
-                </div>
-                {weeklyReports.length > 0 ? (
-                  weeklyReports.map(report => (
-                    <div key={report.week} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                      <h3 className="text-lg font-bold text-gray-900 mb-2">{report.week}</h3>
-                      <div className="grid grid-cols-2 gap-4 text-center">
-                        <div>
-                          <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
-                          <p className="text-xs font-medium text-gray-600">Total Clases</p>
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
-                          <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-500 italic">No hay informes semanales disponibles.</p>
-                )}
-              </div>
-
-              <div className="p-6 bg-gray-50 rounded-lg shadow-inner" ref={monthlyReportRef}>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
-                    <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
-                  </h2>
-                  <button
-                    onClick={() => generatePdfReport('monthly')}
-                    disabled={pdfLoading || monthlyReports.length === 0}
-                    className="bg-red-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
-                  >
-                    {pdfLoading ? "Generando..." : "Exportar a PDF"}
-                  </button>
-                </div>
-                {monthlyReports.length > 0 ? (
-                  monthlyReports.map(report => (
-                    <div key={report.month} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                      <h3 className="text-lg font-bold text-gray-900 mb-2">{report.month}</h3>
-                      <div className="grid grid-cols-2 gap-4 text-center">
-                        <div>
-                          <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
-                          <p className="text-xs font-medium text-gray-600">Total Clases</p>
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
-                          <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
-                        </div>
-                      </div>
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <p className="text-sm font-semibold text-gray-700 mb-2">Clases por Alumno:</p>
-                        <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                          {Object.entries(report.countsByStudent).map(([count, total]) => (
-                            <div key={count} className="p-2 bg-gray-50 rounded-lg shadow-sm">
-                              <span className="font-bold text-gray-900">{total}</span>
-                              <span className="text-gray-600 ml-1">con {count} alumno{count > 1 ? 's' : ''}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-500 italic">No hay informes mensuales disponibles.</p>
-                )}
-              </div>
-            </div>
-
-            <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
-              </h2>
-              {submissionError && (
-                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                    <span className="block sm:inline">{submissionError}</span>
-                  </div>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                <div className="md:col-span-1">
-                  <label htmlFor="date" className="block text-sm font-medium text-gray-600">
-                    Fecha
-                  </label>
-                  <input
-                    id="date"
-                    name="date"
-                    type="date"
-                    value={newEntry.date}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                  />
-                </div>
-                <div className="md:col-span-1">
-                  <label htmlFor="day" className="block text-sm font-medium text-gray-600">
-                    Día
-                  </label>
-                  <select
-                    id="day"
-                    name="day"
-                    value={newEntry.day}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                  >
-                    {dayOptions.map(day => (
-                      <option key={day} value={day}>{day}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="md:col-span-1">
-                  <label htmlFor="time" className="block text-sm font-medium text-gray-600">
-                    Horario
-                  </label>
-                  <select
-                    id="time"
-                    name="time"
-                    value={newEntry.time}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                  >
-                    {timeOptions.map(time => (
-                      <option key={time} value={time}>{time}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="md:col-span-1">
-                  <label htmlFor="studentName" className="block text-sm font-medium text-gray-600">
-                    Nombre de Alumno
-                  </label>
-                  <input
-                    id="studentName"
-                    name="studentName"
-                    type="text"
-                    value={newEntry.studentName}
-                    onChange={handleInputChange}
-                    placeholder="Ej: GABRIEL"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                  />
-                </div>
-                <div className="md:col-span-1">
-                  <button
-                    type="submit"
-                    className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
-                    disabled={isAdding || dbStatus !== 'connected'}
-                  >
-                    {isAdding ? "Añadiendo..." : "Añadir"}
-                  </button>
-                </div>
-              </div>
-            </form>
-
-            <div className="overflow-x-auto rounded-lg shadow-md">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Fecha
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Día
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Horario
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Nombre de Alumno
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Cantidad de Alumnos
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Valor Generado
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {classes.length > 0 ? (
-                    classes.map((cls, index) => {
-                      const firstIndex = classes.findIndex(
-                        (c) => c.date === cls.date && c.day === cls.day && c.time === cls.time
-                      );
-                      const displayValue = firstIndex === index;
-
-                      return (
-                        <tr key={cls.id} className={cls.color}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {cls.date}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {cls.day}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {cls.time}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {cls.studentName}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {cls.studentCount}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {displayValue
-                              ? formatCurrency(cls.value)
-                              : ''}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                              onClick={() => handleDeleteClass(cls.id)}
-                              className="text-red-600 hover:text-red-900 transition-colors"
-                            >
-                              <i className="fas fa-trash-alt"></i>
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500 italic">
-                        No hay clases registradas. ¡Añade una para empezar!
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </>
-        );
-      };
-
-      return (
-        <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
-          <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
-            <div className={`p-4 rounded-md border-l-4 mb-4 ${statusMessage.color}`} role="alert">
-              <p className="font-bold">{statusMessage.message}</p>
-              {dbStatus === 'error' && (
-                <p className="text-sm mt-1">Verifica la consola para más detalles del error.</p>
-              )}
-            </div>
-            <h1 className="text-3xl font-bold mb-2 text-center text-gray-900">
-              Informe de Clases de Padel
-            </h1>
-            <p className="text-center text-sm mb-6 text-gray-500 italic">
-              {userIdDisplay}
-            </p>
-            {renderContent()}
-          </div>
-        </div>
-      );
-    };
-
-    const container = document.getElementById('root');
-    const root = ReactDOM.createRoot(container);
-    root.render(<App />);
-  </script>
+        // Iniciar la aplicación
+        window.addEventListener('load', initializeFirebase);
+    </script>
 </body>
 </html>
+
+
 
 
 
