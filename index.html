@@ -388,7 +388,7 @@
       
 // ===== FUNCIONES EXTRA =====
 
-// **FUNCIÓN MODIFICADA: Ahora exporta el PDF semanal con el detalle de clases por alumno**
+// **FUNCIÓN MODIFICADA: Ahora exporta el PDF semanal con columnas separadas para el detalle de clases**
 const exportWeeklyPDF = () => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -399,21 +399,24 @@ const exportWeeklyPDF = () => {
     r.week,
     r.totalClasses,
     formatCurrency(r.totalEarnings),
-    `1: ${r.countsByStudent[1] || 0}, 2: ${r.countsByStudent[2] || 0}, 3: ${r.countsByStudent[3] || 0}, 4: ${r.countsByStudent[4] || 0}`
+    r.countsByStudent[1] || 0,
+    r.countsByStudent[2] || 0,
+    r.countsByStudent[3] || 0,
+    r.countsByStudent[4] || 0
   ]);
   
   doc.autoTable({
-    head: [["Semana", "Total Clases", "Ganancia Total", "Clases por Alumno"]],
+    head: [["Semana", "Total Clases", "Ganancia Total", "1 Persona", "2 Personas", "3 Personas", "4 Personas"]],
     body: tableData,
     startY: 25,
-    styles: { fontSize: 8 },
+    styles: { fontSize: 8, halign: 'center' },
     headStyles: { fillColor: '#ef4444' },
     theme: 'grid'
   });
   doc.save("informe_semanal.pdf");
 };
 
-// **FUNCIÓN MODIFICADA: Ahora exporta el PDF mensual con el detalle de clases y desglose por alumno**
+// **FUNCIÓN MODIFICADA: Ahora exporta el PDF mensual con el detalle en una tabla separada**
 const exportMonthlyPDF = () => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -429,24 +432,44 @@ const exportMonthlyPDF = () => {
     finalY += 10;
     
     // Tabla de resumen mensual
-    const summaryData = [
-      ["Total Clases", "Ganancia Total", "Clases por Alumno"],
-      [
-        report.totalClasses,
-        formatCurrency(report.totalEarnings),
-        `1: ${report.countsByStudent[1] || 0}, 2: ${report.countsByStudent[2] || 0}, 3: ${report.countsByStudent[3] || 0}, 4: ${report.countsByStudent[4] || 0}`
-      ]
+    doc.autoTable({
+        head: [["Mes", "Total Clases", "Ganancia Total"]],
+        body: [[
+            report.month,
+            report.totalClasses,
+            formatCurrency(report.totalEarnings)
+        ]],
+        startY: finalY,
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: '#ef4444' }
+    });
+    finalY = doc.autoTable.previous.finalY + 10;
+
+    // Tabla con el detalle de clases por alumno (la nueva sección)
+    doc.setFontSize(12);
+    doc.text(`Desglose de Clases por Alumno:`, 14, finalY);
+    finalY += 5;
+    
+    const detailedCountData = [
+        ["1 Persona", "2 Personas", "3 Personas", "4 Personas"],
+        [
+            report.countsByStudent[1] || 0,
+            report.countsByStudent[2] || 0,
+            report.countsByStudent[3] || 0,
+            report.countsByStudent[4] || 0
+        ]
     ];
     doc.autoTable({
-      head: [summaryData[0]],
-      body: [summaryData[1]],
-      startY: finalY,
-      theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: '#ef4444' }
+        head: [detailedCountData[0]],
+        body: [detailedCountData[1]],
+        startY: finalY,
+        theme: 'grid',
+        styles: { fontSize: 8, halign: 'center' },
+        headStyles: { fillColor: '#fca5a5' }
     });
-    finalY = doc.autoTable.previous.finalY + 10; // Actualiza la posición Y para la siguiente tabla
-    
+    finalY = doc.autoTable.previous.finalY + 10;
+
     // Filtramos las clases para el mes actual del reporte
     const classesForMonth = classes.filter(cls => {
       const date = new Date(cls.date);
@@ -906,6 +929,7 @@ const filteredClasses = selectedMonth === 'Todos'
   </script>
 </body>
 </html>
+
 
 
 
