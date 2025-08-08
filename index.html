@@ -34,6 +34,11 @@
       deleteDoc
     };
   </script>
+
+<!-- jsPDF y autoTable -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
 </head>
 <body class="bg-gray-100 font-sans">
   <!-- The container where the React app will be mounted -->
@@ -348,7 +353,92 @@
         }
       };
       
-      const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
+      
+// Exportar reportes semanales a PDF
+const exportWeeklyPDF = () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text("Informe Semanal - Clases de Pádel", 14, 15);
+  const tableData = weeklyReports.map(r => [
+    r.week,
+    r.totalClasses,
+    formatCurrency(r.totalEarnings)
+  ]);
+  doc.autoTable({
+    head: [["Semana", "Total Clases", "Ganancia Total"]],
+    body: tableData,
+    startY: 25
+  });
+  doc.save("informe_semanal.pdf");
+};
+
+// Exportar reportes mensuales a PDF
+const exportMonthlyPDF = () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text("Informe Mensual - Clases de Pádel", 14, 15);
+  const tableData = monthlyReports.map(r => [
+    r.month,
+    r.totalClasses,
+    formatCurrency(r.totalEarnings),
+    `1: ${r.countsByStudent[1] || 0}, 2: ${r.countsByStudent[2] || 0}, 3: ${r.countsByStudent[3] || 0}, 4: ${r.countsByStudent[4] || 0}`
+  ]);
+  doc.autoTable({
+    head: [["Mes", "Total Clases", "Ganancia Total", "Detalle por Alumnos"]],
+    body: tableData,
+    startY: 25
+  });
+  doc.save("informe_mensual.pdf");
+};
+
+// Exportar base de datos a JSON
+const exportDatabase = () => {
+  const data = {
+    precios: editableValues,
+    clases: classes
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "base_de_datos_padel.json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
+// Importar base de datos desde JSON
+const importDatabase = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.precios) {
+        const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
+        await firebase.setDoc(userValuesDocRef, data.precios);
+      }
+      if (data.clases) {
+        const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
+        const snapshot = await firebase.getDocs(userClassesRef);
+        snapshot.forEach(docSnap => firebase.deleteDoc(docSnap.ref));
+        for (const cls of data.clases) {
+          await firebase.addDoc(userClassesRef, cls);
+        }
+      }
+      alert("Base de datos importada correctamente.");
+    } catch (err) {
+      alert("Error al importar el archivo JSON.");
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+};
+
+const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
 
       return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
@@ -356,7 +446,18 @@
             <h1 className="text-3xl font-bold mb-2 text-center text-gray-900">
               Informe de Clases de Padel
             </h1>
-            <p className="text-center text-sm mb-6 text-gray-500 italic">
+            
+<div className="flex gap-4 mb-6 justify-center">
+  <button onClick={exportDatabase} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+    Exportar BD
+  </button>
+  <label className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600">
+    Importar BD
+    <input type="file" accept=".json" onChange={importDatabase} className="hidden" />
+  </label>
+</div>
+
+<p className="text-center text-sm mb-6 text-gray-500 italic">
               {userIdDisplay}
             </p>
             
@@ -365,7 +466,7 @@
                 <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
                   <h2 className="text-2xl font-bold mb-4 text-gray-900">
                     Introduce tu Configuración de Firebase
-                  </h2>
+                  </h2><button onClick={exportMonthlyPDF} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Exportar PDF</button></div><button onClick={exportWeeklyPDF} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Exportar PDF</button></div>
                   <p className="text-gray-600 mb-6">
                     Para que la aplicación funcione en la web, necesitas tu propia configuración de Firebase. Puedes encontrarla en la consola de Firebase.
                   </p>
@@ -404,7 +505,7 @@
               <>
                 {/* Editable Values Section */}
                 <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
-                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                  <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
                     <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
                   </h2>
                   <p className="text-sm text-gray-600 mb-4">
@@ -434,7 +535,7 @@
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   {/* Weekly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                    <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
                       <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
                     </h2>
                     {weeklyReports.length > 0 ? (
@@ -460,7 +561,7 @@
                   
                   {/* Monthly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                    <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
                       <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
                     </h2>
                     {monthlyReports.length > 0 ? (
@@ -498,7 +599,7 @@
 
                 {/* Form to add new classes */}
                 <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
-                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                  <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
                     <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -667,6 +768,7 @@
   </script>
 </body>
 </html>
+
 
 
 
