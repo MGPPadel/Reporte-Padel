@@ -3,13 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Informe de Clases de Padel</title>
-  <!-- CDN links for React, ReactDOM, Babel, Tailwind CSS and Font Awesome -->
+  <title>Informe de Clases de Padel (Cloud)</title>
+  <!-- CDN links for React, ReactDOM, Babel, Tailwind CSS, Font Awesome, and Firebase -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <!-- Firebase Imports -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // These variables are provided by the environment for automatic setup
+    window.__firebase_config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+    window.__initial_auth_token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    window.__app_id = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+    // Global variables for Firebase services
+    window.app = initializeApp(window.__firebase_config);
+    window.auth = getAuth(window.app);
+    window.db = getFirestore(window.app);
+
+    console.log("Firebase initialized.");
+  </script>
 </head>
 <body class="bg-gray-100 font-sans">
   <!-- The container where the React app will be mounted -->
@@ -48,9 +66,9 @@
       const [weeklyReports, setWeeklyReports] = useState([]);
       const [monthlyReports, setMonthlyReports] = useState([]);
       const [loading, setLoading] = useState(true);
-
-      // New state to manage the editable values
       const [editableValues, setEditableValues] = useState(defaultValueMap);
+      const [authReady, setAuthReady] = useState(false);
+      const [userId, setUserId] = useState(null);
 
       // Options for form dropdowns
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
@@ -61,30 +79,7 @@
         return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
       };
 
-      // We use localStorage to persist data for a local HTML file.
-      useEffect(() => {
-        // Load classes from localStorage
-        const storedClasses = JSON.parse(localStorage.getItem('padelClasses')) || [];
-        // Load editable values from localStorage
-        const storedValues = JSON.parse(localStorage.getItem('classValues')) || defaultValueMap;
-        
-        setEditableValues(storedValues);
-        updateClassesAndReports(storedClasses, storedValues);
-        setLoading(false);
-      }, []);
-
-      // Function to save classes to localStorage
-      const saveClassesToLocalStorage = (classesToSave) => {
-        localStorage.setItem('padelClasses', JSON.stringify(classesToSave));
-      };
-      
-      // Function to save editable values to localStorage
-      const saveValuesToLocalStorage = (valuesToSave) => {
-        localStorage.setItem('classValues', JSON.stringify(valuesToSave));
-      };
-
-      // Function to calculate and update all values, colors, and reports
-      // Now it takes the current values as an argument
+      // Helper function to calculate and update all values, colors, and reports
       const updateClassesAndReports = (currentClasses, currentValues) => {
         // Group classes by day and time to count students
         const classesByDayTime = currentClasses.reduce((acc, curr) => {
@@ -127,7 +122,6 @@
 
         setClasses(updatedClasses);
         calculateReports(updatedClasses);
-        saveClassesToLocalStorage(updatedClasses); // Save to local storage after updating
       };
 
       // Function to calculate the weekly and monthly reports
@@ -192,46 +186,120 @@
       };
       
       // Handle changes to the editable value inputs
-      const handleValueChange = (e) => {
+      const handleValueChange = async (e) => {
         const { name, value } = e.target;
         const newValues = { ...editableValues, [name]: Number(value) };
         setEditableValues(newValues);
-        saveValuesToLocalStorage(newValues);
-        // Re-calculate all classes and reports with the new values
-        updateClassesAndReports(classes, newValues);
+        
+        try {
+          // Update the values document in Firestore
+          await setDoc(doc(db, `artifacts/${__app_id}/users/${userId}/app_data/values`), { values: newValues });
+          // Re-calculate all classes and reports with the new values
+          updateClassesAndReports(classes, newValues);
+        } catch (error) {
+          console.error("Error al actualizar los valores:", error);
+        }
       };
 
-
       // Handle adding a new class
-      const handleAddClass = (e) => {
+      const handleAddClass = async (e) => {
         e.preventDefault();
-        if (newEntry.studentName.trim() === '') return;
+        if (newEntry.studentName.trim() === '' || !authReady) return;
 
-        const newClassList = [
-          ...classes,
-          { ...newEntry, id: Date.now() + Math.random() },
-        ];
-        updateClassesAndReports(newClassList, editableValues);
-        setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reset only student name
+        try {
+          const classRef = collection(db, `artifacts/${__app_id}/users/${userId}/classes`);
+          await addDoc(classRef, newEntry);
+          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reset only student name
+        } catch (error) {
+          console.error("Error al añadir la clase:", error);
+        }
       };
 
       // Handle deleting a class
-      const handleDeleteClass = (id) => {
-        const newClassList = classes.filter(cls => cls.id !== id);
-        updateClassesAndReports(newClassList, editableValues);
+      const handleDeleteClass = async (id) => {
+        if (!authReady) return;
+        try {
+          await deleteDoc(doc(db, `artifacts/${__app_id}/users/${userId}/classes`, id));
+        } catch (error) {
+          console.error("Error al eliminar la clase:", error);
+        }
       };
+
+      // Effect for Firebase authentication and data fetching
+      useEffect(() => {
+        let unsubscribe = () => {};
+
+        // Async function for Firebase setup
+        const setupFirebase = async () => {
+          try {
+            if (window.__initial_auth_token) {
+              await signInWithCustomToken(window.auth, window.__initial_auth_token);
+            } else {
+              await signInAnonymously(window.auth);
+            }
+            console.log("Authentication successful.");
+          } catch (error) {
+            console.error("Error de autenticación:", error);
+          }
+        };
+
+        // Listen for authentication state changes
+        const authUnsubscribe = onAuthStateChanged(window.auth, async (user) => {
+          if (user) {
+            console.log("User is signed in. UID:", user.uid);
+            setUserId(user.uid);
+            setAuthReady(true);
+            setLoading(true);
+
+            // Fetch editable values first
+            const valuesRef = doc(db, `artifacts/${__app_id}/users/${user.uid}/app_data/values`);
+            const valuesSnap = await getDoc(valuesRef);
+            const fetchedValues = valuesSnap.exists() ? valuesSnap.data().values : defaultValueMap;
+            setEditableValues(fetchedValues);
+            
+            // Listen for real-time updates to classes
+            const classesQuery = collection(db, `artifacts/${__app_id}/users/${user.uid}/classes`);
+            unsubscribe = onSnapshot(classesQuery, (snapshot) => {
+              const fetchedClasses = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+              }));
+              updateClassesAndReports(fetchedClasses, fetchedValues);
+              setLoading(false);
+            }, (error) => {
+              console.error("Error de onSnapshot:", error);
+              setLoading(false);
+            });
+
+          } else {
+            console.log("No user is signed in.");
+            setUserId(null);
+            setAuthReady(false);
+            setClasses([]);
+            setLoading(false);
+          }
+        });
+
+        setupFirebase();
+
+        // Cleanup function for listeners
+        return () => {
+          authUnsubscribe();
+          unsubscribe();
+        };
+      }, []); // Empty dependency array means this runs once on mount
 
       return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
           <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
             <h1 className="text-3xl font-bold mb-6 text-center text-gray-900">
-              Informe de Clases de Padel
+              Informe de Clases de Padel (Cloud)
             </h1>
-            
-            {loading ? (
+
+            {!authReady ? (
               <div className="flex justify-center items-center h-48">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                <p className="ml-4 text-gray-600">Cargando datos...</p>
+                <p className="ml-4 text-gray-600">Conectando a la nube...</p>
               </div>
             ) : (
               <>
@@ -241,7 +309,7 @@
                     <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
                   </h2>
                   <p className="text-sm text-gray-600 mb-4">
-                    Edita el valor de las clases según la cantidad de alumnos. Los cambios se guardarán automáticamente.
+                    Edita el valor de las clases según la cantidad de alumnos. Los cambios se guardarán automáticamente en la nube.
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {Object.entries(editableValues).map(([count, value]) => (
@@ -434,7 +502,13 @@
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {classes.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500 italic">
+                            Cargando clases desde la nube...
+                          </td>
+                        </tr>
+                      ) : classes.length > 0 ? (
                         classes.map((cls, index) => {
                           // Find the index of the first occurrence of this date, day, and time
                           const firstIndex = classes.findIndex(
@@ -500,6 +574,7 @@
   </script>
 </body>
 </html>
+
 
 
 
