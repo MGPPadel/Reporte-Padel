@@ -76,6 +76,7 @@
       const [userId, setUserId] = useState(null);
       const [db, setDb] = useState(null);
       const [error, setError] = useState(null);
+      const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
       // Opciones para los menús desplegables del formulario
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
@@ -93,6 +94,7 @@
       useEffect(() => {
         const initializeFirebase = async () => {
           try {
+            // Inicializar la aplicación de Firebase
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             const firebaseConfig = JSON.parse(
               typeof __firebase_config !== 'undefined' ? __firebase_config : '{}'
@@ -102,25 +104,29 @@
             const app = initializeApp(firebaseConfig);
             const firestore = getFirestore(app);
             const authInstance = getAuth(app);
-            setDb(firestore);
+            
+            // Autenticar al usuario
+            if (initialAuthToken) {
+              await signInWithCustomToken(authInstance, initialAuthToken);
+            } else {
+              await signInAnonymously(authInstance);
+            }
 
-            onAuthStateChanged(authInstance, async (user) => {
+            // Una vez autenticado, obtener el userId y la instancia de db
+            onAuthStateChanged(authInstance, (user) => {
               if (user) {
                 setUserId(user.uid);
+                setDb(firestore);
+                setIsFirebaseReady(true); // Marcar que Firebase está listo
               } else {
-                try {
-                  if (initialAuthToken) {
-                    await signInWithCustomToken(authInstance, initialAuthToken);
-                  } else {
-                    await signInAnonymously(authInstance);
-                  }
-                } catch (e) {
-                  console.error('Authentication Error:', e);
-                  setError('Error de autenticación. Por favor, recarga la página.');
-                  setLoading(false);
-                }
+                setUserId(null);
+                setDb(null);
+                setIsFirebaseReady(false);
+                setError('Error de autenticación. Por favor, recarga la página.');
+                setLoading(false);
               }
             });
+
           } catch (e) {
             console.error('Firebase Initialization Error:', e);
             setError('Error al iniciar la aplicación. Intenta de nuevo más tarde.');
@@ -133,7 +139,8 @@
 
       // Hook para cargar los datos de Firestore y suscribirse a cambios en tiempo real
       useEffect(() => {
-        if (!db || !userId) {
+        // Este hook solo se ejecuta si Firebase está listo
+        if (!isFirebaseReady) {
           return;
         }
 
@@ -190,7 +197,7 @@
 
         // Limpiar el listener cuando el componente se desmonte
         return () => unsubscribePrices();
-      }, [db, userId]);
+      }, [isFirebaseReady]); // Este efecto ahora depende del estado de "listo"
 
       // Función para actualizar los valores y reportes
       const updateClassesAndReports = (currentClasses, currentValues) => {
@@ -303,7 +310,7 @@
 
       // Guardar los valores editables en Firestore
       const handleSavePrices = async () => {
-        if (!db || !userId) return;
+        if (!isFirebaseReady) return;
         try {
           const pricesDocRef = doc(
             db,
@@ -325,7 +332,7 @@
       // Manejar el envío del formulario para agregar una clase
       const handleAddClass = async (e) => {
         e.preventDefault();
-        if (newEntry.studentName.trim() === '' || !db || !userId) return;
+        if (newEntry.studentName.trim() === '' || !isFirebaseReady) return;
 
         try {
           const padelClassesRef = collection(
@@ -346,7 +353,7 @@
 
       // Manejar la eliminación de una clase
       const handleDeleteClass = async (id) => {
-        if (!db || !userId) return;
+        if (!isFirebaseReady) return;
         try {
           const padelClassDoc = doc(
             db,
@@ -658,6 +665,7 @@
   </script>
 </body>
 </html>
+
 
 
 
