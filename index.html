@@ -15,7 +15,7 @@
     // Firebase is loaded as a module to handle imports correctly
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, query, onSnapshot, addDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, query, onSnapshot, addDoc, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     window.firebase = {
       initializeApp,
       getAuth,
@@ -29,7 +29,8 @@
       addDoc,
       deleteDoc,
       doc,
-      setDoc
+      setDoc,
+      getDoc
     };
   </script>
 </head>
@@ -40,7 +41,7 @@
   <!-- The React app script, wrapped in a Babel tag -->
   <script type="text/babel">
     const { useState, useEffect } = React;
-    const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, collection, query, onSnapshot, addDoc, deleteDoc, doc, setDoc } = window.firebase;
+    const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, collection, query, onSnapshot, addDoc, deleteDoc, doc, setDoc, getDoc } = window.firebase;
 
     // Main App component
     const App = () => {
@@ -90,41 +91,44 @@
 
       // Hook para inicializar Firebase y autenticar al usuario
       useEffect(() => {
-        try {
-          const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-          const firebaseConfig = JSON.parse(
-            typeof __firebase_config !== 'undefined' ? __firebase_config : '{}'
-          );
-          const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-          
-          const app = initializeApp(firebaseConfig);
-          const firestore = getFirestore(app);
-          const authInstance = getAuth(app);
+        const initializeFirebase = async () => {
+          try {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const firebaseConfig = JSON.parse(
+              typeof __firebase_config !== 'undefined' ? __firebase_config : '{}'
+            );
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            
+            const app = initializeApp(firebaseConfig);
+            const firestore = getFirestore(app);
+            const authInstance = getAuth(app);
+            setDb(firestore);
 
-          setDb(firestore);
-          
-          onAuthStateChanged(authInstance, async (user) => {
-            if (user) {
-              setUserId(user.uid);
-            } else {
-              try {
-                if (initialAuthToken) {
-                  await signInWithCustomToken(authInstance, initialAuthToken);
-                } else {
-                  await signInAnonymously(authInstance);
+            onAuthStateChanged(authInstance, async (user) => {
+              if (user) {
+                setUserId(user.uid);
+              } else {
+                try {
+                  if (initialAuthToken) {
+                    await signInWithCustomToken(authInstance, initialAuthToken);
+                  } else {
+                    await signInAnonymously(authInstance);
+                  }
+                } catch (e) {
+                  console.error('Authentication Error:', e);
+                  setError('Error de autenticación. Por favor, recarga la página.');
+                  setLoading(false);
                 }
-              } catch (e) {
-                console.error('Authentication Error:', e);
-                setError('Error de autenticación: Por favor, recarga la página.');
-                setLoading(false);
               }
-            }
-          });
-        } catch (e) {
-          console.error('Firebase Initialization Error:', e);
-          setError('Error al inicializar la aplicación. Intenta de nuevo más tarde.');
-          setLoading(false);
-        }
+            });
+          } catch (e) {
+            console.error('Firebase Initialization Error:', e);
+            setError('Error al iniciar la aplicación. Intenta de nuevo más tarde.');
+            setLoading(false);
+          }
+        };
+
+        initializeFirebase();
       }, []);
 
       // Hook para cargar los datos de Firestore y suscribirse a cambios en tiempo real
@@ -133,6 +137,7 @@
           return;
         }
 
+        // Referencia a la colección de clases
         const classesCollectionRef = collection(
           db,
           'artifacts',
@@ -141,6 +146,8 @@
           userId,
           'padel-classes'
         );
+
+        // Referencia al documento de precios
         const pricesDocRef = doc(
           db,
           'artifacts',
@@ -151,38 +158,38 @@
           'prices'
         );
 
-        // Suscribirse a los cambios en las clases
-        const unsubscribeClasses = onSnapshot(
-          classesCollectionRef,
-          (querySnapshot) => {
-            const firestoreClasses = querySnapshot.docs.map((d) => ({
-              ...d.data(),
-              id: d.id,
-            }));
-            
-            // Suscribirse a los cambios en los precios
-            const unsubscribePrices = onSnapshot(pricesDocRef, (docSnap) => {
-              const storedValues = docSnap.exists() ? docSnap.data() : defaultValueMap;
-              setEditableValues(storedValues);
+        // Suscribirse a los cambios en los precios
+        const unsubscribePrices = onSnapshot(pricesDocRef, (docSnap) => {
+          const storedValues = docSnap.exists() ? docSnap.data() : defaultValueMap;
+          setEditableValues(storedValues);
+          
+          // Ahora, con los precios cargados, podemos suscribirnos a las clases
+          const unsubscribeClasses = onSnapshot(
+            classesCollectionRef,
+            (querySnapshot) => {
+              const firestoreClasses = querySnapshot.docs.map((d) => ({
+                ...d.data(),
+                id: d.id,
+              }));
               updateClassesAndReports(firestoreClasses, storedValues);
               setLoading(false);
-            }, (e) => {
-              console.error('Error fetching prices:', e);
-              setError('Error al cargar los precios. Por favor, recarga la página.');
+            },
+            (e) => {
+              console.error('Error fetching classes:', e);
+              setError('Error al cargar las clases. Por favor, recarga la página.');
               setLoading(false);
-            });
-            
-            return () => unsubscribePrices();
-          },
-          (e) => {
-            console.error('Error fetching classes:', e);
-            setError('Error al cargar las clases. Por favor, recarga la página.');
-            setLoading(false);
-          }
-        );
+            }
+          );
+          
+          return () => unsubscribeClasses();
+        }, (e) => {
+          console.error('Error fetching prices:', e);
+          setError('Error al cargar los precios. Por favor, recarga la página.');
+          setLoading(false);
+        });
 
         // Limpiar el listener cuando el componente se desmonte
-        return () => unsubscribeClasses();
+        return () => unsubscribePrices();
       }, [db, userId]);
 
       // Función para actualizar los valores y reportes
@@ -651,6 +658,8 @@
   </script>
 </body>
 </html>
+
+
 
 
 
