@@ -173,7 +173,7 @@
 
         setWeeklyReports(weeklyReportsArray);
         setMonthlyReports(monthlyReportsArray);
-        setIsReportsUpdating(false); // Desactiva el indicador de carga cuando los informes están listos
+        setIsReportsUpdating(false);
       }, [monthNames]);
 
       // Efecto para la inicialización y autenticación de Firebase
@@ -183,8 +183,9 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        if (!firebaseConfig || !window.firebase) {
-          console.error("Error: La configuración de Firebase no está disponible.");
+        // Comprobación de que las variables de entorno están disponibles
+        if (!firebaseConfig || !window.firebase || !currentAppId) {
+          console.error("Error: La configuración de Firebase o el ID de la app no están disponibles.");
           setDbStatus('error');
           return;
         }
@@ -250,14 +251,11 @@
         });
 
         const unsubscribeClasses = window.firebase.onSnapshot(userClassesRef, (snapshot) => {
-          // Limpia cualquier timeout anterior para evitar el parpadeo
           if (processingTimeoutRef.current) {
             clearTimeout(processingTimeoutRef.current);
           }
-
-          setIsReportsUpdating(true); // Activa el indicador de carga no bloqueante
+          setIsReportsUpdating(true);
           
-          // Establece un nuevo timeout para dar tiempo a que las escrituras se consoliden
           processingTimeoutRef.current = setTimeout(() => {
             const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -293,13 +291,12 @@
 
             setClasses(updatedClassesWithValues);
             calculateReports(updatedClassesWithValues, editableValues);
-          }, 300); // Debounce de 300ms
+          }, 300);
         }, (error) => {
           console.error("Error fetching classes:", error);
           setDbStatus('error');
         });
 
-        // Función de limpieza para cancelar los "listeners" y el timeout
         return () => {
           if (unsubscribeValues) unsubscribeValues();
           if (unsubscribeClasses) unsubscribeClasses();
@@ -326,7 +323,6 @@
         try {
           const userValuesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
           await window.firebase.setDoc(userValuesDocRef, newValues);
-          console.log("Valores actualizados en Firestore.");
         } catch (error) {
           console.error("Error actualizando valores en Firestore:", error);
           setSubmissionError("Error al actualizar los precios. Revisa tu conexión.");
@@ -335,14 +331,16 @@
 
       const handleAddClass = async (e) => {
         e.preventDefault();
-        setSubmissionError(null); // Limpia cualquier error anterior
+        setSubmissionError(null);
         
-        if (dbStatus !== 'connected' || newEntry.studentName.trim() === '' || !userId || !db) {
-          if (dbStatus !== 'connected') {
-            setSubmissionError("Error: La base de datos no está conectada. Por favor, refresca la página.");
-          } else {
-            setSubmissionError("Por favor, ingresa un nombre de alumno.");
-          }
+        if (newEntry.studentName.trim() === '') {
+          setSubmissionError("Por favor, ingresa un nombre de alumno.");
+          return;
+        }
+        
+        if (dbStatus !== 'connected' || !userId || !db) {
+          console.error("No se pudo añadir la clase. dbStatus:", dbStatus, "userId:", userId, "db:", db);
+          setSubmissionError("Error: La base de datos no está conectada o la conexión está inestable. Por favor, refresca la página.");
           return;
         }
         
@@ -350,7 +348,6 @@
         try {
           const userClassesRef = window.firebase.collection(db, `artifacts/${appId}/users/${userId}/clases_padel`);
           await window.firebase.addDoc(userClassesRef, newEntry);
-          console.log("Clase añadida con éxito a Firestore.");
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
         } catch (error) {
           console.error("Error adding class to Firestore:", error);
@@ -368,13 +365,25 @@
         try {
           const userClassesDocRef = window.firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
           await window.firebase.deleteDoc(userClassesDocRef);
-          console.log("Clase eliminada con éxito de Firestore.");
         } catch (error) {
           console.error("Error deleting class from Firestore:", error);
         }
       };
 
-      const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Conectando a la nube...";
+      const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Conectando...";
+      const getDbStatusMessage = () => {
+        if (dbStatus === 'loading') {
+          return { message: "Conectando a la base de datos...", color: "bg-blue-100 border-blue-400 text-blue-700" };
+        }
+        if (dbStatus === 'connected') {
+          return { message: "Conectado a la base de datos.", color: "bg-green-100 border-green-400 text-green-700" };
+        }
+        if (dbStatus === 'error') {
+          return { message: "Error: No se pudo conectar a la base de datos. Por favor, refresca la página.", color: "bg-red-100 border-red-400 text-red-700" };
+        }
+        return { message: "", color: "" };
+      };
+      const statusMessage = getDbStatusMessage();
 
       const renderContent = () => {
         if (dbStatus === 'error') {
@@ -392,7 +401,7 @@
           return (
             <div className="flex justify-center items-center h-48">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-              <p className="ml-4 text-gray-600">Cargando datos y conectando...</p>
+              <p className="ml-4 text-gray-600">Cargando datos...</p>
             </div>
           );
         }
@@ -518,7 +527,7 @@
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                 <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
               </h2>
-              {submissionError && ( // Muestra el mensaje de error si existe
+              {submissionError && (
                   <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
                     <span className="block sm:inline">{submissionError}</span>
                   </div>
@@ -680,6 +689,12 @@
       return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
           <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
+            <div className={`p-4 rounded-md border-l-4 mb-4 ${statusMessage.color}`} role="alert">
+              <p className="font-bold">{statusMessage.message}</p>
+              {dbStatus === 'error' && (
+                <p className="text-sm mt-1">Verifica la consola para más detalles del error.</p>
+              )}
+            </div>
             <h1 className="text-3xl font-bold mb-2 text-center text-gray-900">
               Informe de Clases de Padel
             </h1>
@@ -698,6 +713,7 @@
   </script>
 </body>
 </html>
+
 
 
 
