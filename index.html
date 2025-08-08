@@ -4,14 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Informe de Clases de Padel</title>
-  <!-- CDN links for React, ReactDOM, Babel, Tailwind CSS and Font Awesome -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   
-  <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -35,16 +33,13 @@
     };
   </script>
 
-<!-- jsPDF y autoTable -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 
 </head>
 <body class="bg-gray-100 font-sans">
-  <!-- The container where the React app will be mounted -->
   <div id="root"></div>
 
-  <!-- The React app script, wrapped in a Babel tag -->
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
@@ -450,17 +445,28 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
               Informe de Clases de Padel
             </h1>
             
-<div className="flex gap-4 mb-6 justify-center">
-  <button onClick={exportDatabase} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-    Exportar BD
-  </button>
-  <label className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600">
-    Importar BD
-    <input type="file" accept=".json" onChange={importDatabase} className="hidden" />
-  </label>
-</div>
+            <div className="flex gap-4 mb-6 justify-center">
+              <button onClick={exportDatabase} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                Exportar BD
+              </button>
+              <label className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600">
+                Importar BD
+                <input type="file" accept=".json" onChange={importDatabase} className="hidden" />
+              </label>
+            </div>
+            
+            {/* INICIO DE LOS BOTONES DE PDF CORREGIDOS */}
+            <div className="flex gap-4 mb-6 justify-center">
+              <button onClick={exportWeeklyPDF} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                Exportar Informe Semanal (PDF)
+              </button>
+              <button onClick={exportMonthlyPDF} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                Exportar Informe Mensual (PDF)
+              </button>
+            </div>
+            {/* FIN DE LOS BOTONES DE PDF CORREGIDOS */}
 
-<p className="text-center text-sm mb-6 text-gray-500 italic">
+            <p className="text-center text-sm mb-6 text-gray-500 italic">
               {userIdDisplay}
             </p>
             
@@ -469,7 +475,7 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
                 <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
                   <h2 className="text-2xl font-bold mb-4 text-gray-900">
                     Introduce tu Configuración de Firebase
-                  </h2><button onClick={exportMonthlyPDF} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Exportar PDF</button></div><button onClick={exportWeeklyPDF} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Exportar PDF</button></div>
+                  </h2>
                   <p className="text-gray-600 mb-6">
                     Para que la aplicación funcione en la web, necesitas tu propia configuración de Firebase. Puedes encontrarla en la consola de Firebase.
                   </p>
@@ -508,7 +514,7 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
               <>
                 {/* Editable Values Section */}
                 <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
-                  <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                  <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
                     <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
                   </h2>
                   <p className="text-sm text-gray-600 mb-4">
@@ -517,7 +523,7 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {Object.entries(editableValues).map(([count, value]) => (
                       <div key={count} className="p-4 bg-white rounded-lg shadow-md flex flex-col items-center">
-                        <label htmlFor={`value-${count}`} className="text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor={`value-${count}`} className="block text-sm font-medium text-gray-700 mb-1">
                           Clase con {count} Alumno{count > 1 ? 's' : ''}
                         </label>
                         <input
@@ -538,7 +544,7 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   {/* Weekly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                    <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
                       <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
                     </h2>
                     {weeklyReports.length > 0 ? (
@@ -771,6 +777,7 @@ const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
   </script>
 </body>
 </html>
+
 
 
 
