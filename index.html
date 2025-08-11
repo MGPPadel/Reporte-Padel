@@ -102,10 +102,10 @@
         return `${day}/${month}/${year}`;
       };
 
-      // Initialize Firebase and setup listeners
-      useEffect(() => {
-// TU CONFIGURACIÓN DE FIREBASE (YA ESTÁ CORRECTA)
-const firebaseConfig = {
+      // CORRECTED: Firebase config block moved out of function
+      // AÑADE TU CONFIGURACIÓN DE FIREBASE AQUÍ
+      // 👇 REEMPLAZA TODO ESTE BLOQUE CON TU CONFIGURACIÓN REAL 👇
+      const firebaseConfig = {
   apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
   authDomain: "app-de-padel.firebaseapp.com",
   projectId: "app-de-padel",
@@ -113,45 +113,36 @@ const firebaseConfig = {
   messagingSenderId: "731771747398",
   appId: "1:731771747398:web:ebc8b723fe220869fade47"
 };
+      // 👆 NO CAMBIES NADA FUERA DE ESTAS LLAVES 👆
+      
+      // CORRECTED: loadConfig function now references the correct variable
+      const loadConfig = () => {
+          firebaseConfigRef.current = firebaseConfig;
+          return true;
+      };
 
-const loadConfig = () => {
-    // La línea que faltaba
-    firebaseConfigRef.current = firebaseConfig; 
-    
-    // Retornamos true para indicar que la configuración ya está lista
-    return true;
-}; 
-
+      // Initialize Firebase and setup listeners
+      useEffect(() => {
         const initFirebase = async () => {
           setLoading(true);
           try {
             const appId = 'default-padel-app'; // Using a fixed app id for consistency
             setAppId(appId);
-            if (!firebaseConfigRef.current) {
-                setShowConfigModal(true);
-                setLoading(false);
-                return;
-            }
-
-            // LÍNEAS CORREGIDAS PARA INICIALIZAR FIREBASE
+            
             const app = firebase.initializeApp(firebaseConfigRef.current);
             const auth = app.auth();
             const db = app.firestore();
-            // FIN DE LÍNEAS CORREGIDAS PARA INICIALIZAR FIREBASE
 
             dbRef.current = db;
             authRef.current = auth;
 
-            // INICIO DE LA MODIFICACIÓN DE LA LÓGICA DE AUTENTICACIÓN
             auth.onAuthStateChanged((user) => {
               if (user) {
-                // Si hay un usuario logueado, ocultamos el modal de login y cargamos sus datos
                 setUserId(user.uid);
                 userRef.current = user.uid;
                 setShowLoginModal(false);
                 loadUserData(user.uid);
               } else {
-                // Si no hay usuario, mostramos el modal de login
                 setUserId(null);
                 setShowLoginModal(true);
                 setLoading(false);
@@ -160,51 +151,11 @@ const loadConfig = () => {
 
           } catch (error) {
             console.error("Error initializing Firebase:", error);
-            // Show the config modal if initialization fails (e.g., wrong credentials)
             setShowConfigModal(true);
             setConfigError('Error al conectar a Firebase. Revisa tu configuración e inténtalo de nuevo.');
             setLoading(false);
           }
         };
-
-        const loadUserData = (currentUserId) => {
-          setLoading(true);
-          const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${currentUserId}/clases_padel`);
-          const userValuesDocRef = dbRef.current.doc(`artifacts/${appId}/users/${currentUserId}/valores_clase/precios`);
-
-          // Listen for changes to editable values
-          userValuesDocRef.onSnapshot((docSnap) => {
-            if (docSnap.exists) {
-              const data = docSnap.data();
-              const newValues = {
-                1: data['1'] || defaultValueMap[1],
-                2: data['2'] || defaultValueMap[2],
-                3: data['3'] || defaultValueMap[3],
-                4: data['4'] || defaultValueMap[4],
-              };
-              setEditableValues(newValues);
-              updateClassesAndReports(classes, newValues); // Recalculate with new values
-            } else {
-              // If no document exists, set default values and save to Firestore
-              setEditableValues(defaultValueMap);
-              // Solo creamos los valores por defecto si el usuario está logueado
-              if (currentUserId) {
-                userValuesDocRef.set(defaultValueMap);
-              }
-            }
-          });
-
-          // Listen for changes to classes
-          userClassesRef.onSnapshot((snapshot) => {
-            const fetchedClasses = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            updateClassesAndReports(fetchedClasses, editableValues);
-            setLoading(false);
-          });
-        };
-        // FIN DE LA MODIFICACIÓN DE LA LÓGICA DE AUTENTICACIÓN
         
         // Initial check and setup
         const configFound = loadConfig();
@@ -223,7 +174,6 @@ const loadConfig = () => {
           setLoginError('');
           try {
               await authRef.current.signInWithEmailAndPassword(email, password);
-              // El onAuthStateChanged se encargará de actualizar el estado
           } catch (error) {
               setLoginError('Error de inicio de sesión. Por favor, verifica tu correo y contraseña.');
               console.error("Error signing in:", error);
@@ -236,9 +186,8 @@ const loadConfig = () => {
           setLoginError('');
           try {
               const userCredential = await authRef.current.createUserWithEmailAndPassword(email, password);
-              // El onAuthStateChanged se encargará de actualizar el estado
               alert('Registro exitoso! Ya puedes iniciar sesión.');
-              setIsRegistering(false); // Vuelve al formulario de login
+              setIsRegistering(false);
           } catch (error) {
               setLoginError('Error de registro. El correo ya puede estar en uso o la contraseña es muy débil.');
               console.error("Error registering:", error);
@@ -249,7 +198,6 @@ const loadConfig = () => {
       const handleLogout = async () => {
           try {
               await authRef.current.signOut();
-              // El onAuthStateChanged se encargará de actualizar el estado
           } catch (error) {
               console.error("Error signing out:", error);
           }
@@ -257,7 +205,6 @@ const loadConfig = () => {
 
       // Function to calculate and update all values, colors, and reports
       const updateClassesAndReports = (currentClasses, currentValues) => {
-        // Group classes by day and time to count students
         const classesByDayTime = currentClasses.reduce((acc, curr) => {
           const key = `${curr.date}-${curr.day}-${curr.time}`;
           if (!acc[key]) {
@@ -267,7 +214,6 @@ const loadConfig = () => {
           return acc;
         }, {});
 
-        // Map through the classes to update their values and colors using the currentValues
         const updatedClasses = currentClasses.map(cls => {
           const key = `${cls.date}-${cls.day}-${cls.time}`;
           const studentCount = (classesByDayTime[key] || []).length;
@@ -279,12 +225,11 @@ const loadConfig = () => {
           };
         });
 
-        // MODIFICACIÓN: Lógica de ordenamiento para que las clases más recientes estén arriba
         updatedClasses.sort((a, b) => {
           const dateA = new Date(a.date);
           const dateB = new Date(b.date);
           if (dateA.getTime() !== dateB.getTime()) {
-            return dateB.getTime() - dateA.getTime(); // Orden descendente por fecha
+            return dateB.getTime() - dateA.getTime();
           }
           const dayIndexA = dayOptions.indexOf(a.day);
           const dayIndexB = dayOptions.indexOf(b.day);
@@ -298,11 +243,9 @@ const loadConfig = () => {
 
         setClasses(updatedClasses);
         calculateReports(updatedClasses);
-        // Extract unique months for the filter buttons
         const months = [...new Set(updatedClasses.map(cls => cls.date.substring(0, 7)))].sort();
         setAvailableMonths(months);
 
-        // NUEVA LÓGICA: Agrupar las clases para la tabla de visualización
         const groupedMap = new Map();
         updatedClasses.forEach(cls => {
           const key = `${cls.date}-${cls.day}-${cls.time}`;
@@ -323,7 +266,6 @@ const loadConfig = () => {
           groupedClass.ids.push(cls.id);
         });
 
-        // Convertir el Map a un array y ordenar (ya está ordenado por la lógica anterior)
         const groupedArray = Array.from(groupedMap.values());
         setGroupedClasses(groupedArray);
       };
@@ -340,12 +282,11 @@ const loadConfig = () => {
           if (!processedClassKeys.has(classKey)) {
             processedClassKeys.add(classKey);
 
-            const date = new Date(cls.date + 'T00:00:00'); // Normalize to avoid timezone issues
+            const date = new Date(cls.date + 'T00:00:00');
             const year = date.getFullYear();
             const month = date.getMonth();
             const monthName = monthNames[month];
 
-            // Calculate week number (simple approximation)
             const firstDayOfYear = new Date(year, 0, 1);
             const pastDays = (date - firstDayOfYear) / 86400000;
             const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
@@ -353,7 +294,6 @@ const loadConfig = () => {
             const weekKey = `${year}-Semana ${weekNumber}`;
             const monthKey = `${monthName} ${year}`;
 
-            // Update weekly report
             if (!weeklyReportMap.has(weekKey)) {
               weeklyReportMap.set(weekKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
             }
@@ -364,7 +304,6 @@ const loadConfig = () => {
               weeklyReport.countsByStudent[cls.studentCount]++;
             }
 
-            // Update monthly report
             if (!monthlyReportMap.has(monthKey)) {
               monthlyReportMap.set(monthKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
             }
@@ -377,7 +316,6 @@ const loadConfig = () => {
           }
         });
 
-        // Convert maps to arrays for rendering
         const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
         const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
 
@@ -388,28 +326,22 @@ const loadConfig = () => {
       // FUNCIÓN MODIFICADA: Ahora actualiza el día automáticamente
       const handleInputChange = (e) => {
         const { name, value } = e.target;
-        // Objeto para mapear los números de día a los nombres en español
         const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-        // Si el campo que se cambia es la fecha...
         if (name === 'date') {
             const dateObj = new Date(value + 'T00:00:00');
-            // Añadimos 'T00:00:00' para evitar problemas de zona horaria
             const dayOfWeek = dateObj.getDay();
             const newDayName = dayNames[dayOfWeek];
 
-            // Actualizamos tanto la fecha como el día
             setNewEntry(prev => ({
                 ...prev,
                 [name]: value,
-                day: newDayName // El nuevo día calculado
+                day: newDayName
             }));
         } else {
-            // Si es cualquier otro campo, solo actualizamos su valor
             setNewEntry(prev => ({ ...prev, [name]: value }));
         }
       };
       
-      // Handle changes to the editable value inputs and update Firestore
       const handleValueChange = async (e) => {
         const { name, value } = e.target;
         const newValues = { ...editableValues, [name]: Number(value) };
@@ -422,35 +354,23 @@ const loadConfig = () => {
         }
       };
       
-      // CÓDIGO CORREGIDO PARA AÑADIR CLASES
       const handleAddClass = async (e) => {
         e.preventDefault();
         
-        console.log("El formulario de añadir clase se ha enviado.");
-
         if (newEntry.studentName.trim() === '') {
           alert("El nombre del alumno no puede estar vacío.");
           return;
         }
-
-        console.log("Estado actual de userId:", userId);
-        console.log("Estado actual de appId:", appId);
         
         if (!userId || !appId) {
           alert("Error: No se puede añadir la clase. Por favor, asegúrate de haber iniciado sesión y de tener una configuración de Firebase correcta.");
-          console.error("Error: userId o appId no están definidos. No se intentará guardar la clase.");
           return;
         }
         
         try {
           const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${userId}/clases_padel`);
-          
-          console.log("Referencia de la colección a la que se intentará escribir:", userClassesRef.path);
-          console.log("Datos a guardar:", newEntry);
-          
           await userClassesRef.add(newEntry);
           
-          console.log("Clase añadida con éxito a Firestore.");
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
         } catch (error) {
           console.error("Error al añadir la clase a Firestore:", error);
@@ -458,12 +378,10 @@ const loadConfig = () => {
         }
       };
       
-      // NUEVA FUNCIÓN: Iniciar la edición de una clase
       const handleEditClass = (classToEdit) => {
         setEditingClass(classToEdit);
       };
 
-      // NUEVA FUNCIÓN: Guardar los cambios de una clase editada
       const handleUpdateClass = async (e) => {
         e.preventDefault();
         if (!editingClass || editingClass.students.some(s => s.trim() === '')) {
@@ -471,20 +389,17 @@ const loadConfig = () => {
           return;
         }
         
-        // Confirmación de la acción
         if (!window.confirm("¿Estás seguro de que quieres guardar los cambios? Esto eliminará los datos anteriores y creará clases nuevas.")) {
             return;
         }
 
         try {
-          // Eliminar las clases viejas
           const batch = dbRef.current.batch();
           editingClass.ids.forEach(id => {
             const docRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/clases_padel/${id}`);
             batch.delete(docRef);
           });
 
-          // Agregar las clases nuevas (con los datos editados)
           for (const studentName of editingClass.students) {
             const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${userId}/clases_padel`);
             await userClassesRef.add({
@@ -496,18 +411,16 @@ const loadConfig = () => {
           }
 
           await batch.commit();
-          setEditingClass(null); // Cerrar el modal
+          setEditingClass(null);
         } catch (error) {
           console.error("Error updating classes in Firestore:", error);
         }
       };
 
-      // NUEVA FUNCIÓN: Cancelar la edición
       const handleCancelEdit = () => {
         setEditingClass(null);
       };
 
-      // NUEVA FUNCIÓN: Eliminar un solo alumno de una clase agrupada
       const handleDeleteStudentFromClass = async (studentId, classIds) => {
           if (!window.confirm("¿Estás seguro de que quieres eliminar a este alumno de la clase?")) {
               return;
@@ -520,8 +433,6 @@ const loadConfig = () => {
           }
       };
 
-
-      // Handle deleting a class and delete from Firestore
       const handleDeleteClass = async (id) => {
         try {
           const userClassesDocRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/clases_padel/${id}`);
@@ -531,7 +442,6 @@ const loadConfig = () => {
         }
       };
       
-      // Handle config modal submit
       const handleConfigSubmit = (e) => {
         e.preventDefault();
         try {
@@ -539,253 +449,262 @@ const loadConfig = () => {
           localStorage.setItem('firebaseConfig', JSON.stringify(config));
           setShowConfigModal(false);
           firebaseConfigRef.current = config;
-          window.location.reload(); // Reload the page to initialize with the new config
+          window.location.reload();
         } catch (error) {
           setConfigError('Configuración de Firebase no válida. Asegúrate de que sea un JSON válido.');
         }
       };
       
-      
-// ===== FUNCIONES EXTRA =====
+      const exportWeeklyPDF = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text("Informe Semanal - Clases de Pádel", 14, 15);
 
-// FUNCIÓN MODIFICADA: Ahora exporta el PDF semanal con columnas separadas y con el nuevo formato de semana
-const exportWeeklyPDF = () => {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  doc.setFontSize(16);
-  doc.text("Informe Semanal - Clases de Pádel", 14, 15);
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-  const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        const tableData = weeklyReports.map(r => {
+          const [year, weekText] = r.week.split('-');
+          const weekNumber = weekText.replace('Semana ', '');
+          
+          const firstDayOfYear = new Date(year, 0, 1);
+          const dateInWeek = new Date(firstDayOfYear.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
+          const monthName = monthNames[dateInWeek.getMonth()];
 
-  const tableData = weeklyReports.map(r => {
-    // Extrae el número de semana y el año del `r.week`
-    const [year, weekText] = r.week.split('-');
-    const weekNumber = weekText.replace('Semana ', '');
-    
-    // Calcula una fecha aproximada de la semana para obtener el mes
-    const firstDayOfYear = new Date(year, 0, 1);
-    const dateInWeek = new Date(firstDayOfYear.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
-    const monthName = monthNames[dateInWeek.getMonth()];
+          const formattedWeek = `SEMANA Nº ${weekNumber} DEL MES DE ${monthName.toUpperCase()} DE ${year}`;
+          
+          return [
+            formattedWeek,
+            r.totalClasses,
+            formatCurrency(r.totalEarnings),
+            r.countsByStudent[1] || 0,
+            r.countsByStudent[2] || 0,
+            r.countsByStudent[3] || 0,
+            r.countsByStudent[4] || 0
+          ];
+        });
+        doc.autoTable({
+          head: [["Semana", "Total Clases", "Ganancia Total", "1 Persona", "2 Personas", "3 Personas", "4 Personas"]],
+          body: tableData,
+          startY: 25,
+          styles: { fontSize: 8, halign: 'center' },
+          headStyles: { fillColor: '#ef4444' },
+          theme: 'grid'
+        });
+        doc.save("informe_semanal.pdf");
+      };
 
-    // Formato con el nombre del mes
-    const formattedWeek = `SEMANA Nº ${weekNumber} DEL MES DE ${monthName.toUpperCase()} DE ${year}`;
-    
-    return [
-      formattedWeek,
-      r.totalClasses,
-      formatCurrency(r.totalEarnings),
-      r.countsByStudent[1] || 0,
-      r.countsByStudent[2] || 0,
-      r.countsByStudent[3] || 0,
-      r.countsByStudent[4] || 0
-    ];
-  });
-  doc.autoTable({
-    head: [["Semana", "Total Clases", "Ganancia Total", "1 Persona", "2 Personas", "3 Personas", "4 Personas"]],
-    body: tableData,
-    startY: 25,
-    styles: { fontSize: 8, halign: 'center' },
-    headStyles: { fillColor: '#ef4444' },
-    theme: 'grid'
-  });
-  doc.save("informe_semanal.pdf");
-};
+      const exportMonthlyPDF = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
 
-// FUNCIÓN CORREGIDA: Ahora exporta todos los meses en un único documento PDF y corrige la columna de alumnos
-const exportMonthlyPDF = () => {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  monthlyReports.forEach((report, index) => {
-    if (index > 0) {
-      doc.addPage();
-    }
-    
-    let finalY = 15; // Variable para rastrear la posición Y de la siguiente tabla
-
-    // Título del reporte mensual
-    doc.setFontSize(16);
-    doc.text(`Informe Mensual - Clases de Pádel - ${report.month}`, 14, finalY);
-    finalY += 10;
-  
-    // Tabla de resumen mensual
-    doc.autoTable({
-      head: [["Mes", "Total Clases", "Ganancia Total"]],
-      body: [[
-        report.month,
-        report.totalClasses,
-        formatCurrency(report.totalEarnings)
-      ]],
-      startY: finalY,
-      theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: '#ef4444' }
-    });
-    finalY = doc.autoTable.previous.finalY + 10;
-
-    // Tabla con el detalle de clases por alumno
-    doc.setFontSize(12);
-    doc.text(`Desglose de Clases por Alumno:`, 14, finalY);
-    finalY += 5;
-    
-    const detailedCountData = [
-      ["1 Persona", "2 Personas", "3 Personas", "4 Personas"],
-      [
-        report.countsByStudent[1] || 0,
-        report.countsByStudent[2] || 0,
-        report.countsByStudent[3] || 0,
-        report.countsByStudent[4] || 0
-      ]
-    ];
-    doc.autoTable({
-      head: [detailedCountData[0]],
-      body: [detailedCountData[1]],
-      startY: finalY,
-      theme: 'grid',
-      styles: { fontSize: 8, halign: 'center' },
-      headStyles: { fillColor: '#fca5a5' }
-    });
-    finalY = doc.autoTable.previous.finalY + 10;
-
-    // Filtramos las clases para el mes actual del reporte
-    const classesForMonth = classes.filter(cls => {
-      // Línea corregida: Normalizamos la fecha para evitar problemas de zona horaria
-      const date = new Date(cls.date + 'T00:00:00');
-      const monthName = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][date.getMonth()];
-      const monthKey = `${monthName} ${date.getFullYear()}`;
-      return monthKey === report.month;
-    });
-
-    // Tabla con el detalle de las clases del mes
-    if (classesForMonth.length > 0) {
-      const processedClasses = new Set();
-      const detailedTableData = classesForMonth.map(cls => {
-        const classKey = `${cls.date}-${cls.day}-${cls.time}`;
-        const isFirstStudentInClass = !processedClasses.has(classKey);
+        monthlyReports.forEach((report, index) => {
+          if (index > 0) {
+            doc.addPage();
+          }
+          
+          let finalY = 15;
+          doc.setFontSize(16);
+          doc.text(`Informe Mensual - Clases de Pádel - ${report.month}`, 14, finalY);
+          finalY += 10;
         
-        if (isFirstStudentInClass) {
-          processedClasses.add(classKey);
+          doc.autoTable({
+            head: [["Mes", "Total Clases", "Ganancia Total"]],
+            body: [[
+              report.month,
+              report.totalClasses,
+              formatCurrency(report.totalEarnings)
+            ]],
+            startY: finalY,
+            theme: 'grid',
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: '#ef4444' }
+          });
+          finalY = doc.autoTable.previous.finalY + 10;
+
+          doc.setFontSize(12);
+          doc.text(`Desglose de Clases por Alumno:`, 14, finalY);
+          finalY += 5;
+          
+          const detailedCountData = [
+            ["1 Persona", "2 Personas", "3 Personas", "4 Personas"],
+            [
+              report.countsByStudent[1] || 0,
+              report.countsByStudent[2] || 0,
+              report.countsByStudent[3] || 0,
+              report.countsByStudent[4] || 0
+            ]
+          ];
+          doc.autoTable({
+            head: [detailedCountData[0]],
+            body: [detailedCountData[1]],
+            startY: finalY,
+            theme: 'grid',
+            styles: { fontSize: 8, halign: 'center' },
+            headStyles: { fillColor: '#fca5a5' }
+          });
+          finalY = doc.autoTable.previous.finalY + 10;
+
+          const classesForMonth = classes.filter(cls => {
+            const date = new Date(cls.date + 'T00:00:00');
+            const monthName = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][date.getMonth()];
+            const monthKey = `${monthName} ${date.getFullYear()}`;
+            return monthKey === report.month;
+          });
+
+          if (classesForMonth.length > 0) {
+            const processedClasses = new Set();
+            const detailedTableData = classesForMonth.map(cls => {
+              const classKey = `${cls.date}-${cls.day}-${cls.time}`;
+              const isFirstStudentInClass = !processedClasses.has(classKey);
+              
+              if (isFirstStudentInClass) {
+                processedClasses.add(classKey);
+              }
+
+              return [
+                formatDate(cls.date),
+                cls.day,
+                cls.time,
+                cls.studentName,
+                isFirstStudentInClass ? cls.studentCount : '',
+                isFirstStudentInClass ? formatCurrency(cls.value) : ''
+              ];
+            });
+            doc.setFontSize(12);
+            doc.text(`Detalle de Clases:`, 14, finalY);
+            finalY += 5;
+            
+            doc.autoTable({
+              head: [["Fecha", "Día", "Horario", "Nombre de Alumno", "Alumnos", "Valor"]],
+              body: detailedTableData,
+              startY: finalY,
+              theme: 'striped',
+              styles: { fontSize: 8 },
+              headStyles: { fillColor: '#ef4444' }
+            });
+          }
+
+        });
+        
+        doc.save("informe_mensual_detallado.pdf");
+      };
+
+      const exportDatabase = () => {
+        const data = {
+          precios: editableValues,
+          clases: classes
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "base_de_datos_padel.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
+      const importDatabase = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const data = JSON.parse(e.target.result);
+            if (data.precios) {
+              const userValuesDocRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/valores_clase/precios`);
+              await userValuesDocRef.set(data.precios);
+            }
+            if (data.clases) {
+              const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${userId}/clases_padel`);
+              const snapshot = await userClassesRef.get();
+              snapshot.forEach(docSnap => docSnap.ref.delete());
+              const addPromises = data.clases.map(cls => userClassesRef.add(cls));
+              await Promise.all(addPromises);
+            }
+            alert("Base de datos importada correctamente. La página se recargará para mostrar los nuevos datos.");
+            window.location.reload(); 
+          } catch (err) {
+            alert("Error al importar el archivo JSON.");
+            console.error(err);
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      const handleDeleteGroupedClass = async (ids) => {
+        if (!window.confirm("¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.")) {
+          return;
         }
+        try {
+          const batch = dbRef.current.batch();
+          ids.forEach(id => {
+            const docRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/clases_padel/${id}`);
+            batch.delete(docRef);
+          });
+          await batch.commit();
+        } catch (error) {
+          console.error("Error deleting grouped classes:", error);
+        }
+      };
 
-        return [
-          formatDate(cls.date),
-          cls.day,
-          cls.time,
-          cls.studentName,
-          isFirstStudentInClass ? cls.studentCount : '',
-          isFirstStudentInClass ? formatCurrency(cls.value) : ''
-        ];
+
+      const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
+
+      const filteredClasses = groupedClasses.filter(cls => {
+        const isMonthMatch = selectedMonth === 'Todos' || cls.date.substring(0, 7) === selectedMonth;
+        const isSearchMatch = searchQuery === '' || cls.students.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
+        const isDateRangeMatch = (startDate === '' || new Date(cls.date) >= new Date(startDate)) &&
+                                 (endDate === '' || new Date(cls.date) <= new Date(endDate));
+        return isMonthMatch && isSearchMatch && isDateRangeMatch;
       });
-      doc.setFontSize(12);
-      doc.text(`Detalle de Clases:`, 14, finalY);
-      finalY += 5;
+
+      const loadUserData = (currentUserId) => {
+        setLoading(true);
+        const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${currentUserId}/clases_padel`);
+        const userValuesDocRef = dbRef.current.doc(`artifacts/${appId}/users/${currentUserId}/valores_clase/precios`);
+
+        userValuesDocRef.onSnapshot((docSnap) => {
+          if (docSnap.exists) {
+            const data = docSnap.data();
+            const newValues = {
+              1: data['1'] || defaultValueMap[1],
+              2: data['2'] || defaultValueMap[2],
+              3: data['3'] || defaultValueMap[3],
+              4: data['4'] || defaultValueMap[4],
+            };
+            setEditableValues(newValues);
+            updateClassesAndReports(classes, newValues);
+          } else {
+            setEditableValues(defaultValueMap);
+            if (currentUserId) {
+              userValuesDocRef.set(defaultValueMap);
+            }
+          }
+        });
+
+        userClassesRef.onSnapshot((snapshot) => {
+          const fetchedClasses = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          updateClassesAndReports(fetchedClasses, editableValues);
+          setLoading(false);
+        });
+      };
       
-      doc.autoTable({
-        head: [["Fecha", "Día", "Horario", "Nombre de Alumno", "Alumnos", "Valor"]],
-        body: detailedTableData,
-        startY: finalY,
-        theme: 'striped',
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: '#ef4444' }
-      });
-    }
-
-  });
-  
-  // Guardar el documento una única vez después de procesar todos los reportes
-  doc.save("informe_mensual_detallado.pdf");
-};
-
-// Exportar base de datos a JSON
-const exportDatabase = () => {
-  const data = {
-    precios: editableValues,
-    clases: classes
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "base_de_datos_padel.json";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-};
-
-// Importar base de datos desde JSON
-const importDatabase = (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (data.precios) {
-        const userValuesDocRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/valores_clase/precios`);
-        await userValuesDocRef.set(data.precios);
-      }
-      if (data.clases) {
-        const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${userId}/clases_padel`);
-        const snapshot = await userClassesRef.get();
-        snapshot.forEach(docSnap => docSnap.ref.delete());
-        const addPromises = data.clases.map(cls => userClassesRef.add(cls));
-        await Promise.all(addPromises);
-      }
-      alert("Base de datos importada correctamente. La página se recargará para mostrar los nuevos datos.");
-      // LÍNEA CORREGIDA: Forzar la recarga de la página
-      window.location.reload(); 
-    } catch (err) {
-      alert("Error al importar el archivo JSON.");
-      console.error(err);
-    }
-  };
-  reader.readAsText(file);
-};
-// ===== FIN FUNCIONES EXTRA =====
-
-// NUEVA FUNCIÓN: Elimina todos los alumnos de una clase agrupada
-const handleDeleteGroupedClass = async (ids) => {
-  if (!window.confirm("¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.")) {
-    return;
-  }
-  try {
-    const batch = dbRef.current.batch();
-    ids.forEach(id => {
-      const docRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/clases_padel/${id}`);
-      batch.delete(docRef);
-    });
-    await batch.commit();
-  } catch (error) {
-    console.error("Error deleting grouped classes:", error);
-  }
-};
-
-
-const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
-
-// LÓGICA MEJORADA: Filtramos las clases agrupadas
-const filteredClasses = groupedClasses.filter(cls => {
-  const isMonthMatch = selectedMonth === 'Todos' || cls.date.substring(0, 7) === selectedMonth;
-  const isSearchMatch = searchQuery === '' || cls.students.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
-  const isDateRangeMatch = (startDate === '' || new Date(cls.date) >= new Date(startDate)) &&
-                           (endDate === '' || new Date(cls.date) <= new Date(endDate));
-  return isMonthMatch && isSearchMatch && isDateRangeMatch;
-});
-
-return (
+      return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
           <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
             
-            {/* INICIO DE LA MODIFICACIÓN: Título con Logo */}
             <div className="flex items-center justify-center gap-4 mb-4">
               <img src="https://i.postimg.cc/L4PWVYFx/REPORTE-PADEL-LOGO.png" alt="Logo" className="h-12 w-12 object-contain" />
               <h1 className="text-3xl font-bold text-center text-gray-900">
                 Informe de Clases de Padel
               </h1>
             </div>
-            {/* FIN DE LA MODIFICACIÓN */}
             
-            {/* INICIO DEL BOTÓN DE CERRAR SESIÓN */}
             {userId && (
               <div className="flex justify-end mb-4">
                 <button onClick={handleLogout} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
@@ -793,8 +712,7 @@ return (
                 </button>
               </div>
             )}
-            {/* FIN DEL BOTÓN DE CERRAR SESIÓN */}
-
+            
             {userId && (
               <>
                 <div className="flex gap-4 mb-6 justify-center">
@@ -807,7 +725,6 @@ return (
                   </label>
                 </div>
                 
-                {/* INICIO DE LOS BOTONES DE PDF CORREGIDOS */}
                 <div className="flex gap-4 mb-6 justify-center">
                   <button onClick={exportWeeklyPDF} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
                     Exportar Informe Semanal (PDF)
@@ -816,7 +733,6 @@ return (
                     Exportar Informe Mensual (PDF)
                   </button>
                 </div>
-                {/* FIN DE LOS BOTONES DE PDF CORREGIDOS */}
               </>
             )}
 
@@ -838,7 +754,7 @@ return (
                       value={userFirebaseConfig}
                       onChange={(e) => {
                         setUserFirebaseConfig(e.target.value);
-                        setConfigError(''); // Clear error on new input
+                        setConfigError('');
                       }}
                       className="w-full h-40 p-3 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                       placeholder='Pega tu objeto JSON aquí: { "apiKey": "...", "authDomain": "...", ... }'
@@ -867,7 +783,6 @@ return (
             ) : (
                 <>
                   {showLoginModal ? (
-                    // INICIO DEL MODAL DE LOGIN/REGISTRO
                     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
                       <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm">
                         <h2 className="text-2xl font-bold mb-4 text-center text-gray-900">
@@ -928,11 +843,8 @@ return (
                         </form>
                       </div>
                     </div>
-                    // FIN DEL MODAL DE LOGIN/REGISTRO
                   ) : (
-                    // Contenido principal de la app (solo visible si hay un usuario logueado)
                     <>
-                      {/* Editable Values Section */}
                       <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
                         <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
                           <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
@@ -960,9 +872,7 @@ return (
                         </div>
                       </div>
 
-                      {/* Reports Section */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        {/* Weekly Reports */}
                         <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
                           <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
                             <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
@@ -992,7 +902,6 @@ return (
                           )}
                         </div>
               
-                        {/* Monthly Reports */}
                         <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
                           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                             <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
@@ -1024,7 +933,6 @@ return (
               
                       </div>
 
-                      {/* Form to add new classes */}
                       <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
                         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                           <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
@@ -1100,13 +1008,11 @@ return (
                         </div>
                       </form>
               
-                      {/* Monthly Filter Section */}
                       <div className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
                           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                               <i className="fas fa-filter text-lg"></i> Filtros de Búsqueda
                           </h2>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {/* Filtro por rango de fechas */}
                               <div>
                                   <p className="text-sm font-medium text-gray-600 mb-2">Filtrar por Rango de Fechas</p>
                                   <div className="flex items-center space-x-2">
@@ -1131,7 +1037,6 @@ return (
                                       />
                                   </div>
                               </div>
-                              {/* Filtro por mes */}
                               <div>
                                   <p className="text-sm font-medium text-gray-600 mb-2">Filtrar por Mes</p>
                                   <div className="flex flex-wrap gap-2">
@@ -1156,7 +1061,6 @@ return (
                                       ))}
                                   </div>
                               </div>
-                              {/* Búsqueda por alumno */}
                               <div className="md:col-span-2">
                                 <p className="text-sm font-medium text-gray-600 mb-2">Buscar Alumno</p>
                                   <input
@@ -1170,7 +1074,6 @@ return (
                           </div>
                       </div>
 
-                      {/* Table to display classes - MODIFICADA */}
                       <div className="overflow-x-auto rounded-lg shadow-md">
                         <table className="min-w-full divide-y divide-gray-200">
                           <thead className="bg-gray-100">
@@ -1243,7 +1146,6 @@ return (
                         </table>
                       </div>
 
-                      {/* Modal de edición */}
                       {editingClass && (
                           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
                               <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
@@ -1349,7 +1251,6 @@ return (
       );
     };
 
-    // Render the App component
     const container = document.getElementById('root');
     const root = ReactDOM.createRoot(container);
     root.render(<App />);
