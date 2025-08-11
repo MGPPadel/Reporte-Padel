@@ -84,6 +84,9 @@
       // State for filtering classes by month
       const [selectedMonth, setSelectedMonth] = useState('Todos');
       const [availableMonths, setAvailableMonths] = useState([]);
+
+      // **NUEVO ESTADO**: Lista de clases agrupadas para la tabla de visualización
+      const [groupedClasses, setGroupedClasses] = useState([]);
       
       const firebaseConfigRef = useRef(null);
       const dbRef = useRef(null);
@@ -224,12 +227,12 @@
           };
         });
 
-        // Sort the classes by date, then day, then time for better readability
+        // **MODIFICACIÓN:** Lógica de ordenamiento para que las clases más recientes estén arriba
         updatedClasses.sort((a, b) => {
           const dateA = new Date(a.date);
           const dateB = new Date(b.date);
           if (dateA.getTime() !== dateB.getTime()) {
-            return dateA.getTime() - dateB.getTime();
+            return dateB.getTime() - dateA.getTime(); // Orden descendente por fecha
           }
           const dayIndexA = dayOptions.indexOf(a.day);
           const dayIndexB = dayOptions.indexOf(b.day);
@@ -246,6 +249,31 @@
         // Extract unique months for the filter buttons
         const months = [...new Set(updatedClasses.map(cls => cls.date.substring(0, 7)))].sort();
         setAvailableMonths(months);
+
+        // **NUEVA LÓGICA:** Agrupar las clases para la tabla de visualización
+        const groupedMap = new Map();
+        updatedClasses.forEach(cls => {
+          const key = `${cls.date}-${cls.day}-${cls.time}`;
+          if (!groupedMap.has(key)) {
+            groupedMap.set(key, {
+              date: cls.date,
+              day: cls.day,
+              time: cls.time,
+              studentCount: cls.studentCount,
+              value: cls.value,
+              color: cls.color,
+              students: [],
+              ids: []
+            });
+          }
+          const groupedClass = groupedMap.get(key);
+          groupedClass.students.push(cls.studentName);
+          groupedClass.ids.push(cls.id);
+        });
+
+        // Convertir el Map a un array y ordenar (ya está ordenado por la lógica anterior)
+        const groupedArray = Array.from(groupedMap.values());
+        setGroupedClasses(groupedArray);
       };
 
       // Function to calculate the weekly and monthly reports
@@ -577,11 +605,29 @@ const importDatabase = (event) => {
 };
 // ===== FIN FUNCIONES EXTRA =====
 
+// **NUEVA FUNCIÓN:** Elimina todos los alumnos de una clase agrupada
+const handleDeleteGroupedClass = async (ids) => {
+  if (!window.confirm("¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.")) {
+    return;
+  }
+  try {
+    const batch = firebase.getFirestore(firebase.initializeApp(firebaseConfigRef.current)).batch();
+    ids.forEach(id => {
+      const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
+      batch.delete(docRef);
+    });
+    await batch.commit();
+  } catch (error) {
+    console.error("Error deleting grouped classes:", error);
+  }
+};
+
+
 const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
-// Filter classes based on the selected month
+// **MODIFICACIÓN:** Filtramos las clases AGRUPADAS
 const filteredClasses = selectedMonth === 'Todos' 
-  ? classes 
-  : classes.filter(cls => cls.date.substring(0, 7) === selectedMonth);
+  ? groupedClasses
+  : groupedClasses.filter(cls => cls.date.substring(0, 7) === selectedMonth);
 
 return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
@@ -849,7 +895,7 @@ return (
                     </div>
                 </div>
 
-                {/* Table to display classes */}
+                {/* Table to display classes - MODIFICADA */}
                 <div className="overflow-x-auto rounded-lg shadow-md">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-100">
@@ -858,19 +904,16 @@ return (
                           Fecha
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Día
+                          Día y Horario
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Horario
+                          Alumnos
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Nombre de Alumno
+                          Nº Alumnos
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Cantidad de Alumnos
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Valor Generado
+                          Valor
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                           Acciones
@@ -879,52 +922,36 @@ return (
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {filteredClasses.length > 0 ? (
-                        filteredClasses.map((cls, index) => {
-                          // Find the index of the first occurrence of this date, day, and time
-                          const firstIndex = filteredClasses.findIndex(
-                            (c) => c.date === cls.date && c.day === cls.day && c.time === cls.time
-                          );
-                          // Render the value only for the first student in a given class time
-                          const displayValueAndCount = firstIndex === index;
-
-                          return (
-                            <tr key={cls.id} className={cls.color}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {formatDate(cls.date)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {cls.day}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {cls.time}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {cls.studentName}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {displayValueAndCount
-                                  ? cls.studentCount
-                                  : ''}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {displayValueAndCount
-                                  ? formatCurrency(cls.value)
-                                  : ''}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button
-                                  onClick={() => handleDeleteClass(cls.id)}
-                                  className="text-red-600 hover:text-red-900 transition-colors"
-                                >
-                                  <i className="fas fa-trash-alt"></i>
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
+                        filteredClasses.map((cls, index) => (
+                          <tr key={`${cls.date}-${cls.time}-${index}`} className={cls.color}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {formatDate(cls.date)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {cls.day} - {cls.time}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500">
+                              {cls.students.join(', ')}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {cls.studentCount}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatCurrency(cls.value)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <button
+                                onClick={() => handleDeleteGroupedClass(cls.ids)}
+                                className="text-red-600 hover:text-red-900 transition-colors"
+                              >
+                                <i className="fas fa-trash-alt"></i>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
                       ) : (
                         <tr>
-                          <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500 italic">
+                          <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500 italic">
                             No hay clases registradas. ¡Añade una para empezar!
                           </td>
                         </tr>
@@ -946,6 +973,7 @@ return (
   </script>
 </body>
 </html>
+
 
 
 
