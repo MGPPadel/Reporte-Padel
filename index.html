@@ -106,13 +106,13 @@
       useEffect(() => {
         const loadConfig = () => {
             // Tu configuración de Firebase. Sustituye este objeto con tu propia configuración.
-            const myFirebaseConfig = {
-  "apiKey": "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
-  "authDomain": "app-de-padel.firebaseapp.com",
-  "projectId": "app-de-padel",
-  "storageBucket": "app-de-padel.firebasestorage.app",
-  "messagingSenderId": "731771747398",
-  "appId": "1:731771747398:web:ebc8b723fe220869fade47"
+            const firebaseConfig = {
+  apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+  authDomain: "app-de-padel.firebaseapp.com",
+  projectId: "app-de-padel",
+  storageBucket: "app-de-padel.firebasestorage.app",
+  messagingSenderId: "731771747398",
+  appId: "1:731771747398:web:ebc8b723fe220869fade47"
 };
             
             firebaseConfigRef.current = myFirebaseConfig;
@@ -421,17 +421,37 @@
         }
       };
       
-      // Handle adding a new class and save to Firestore
+      // CÓDIGO CORREGIDO PARA AÑADIR CLASES
       const handleAddClass = async (e) => {
         e.preventDefault();
-        if (newEntry.studentName.trim() === '') return;
+        
+        // Agregamos una verificación para ver si el campo de alumno está vacío.
+        if (newEntry.studentName.trim() === '') {
+          alert("El nombre del alumno no puede estar vacío.");
+          return;
+        }
 
+        // Agregamos una verificación para ver si userId y appId están disponibles
+        if (!userId || !appId) {
+          alert("Error: No se puede añadir la clase. Por favor, asegúrate de haber iniciado sesión y de tener una configuración de Firebase correcta.");
+          console.error("Error: userId o appId no están definidos.");
+          return;
+        }
+        
         try {
           const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${userId}/clases_padel`);
+          
+          // Mostramos un mensaje de éxito para verificar que el código está funcionando
+          console.log("Datos a guardar:", newEntry);
+          
           await userClassesRef.add(newEntry);
-          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reset only student name
+          
+          // Una vez que se agrega, limpiamos el campo de nombre del alumno y mantenemos los otros campos
+          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
+          console.log("Clase añadida con éxito a Firestore.");
         } catch (error) {
-          console.error("Error adding class to Firestore:", error);
+          console.error("Error al añadir la clase a Firestore:", error);
+          alert("Ocurrió un error al guardar la clase. Revisa la consola para más detalles.");
         }
       };
       
@@ -857,6 +877,7 @@ return (
                             </label>
                             <input
                               id="email"
+                              name="email"
                               type="email"
                               placeholder="ejemplo@correo.com"
                               value={email}
@@ -871,6 +892,7 @@ return (
                             </label>
                             <input
                               id="password"
+                              name="password"
                               type="password"
                               placeholder="********"
                               value={password}
@@ -1331,6 +1353,7 @@ return (
   </script>
 </body>
 </html>
+
 
 
 
