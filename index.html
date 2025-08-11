@@ -402,9 +402,14 @@
       // **NUEVA FUNCIÓN:** Guardar los cambios de una clase editada
       const handleUpdateClass = async (e) => {
         e.preventDefault();
-        if (!editingClass || editingClass.students.some(s => !s.trim())) {
+        if (!editingClass || editingClass.students.some(s => s.trim() === '')) {
           alert('El nombre de los alumnos no puede estar vacío.');
           return;
+        }
+        
+        // Confirmación de la acción
+        if (!window.confirm("¿Estás seguro de que quieres guardar los cambios? Esto eliminará los datos anteriores y creará clases nuevas.")) {
+            return;
         }
 
         try {
@@ -705,9 +710,15 @@ const filteredClasses = groupedClasses.filter(cls => {
 return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
           <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
-            <h1 className="text-3xl font-bold mb-2 text-center text-gray-900">
-              Informe de Clases de Padel
-            </h1>
+            
+            {/* INICIO DE LA MODIFICACIÓN: Título con Logo */}
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <img src="https://i.postimg.cc/L4PWVYFx/REPORTE-PADEL-LOGO.png" alt="Logo" className="h-12 w-12 object-contain" />
+              <h1 className="text-3xl font-bold text-center text-gray-900">
+                Informe de Clases de Padel
+              </h1>
+            </div>
+            {/* FIN DE LA MODIFICACIÓN */}
             
             <div className="flex gap-4 mb-6 justify-center">
               <button onClick={exportDatabase} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
