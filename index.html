@@ -104,9 +104,8 @@
 
       // Initialize Firebase and setup listeners
       useEffect(() => {
-        const loadConfig = () => {
-            // Tu configuración de Firebase. Sustituye este objeto con tu propia configuración.
-            const firebaseConfig = {
+// TU CONFIGURACIÓN DE FIREBASE (YA ESTÁ CORRECTA)
+const firebaseConfig = {
   apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
   authDomain: "app-de-padel.firebaseapp.com",
   projectId: "app-de-padel",
@@ -114,12 +113,14 @@
   messagingSenderId: "731771747398",
   appId: "1:731771747398:web:ebc8b723fe220869fade47"
 };
-            
-            firebaseConfigRef.current = myFirebaseConfig;
-            
-            // Retornamos true para indicar que la configuración ya está lista y no se necesita el modal
-            return true;
-        };
+
+const loadConfig = () => {
+    // La línea que faltaba
+    firebaseConfigRef.current = firebaseConfig; 
+    
+    // Retornamos true para indicar que la configuración ya está lista
+    return true;
+}; 
 
         const initFirebase = async () => {
           setLoading(true);
@@ -1355,6 +1356,7 @@ return (
   </script>
 </body>
 </html>
+
 
 
 
