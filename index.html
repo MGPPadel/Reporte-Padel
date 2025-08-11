@@ -132,15 +132,18 @@
                 return;
             }
 
+            // ***** LÍNEAS CORREGIDAS PARA INICIALIZAR FIREBASE *****
             const app = firebase.initializeApp(firebaseConfigRef.current);
-            const auth = firebase.getAuth(app);
-            const db = firebase.getFirestore(app);
+            const auth = firebase.auth(app);
+            const db = firebase.firestore(app);
+            // ***** FIN DE LÍNEAS CORREGIDAS PARA INICIALIZAR FIREBASE *****
+
 
             dbRef.current = db;
             authRef.current = auth;
 
             // ***** INICIO DE LA MODIFICACIÓN DE LA LÓGICA DE AUTENTICACIÓN *****
-            firebase.onAuthStateChanged(auth, (user) => {
+            auth.onAuthStateChanged((user) => {
               if (user) {
                 // Si hay un usuario logueado, ocultamos el modal de login y cargamos sus datos
                 setUserId(user.uid);
@@ -166,11 +169,11 @@
 
         const loadUserData = (currentUserId) => {
           setLoading(true);
-          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${currentUserId}/clases_padel`);
-          const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${currentUserId}/valores_clase/precios`);
+          const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${currentUserId}/clases_padel`);
+          const userValuesDocRef = dbRef.current.doc(`artifacts/${appId}/users/${currentUserId}/valores_clase/precios`);
 
           // Listen for changes to editable values
-          firebase.onSnapshot(userValuesDocRef, (docSnap) => {
+          userValuesDocRef.onSnapshot((docSnap) => {
             if (docSnap.exists()) {
               const data = docSnap.data();
               const newValues = {
@@ -186,13 +189,13 @@
               setEditableValues(defaultValueMap);
               // Solo creamos los valores por defecto si el usuario está logueado
               if (currentUserId) {
-                firebase.setDoc(userValuesDocRef, defaultValueMap);
+                userValuesDocRef.set(defaultValueMap);
               }
             }
           });
 
           // Listen for changes to classes
-          firebase.onSnapshot(userClassesRef, (snapshot) => {
+          userClassesRef.onSnapshot((snapshot) => {
             const fetchedClasses = snapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data()
@@ -219,7 +222,7 @@
           e.preventDefault();
           setLoginError('');
           try {
-              await firebase.signInWithEmailAndPassword(authRef.current, email, password);
+              await authRef.current.signInWithEmailAndPassword(email, password);
               // El onAuthStateChanged se encargará de actualizar el estado
           } catch (error) {
               setLoginError('Error de inicio de sesión. Por favor, verifica tu correo y contraseña.');
@@ -232,7 +235,7 @@
           e.preventDefault();
           setLoginError('');
           try {
-              const userCredential = await firebase.createUserWithEmailAndPassword(authRef.current, email, password);
+              const userCredential = await authRef.current.createUserWithEmailAndPassword(email, password);
               // El onAuthStateChanged se encargará de actualizar el estado
               alert('Registro exitoso! Ya puedes iniciar sesión.');
               setIsRegistering(false); // Vuelve al formulario de login
@@ -412,8 +415,8 @@
         const newValues = { ...editableValues, [name]: Number(value) };
         setEditableValues(newValues);
         try {
-          const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
-          await firebase.setDoc(userValuesDocRef, newValues);
+          const userValuesDocRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/valores_clase/precios`);
+          await userValuesDocRef.set(newValues);
         } catch (error) {
           console.error("Error updating values in Firestore:", error);
         }
@@ -425,8 +428,8 @@
         if (newEntry.studentName.trim() === '') return;
 
         try {
-          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-          await firebase.addDoc(userClassesRef, newEntry);
+          const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${userId}/clases_padel`);
+          await userClassesRef.add(newEntry);
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date }); // Reset only student name
         } catch (error) {
           console.error("Error adding class to Firestore:", error);
@@ -453,16 +456,16 @@
 
         try {
           // Eliminar las clases viejas
-          const batch = firebase.getFirestore(firebase.initializeApp(firebaseConfigRef.current)).batch();
+          const batch = dbRef.current.batch();
           editingClass.ids.forEach(id => {
-            const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
+            const docRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/clases_padel/${id}`);
             batch.delete(docRef);
           });
 
           // Agregar las clases nuevas (con los datos editados)
           for (const studentName of editingClass.students) {
-            const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-            await firebase.addDoc(userClassesRef, {
+            const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${userId}/clases_padel`);
+            await userClassesRef.add({
                 studentName: studentName,
                 day: editingClass.day,
                 time: editingClass.time,
@@ -488,8 +491,8 @@
               return;
           }
           try {
-              const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${studentId}`);
-              await firebase.deleteDoc(docRef);
+              const docRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/clases_padel/${studentId}`);
+              await docRef.delete();
           } catch (error) {
               console.error("Error deleting student from class:", error);
           }
@@ -499,8 +502,8 @@
       // Handle deleting a class and delete from Firestore
       const handleDeleteClass = async (id) => {
         try {
-          const userClassesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
-          await firebase.deleteDoc(userClassesDocRef);
+          const userClassesDocRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/clases_padel/${id}`);
+          await userClassesDocRef.delete();
         } catch (error) {
           console.error("Error deleting class from Firestore:", error);
         }
@@ -696,15 +699,15 @@ const importDatabase = (event) => {
     try {
       const data = JSON.parse(e.target.result);
       if (data.precios) {
-        const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
-        await firebase.setDoc(userValuesDocRef, data.precios);
+        const userValuesDocRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/valores_clase/precios`);
+        await userValuesDocRef.set(data.precios);
       }
       if (data.clases) {
-        const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-        const snapshot = await firebase.getDocs(userClassesRef);
-        snapshot.forEach(docSnap => firebase.deleteDoc(docSnap.ref));
+        const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${userId}/clases_padel`);
+        const snapshot = await userClassesRef.get();
+        snapshot.forEach(docSnap => docSnap.ref.delete());
         for (const cls of data.clases) {
-          await firebase.addDoc(userClassesRef, cls);
+          await userClassesRef.add(cls);
         }
       }
       alert("Base de datos importada correctamente.");
@@ -723,9 +726,9 @@ const handleDeleteGroupedClass = async (ids) => {
     return;
   }
   try {
-    const batch = firebase.getFirestore(firebase.initializeApp(firebaseConfigRef.current)).batch();
+    const batch = dbRef.current.batch();
     ids.forEach(id => {
-      const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
+      const docRef = dbRef.current.doc(`artifacts/${appId}/users/${userId}/clases_padel/${id}`);
       batch.delete(docRef);
     });
     await batch.commit();
