@@ -423,33 +423,34 @@
       
       // CÓDIGO CORREGIDO PARA AÑADIR CLASES
       const handleAddClass = async (e) => {
-  e.preventDefault();
-        console.log("El formulario de añadir clase se ha enviado.")
+        e.preventDefault();
         
-        // Agregamos una verificación para ver si el campo de alumno está vacío.
+        console.log("El formulario de añadir clase se ha enviado.");
+
         if (newEntry.studentName.trim() === '') {
           alert("El nombre del alumno no puede estar vacío.");
           return;
         }
 
-        // Agregamos una verificación para ver si userId y appId están disponibles
+        console.log("Estado actual de userId:", userId);
+        console.log("Estado actual de appId:", appId);
+        
         if (!userId || !appId) {
           alert("Error: No se puede añadir la clase. Por favor, asegúrate de haber iniciado sesión y de tener una configuración de Firebase correcta.");
-          console.error("Error: userId o appId no están definidos.");
+          console.error("Error: userId o appId no están definidos. No se intentará guardar la clase.");
           return;
         }
         
         try {
           const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${userId}/clases_padel`);
           
-          // Mostramos un mensaje de éxito para verificar que el código está funcionando
+          console.log("Referencia de la colección a la que se intentará escribir:", userClassesRef.path);
           console.log("Datos a guardar:", newEntry);
           
           await userClassesRef.add(newEntry);
           
-          // Una vez que se agrega, limpiamos el campo de nombre del alumno y mantenemos los otros campos
-          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
           console.log("Clase añadida con éxito a Firestore.");
+          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
         } catch (error) {
           console.error("Error al añadir la clase a Firestore:", error);
           alert("Ocurrió un error al guardar la clase. Revisa la consola para más detalles.");
@@ -1354,6 +1355,7 @@ return (
   </script>
 </body>
 </html>
+
 
 
 
