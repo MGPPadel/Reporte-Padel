@@ -77,7 +77,7 @@
       const [showConfigModal, setShowConfigModal] = useState(false);
       const [userFirebaseConfig, setUserFirebaseConfig] = useState('');
       const [configError, setConfigError] = useState('');
-      
+
       // New state to manage the editable values
       const [editableValues, setEditableValues] = useState(defaultValueMap);
 
@@ -130,7 +130,6 @@
           try {
             const appId = 'default-padel-app'; // Using a fixed app id for consistency
             setAppId(appId);
-
             if (!firebaseConfigRef.current) {
                 setShowConfigModal(true);
                 setLoading(false);
@@ -143,7 +142,6 @@
 
             dbRef.current = db;
             authRef.current = auth;
-
             // Use anonymous sign-in for simplicity
             await firebase.signInAnonymously(auth);
             const currentUserId = auth.currentUser?.uid;
@@ -182,7 +180,6 @@
               updateClassesAndReports(fetchedClasses, editableValues);
               setLoading(false);
             });
-
           } catch (error) {
             console.error("Error initializing Firebase:", error);
             // Show the config modal if initialization fails (e.g., wrong credentials)
@@ -257,7 +254,6 @@
         const monthlyReportMap = new Map();
 
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
         const processedClassKeys = new Set();
         updatedClasses.forEach(cls => {
           const classKey = `${cls.date}-${cls.day}-${cls.time}`;
@@ -312,13 +308,12 @@
       // **FUNCIÓN MODIFICADA: Ahora actualiza el día automáticamente**
       const handleInputChange = (e) => {
         const { name, value } = e.target;
-        
         // Objeto para mapear los números de día a los nombres en español
         const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
         // Si el campo que se cambia es la fecha...
         if (name === 'date') {
-            const dateObj = new Date(value + 'T00:00:00'); // Añadimos 'T00:00:00' para evitar problemas de zona horaria
+            const dateObj = new Date(value + 'T00:00:00');
+            // Añadimos 'T00:00:00' para evitar problemas de zona horaria
             const dayOfWeek = dateObj.getDay();
             const newDayName = dayNames[dayOfWeek];
 
@@ -394,14 +389,21 @@ const exportWeeklyPDF = () => {
   const doc = new jsPDF();
   doc.setFontSize(16);
   doc.text("Informe Semanal - Clases de Pádel", 14, 15);
-  
+
+  const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
   const tableData = weeklyReports.map(r => {
     // Extrae el número de semana y el año del `r.week`
     const [year, weekText] = r.week.split('-');
     const weekNumber = weekText.replace('Semana ', '');
-    const date = new Date(year, 0, 1 + (weekNumber - 1) * 7); // Calcula una fecha aproximada de la semana
-    const month = date.getMonth() + 1; // getMonth() es base 0
-    const formattedWeek = `Semana Nº ${weekNumber} del ${month}/${year}`;
+    
+    // Calcula una fecha aproximada de la semana para obtener el mes
+    const firstDayOfYear = new Date(year, 0, 1);
+    const dateInWeek = new Date(firstDayOfYear.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
+    const monthName = monthNames[dateInWeek.getMonth()];
+
+    // Formato con el nombre del mes
+    const formattedWeek = `SEMANA Nº ${weekNumber} DEL MES DE ${monthName.toUpperCase()} DE ${year}`;
     
     return [
       formattedWeek,
@@ -413,7 +415,6 @@ const exportWeeklyPDF = () => {
       r.countsByStudent[4] || 0
     ];
   });
-  
   doc.autoTable({
     head: [["Semana", "Total Clases", "Ganancia Total", "1 Persona", "2 Personas", "3 Personas", "4 Personas"]],
     body: tableData,
@@ -510,7 +511,6 @@ const exportMonthlyPDF = () => {
           isFirstStudentInClass ? formatCurrency(cls.value) : ''
         ];
       });
-
       doc.setFontSize(12);
       doc.text(`Detalle de Clases:`, 14, finalY);
       finalY += 5;
@@ -578,13 +578,12 @@ const importDatabase = (event) => {
 // ===== FIN FUNCIONES EXTRA =====
 
 const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
-
 // Filter classes based on the selected month
 const filteredClasses = selectedMonth === 'Todos' 
   ? classes 
   : classes.filter(cls => cls.date.substring(0, 7) === selectedMonth);
 
-      return (
+return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
           <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
             <h1 className="text-3xl font-bold mb-2 text-center text-gray-900">
@@ -707,7 +706,7 @@ const filteredClasses = selectedMonth === 'Todos'
                               <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
                             </div>
                             <div className="col-span-2 mt-2 pt-2 border-t border-gray-200">
-                                <p className="text-xs font-semibold text-gray-700 mb-1">Clases por Alumno:</p>
+                              <p className="text-xs font-semibold text-gray-700 mb-1">Clases por Alumno:</p>
                                 <p className="text-xs text-gray-600">1: {report.countsByStudent[1] || 0}, 2: {report.countsByStudent[2] || 0}, 3: {report.countsByStudent[3] || 0}, 4: {report.countsByStudent[4] || 0}</p>
                             </div>
                           </div>
@@ -717,7 +716,7 @@ const filteredClasses = selectedMonth === 'Todos'
                       <p className="text-sm text-gray-500 italic">No hay informes semanales disponibles.</p>
                     )}
                   </div>
-                  
+           
                   {/* Monthly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
                     <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
@@ -737,7 +736,7 @@ const filteredClasses = selectedMonth === 'Todos'
                               <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
                             </div>
                             <div className="col-span-2 mt-2 pt-2 border-t border-gray-200">
-                                <p className="text-xs font-semibold text-gray-700 mb-1">Clases por Alumno:</p>
+                              <p className="text-xs font-semibold text-gray-700 mb-1">Clases por Alumno:</p>
                                 <p className="text-xs text-gray-600">1: {report.countsByStudent[1] || 0}, 2: {report.countsByStudent[2] || 0}, 3: {report.countsByStudent[3] || 0}, 4: {report.countsByStudent[4] || 0}</p>
                             </div>
                           </div>
@@ -747,6 +746,7 @@ const filteredClasses = selectedMonth === 'Todos'
                       <p className="text-sm text-gray-500 italic">No hay informes mensuales disponibles.</p>
                     )}
                   </div>
+           
                 </div>
 
                 {/* Form to add new classes */}
@@ -815,7 +815,7 @@ const filteredClasses = selectedMonth === 'Todos'
                       />
                     </div>
                     <div className="md:col-span-1">
-                      <button
+                        <button
                         type="submit"
                         className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                       >
@@ -824,7 +824,7 @@ const filteredClasses = selectedMonth === 'Todos'
                     </div>
                   </div>
                 </form>
-                
+          
                 {/* Monthly Filter Section */}
                 <div className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
                     <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
