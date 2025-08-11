@@ -13,7 +13,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     window.firebase = {
       initializeApp,
       getAuth,
@@ -29,7 +29,8 @@
       query,
       addDoc,
       getDocs,
-      deleteDoc
+      deleteDoc,
+      updateDoc
     };
   </script>
 
@@ -84,8 +85,17 @@
       // State for filtering classes by month
       const [selectedMonth, setSelectedMonth] = useState('Todos');
       const [availableMonths, setAvailableMonths] = useState([]);
+      
+      // Estado para la búsqueda de alumnos
+      const [searchQuery, setSearchQuery] = useState('');
+      
+      // Estado para el filtro por rango de fechas
+      const [startDate, setStartDate] = useState('');
+      const [endDate, setEndDate] = useState('');
+      
+      // Estado para la edición de clases
+      const [editingClass, setEditingClass] = useState(null);
 
-      // **NUEVO ESTADO**: Lista de clases agrupadas para la tabla de visualización
       const [groupedClasses, setGroupedClasses] = useState([]);
       
       const firebaseConfigRef = useRef(null);
@@ -383,6 +393,64 @@
           console.error("Error adding class to Firestore:", error);
         }
       };
+      
+      // **NUEVA FUNCIÓN:** Iniciar la edición de una clase
+      const handleEditClass = (classToEdit) => {
+        setEditingClass(classToEdit);
+      };
+
+      // **NUEVA FUNCIÓN:** Guardar los cambios de una clase editada
+      const handleUpdateClass = async (e) => {
+        e.preventDefault();
+        if (!editingClass || editingClass.students.some(s => !s.trim())) {
+          alert('El nombre de los alumnos no puede estar vacío.');
+          return;
+        }
+
+        try {
+          // Eliminar las clases viejas
+          const batch = firebase.getFirestore(firebase.initializeApp(firebaseConfigRef.current)).batch();
+          editingClass.ids.forEach(id => {
+            const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
+            batch.delete(docRef);
+          });
+
+          // Agregar las clases nuevas (con los datos editados)
+          for (const studentName of editingClass.students) {
+            const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
+            await firebase.addDoc(userClassesRef, {
+                studentName: studentName,
+                day: editingClass.day,
+                time: editingClass.time,
+                date: editingClass.date,
+            });
+          }
+
+          await batch.commit();
+          setEditingClass(null); // Cerrar el modal
+        } catch (error) {
+          console.error("Error updating classes in Firestore:", error);
+        }
+      };
+
+      // **NUEVA FUNCIÓN:** Cancelar la edición
+      const handleCancelEdit = () => {
+        setEditingClass(null);
+      };
+
+      // **NUEVA FUNCIÓN:** Eliminar un solo alumno de una clase agrupada
+      const handleDeleteStudentFromClass = async (studentId, classIds) => {
+          if (!window.confirm("¿Estás seguro de que quieres eliminar a este alumno de la clase?")) {
+              return;
+          }
+          try {
+              const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${studentId}`);
+              await firebase.deleteDoc(docRef);
+          } catch (error) {
+              console.error("Error deleting student from class:", error);
+          }
+      };
+
 
       // Handle deleting a class and delete from Firestore
       const handleDeleteClass = async (id) => {
@@ -624,10 +692,15 @@ const handleDeleteGroupedClass = async (ids) => {
 
 
 const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
-// **MODIFICACIÓN:** Filtramos las clases AGRUPADAS
-const filteredClasses = selectedMonth === 'Todos' 
-  ? groupedClasses
-  : groupedClasses.filter(cls => cls.date.substring(0, 7) === selectedMonth);
+
+// **LÓGICA MEJORADA:** Filtramos las clases agrupadas
+const filteredClasses = groupedClasses.filter(cls => {
+  const isMonthMatch = selectedMonth === 'Todos' || cls.date.substring(0, 7) === selectedMonth;
+  const isSearchMatch = searchQuery === '' || cls.students.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
+  const isDateRangeMatch = (startDate === '' || new Date(cls.date) >= new Date(startDate)) &&
+                           (endDate === '' || new Date(cls.date) <= new Date(endDate));
+  return isMonthMatch && isSearchMatch && isDateRangeMatch;
+});
 
 return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
@@ -874,24 +947,70 @@ return (
                 {/* Monthly Filter Section */}
                 <div className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
                     <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                        <i className="fas fa-calendar-check text-lg"></i> Ver Clases por Mes
+                        <i className="fas fa-filter text-lg"></i> Filtros de Búsqueda
                     </h2>
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            onClick={() => setSelectedMonth('Todos')}
-                            className={`px-4 py-2 rounded-md transition-colors ${selectedMonth === 'Todos' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-800 hover:bg-blue-200'}`}
-                        >
-                            Todos
-                        </button>
-                        {availableMonths.map(month => (
-                            <button
-                                key={month}
-                                onClick={() => setSelectedMonth(month)}
-                                className={`px-4 py-2 rounded-md transition-colors ${selectedMonth === month ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-800 hover:bg-blue-200'}`}
-                            >
-                                {month}
-                            </button>
-                        ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Filtro por rango de fechas */}
+                        <div>
+                            <p className="text-sm font-medium text-gray-600 mb-2">Filtrar por Rango de Fechas</p>
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => {
+                                        setStartDate(e.target.value);
+                                        setSelectedMonth('Todos');
+                                    }}
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                                />
+                                <span className="text-gray-500">a</span>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => {
+                                        setEndDate(e.target.value);
+                                        setSelectedMonth('Todos');
+                                    }}
+                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                                />
+                            </div>
+                        </div>
+                        {/* Filtro por mes */}
+                        <div>
+                            <p className="text-sm font-medium text-gray-600 mb-2">Filtrar por Mes</p>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => setSelectedMonth('Todos')}
+                                    className={`px-4 py-2 rounded-md transition-colors ${selectedMonth === 'Todos' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-800 hover:bg-blue-200'}`}
+                                >
+                                    Todos
+                                </button>
+                                {availableMonths.map(month => (
+                                    <button
+                                        key={month}
+                                        onClick={() => {
+                                            setSelectedMonth(month);
+                                            setStartDate('');
+                                            setEndDate('');
+                                        }}
+                                        className={`px-4 py-2 rounded-md transition-colors ${selectedMonth === month ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-800 hover:bg-blue-200'}`}
+                                    >
+                                        {month}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {/* Búsqueda por alumno */}
+                        <div className="md:col-span-2">
+                           <p className="text-sm font-medium text-gray-600 mb-2">Buscar Alumno</p>
+                            <input
+                                type="text"
+                                placeholder="Escribe el nombre de un alumno..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -939,10 +1058,18 @@ return (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {formatCurrency(cls.value)}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                              <button
+                                onClick={() => handleEditClass(cls)}
+                                className="text-blue-600 hover:text-blue-900 transition-colors"
+                                title="Editar Clase"
+                              >
+                                <i className="fas fa-edit"></i>
+                              </button>
                               <button
                                 onClick={() => handleDeleteGroupedClass(cls.ids)}
                                 className="text-red-600 hover:text-red-900 transition-colors"
+                                title="Eliminar Clase"
                               >
                                 <i className="fas fa-trash-alt"></i>
                               </button>
@@ -959,6 +1086,104 @@ return (
                     </tbody>
                   </table>
                 </div>
+
+                {/* Modal de edición */}
+                {editingClass && (
+                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
+                            <h2 className="text-2xl font-bold mb-4 text-gray-900">
+                                Editar Clase
+                            </h2>
+                            <form onSubmit={handleUpdateClass}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label htmlFor="edit-date" className="block text-sm font-medium text-gray-600">Fecha</label>
+                                        <input
+                                            id="edit-date"
+                                            name="date"
+                                            type="date"
+                                            value={editingClass.date}
+                                            onChange={(e) => {
+                                                const { value } = e.target;
+                                                const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                                                const dateObj = new Date(value + 'T00:00:00');
+                                                const dayOfWeek = dateObj.getDay();
+                                                const newDayName = dayNames[dayOfWeek];
+                                                setEditingClass(prev => ({ ...prev, date: value, day: newDayName }));
+                                            }}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="edit-day" className="block text-sm font-medium text-gray-600">Día</label>
+                                        <select
+                                            id="edit-day"
+                                            name="day"
+                                            value={editingClass.day}
+                                            onChange={(e) => setEditingClass(prev => ({ ...prev, day: e.target.value }))}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                        >
+                                            {dayOptions.map(day => <option key={day} value={day}>{day}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label htmlFor="edit-time" className="block text-sm font-medium text-gray-600">Horario</label>
+                                        <select
+                                            id="edit-time"
+                                            name="time"
+                                            value={editingClass.time}
+                                            onChange={(e) => setEditingClass(prev => ({ ...prev, time: e.target.value }))}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                        >
+                                            {timeOptions.map(time => <option key={time} value={time}>{time}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-600">Alumnos</label>
+                                        <div className="space-y-2 mt-1">
+                                            {editingClass.students.map((student, index) => (
+                                                <div key={editingClass.ids[index]} className="flex items-center gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={student}
+                                                        onChange={(e) => {
+                                                            const newStudents = [...editingClass.students];
+                                                            newStudents[index] = e.target.value;
+                                                            setEditingClass(prev => ({ ...prev, students: newStudents }));
+                                                        }}
+                                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteStudentFromClass(editingClass.ids[index], editingClass.ids)}
+                                                        className="text-red-600 hover:text-red-900"
+                                                    >
+                                                        <i className="fas fa-trash-alt"></i>
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-4 mt-4">
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelEdit}
+                                        className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                    >
+                                        Guardar Cambios
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
               </>
             )}
           </div>
@@ -973,6 +1198,7 @@ return (
   </script>
 </body>
 </html>
+
 
 
 
