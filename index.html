@@ -711,6 +711,9 @@ const importDatabase = (event) => {
         }
       }
       alert("Base de datos importada correctamente.");
+      // ***** LÍNEA CORREGIDA: Forzar la recarga de datos para actualizar la UI *****
+      loadUserData(userId); 
+      // ***** FIN DE LA LÍNEA CORREGIDA *****
     } catch (err) {
       alert("Error al importar el archivo JSON.");
       console.error(err);
@@ -1331,6 +1334,7 @@ return (
   </script>
 </body>
 </html>
+
 
 
 
