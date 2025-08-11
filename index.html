@@ -132,17 +132,16 @@
                 return;
             }
 
-            // ***** LÍNEAS CORREGIDAS PARA INICIALIZAR FIREBASE *****
+            // LÍNEAS CORREGIDAS PARA INICIALIZAR FIREBASE
             const app = firebase.initializeApp(firebaseConfigRef.current);
             const auth = app.auth();
             const db = app.firestore();
-            // ***** FIN DE LÍNEAS CORREGIDAS PARA INICIALIZAR FIREBASE *****
-
+            // FIN DE LÍNEAS CORREGIDAS PARA INICIALIZAR FIREBASE
 
             dbRef.current = db;
             authRef.current = auth;
 
-            // ***** INICIO DE LA MODIFICACIÓN DE LA LÓGICA DE AUTENTICACIÓN *****
+            // INICIO DE LA MODIFICACIÓN DE LA LÓGICA DE AUTENTICACIÓN
             auth.onAuthStateChanged((user) => {
               if (user) {
                 // Si hay un usuario logueado, ocultamos el modal de login y cargamos sus datos
@@ -204,7 +203,7 @@
             setLoading(false);
           });
         };
-        // ***** FIN DE LA MODIFICACIÓN DE LA LÓGICA DE AUTENTICACIÓN *****
+        // FIN DE LA MODIFICACIÓN DE LA LÓGICA DE AUTENTICACIÓN
         
         // Initial check and setup
         const configFound = loadConfig();
@@ -217,7 +216,7 @@
 
       }, []);
 
-      // **FUNCIÓN NUEVA para manejar el LOGIN**
+      // FUNCIÓN NUEVA para manejar el LOGIN
       const handleLogin = async (e) => {
           e.preventDefault();
           setLoginError('');
@@ -230,7 +229,7 @@
           }
       };
 
-      // **FUNCIÓN NUEVA para manejar el REGISTRO**
+      // FUNCIÓN NUEVA para manejar el REGISTRO
       const handleRegister = async (e) => {
           e.preventDefault();
           setLoginError('');
@@ -279,7 +278,7 @@
           };
         });
 
-        // **MODIFICACIÓN:** Lógica de ordenamiento para que las clases más recientes estén arriba
+        // MODIFICACIÓN: Lógica de ordenamiento para que las clases más recientes estén arriba
         updatedClasses.sort((a, b) => {
           const dateA = new Date(a.date);
           const dateB = new Date(b.date);
@@ -302,7 +301,7 @@
         const months = [...new Set(updatedClasses.map(cls => cls.date.substring(0, 7)))].sort();
         setAvailableMonths(months);
 
-        // **NUEVA LÓGICA:** Agrupar las clases para la tabla de visualización
+        // NUEVA LÓGICA: Agrupar las clases para la tabla de visualización
         const groupedMap = new Map();
         updatedClasses.forEach(cls => {
           const key = `${cls.date}-${cls.day}-${cls.time}`;
@@ -385,7 +384,7 @@
         setMonthlyReports(monthlyReportsArray);
       };
 
-      // **FUNCIÓN MODIFICADA: Ahora actualiza el día automáticamente**
+      // FUNCIÓN MODIFICADA: Ahora actualiza el día automáticamente
       const handleInputChange = (e) => {
         const { name, value } = e.target;
         // Objeto para mapear los números de día a los nombres en español
@@ -436,12 +435,12 @@
         }
       };
       
-      // **NUEVA FUNCIÓN:** Iniciar la edición de una clase
+      // NUEVA FUNCIÓN: Iniciar la edición de una clase
       const handleEditClass = (classToEdit) => {
         setEditingClass(classToEdit);
       };
 
-      // **NUEVA FUNCIÓN:** Guardar los cambios de una clase editada
+      // NUEVA FUNCIÓN: Guardar los cambios de una clase editada
       const handleUpdateClass = async (e) => {
         e.preventDefault();
         if (!editingClass || editingClass.students.some(s => s.trim() === '')) {
@@ -480,12 +479,12 @@
         }
       };
 
-      // **NUEVA FUNCIÓN:** Cancelar la edición
+      // NUEVA FUNCIÓN: Cancelar la edición
       const handleCancelEdit = () => {
         setEditingClass(null);
       };
 
-      // **NUEVA FUNCIÓN:** Eliminar un solo alumno de una clase agrupada
+      // NUEVA FUNCIÓN: Eliminar un solo alumno de una clase agrupada
       const handleDeleteStudentFromClass = async (studentId, classIds) => {
           if (!window.confirm("¿Estás seguro de que quieres eliminar a este alumno de la clase?")) {
               return;
@@ -526,7 +525,7 @@
       
 // ===== FUNCIONES EXTRA =====
 
-// **FUNCIÓN MODIFICADA: Ahora exporta el PDF semanal con columnas separadas y con el nuevo formato de semana**
+// FUNCIÓN MODIFICADA: Ahora exporta el PDF semanal con columnas separadas y con el nuevo formato de semana
 const exportWeeklyPDF = () => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -569,7 +568,7 @@ const exportWeeklyPDF = () => {
   doc.save("informe_semanal.pdf");
 };
 
-// **FUNCIÓN CORREGIDA: Ahora exporta todos los meses en un único documento PDF y corrige la columna de alumnos**
+// FUNCIÓN CORREGIDA: Ahora exporta todos los meses en un único documento PDF y corrige la columna de alumnos
 const exportMonthlyPDF = () => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -627,7 +626,7 @@ const exportMonthlyPDF = () => {
 
     // Filtramos las clases para el mes actual del reporte
     const classesForMonth = classes.filter(cls => {
-      // **Línea corregida:** Normalizamos la fecha para evitar problemas de zona horaria
+      // Línea corregida: Normalizamos la fecha para evitar problemas de zona horaria
       const date = new Date(cls.date + 'T00:00:00');
       const monthName = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][date.getMonth()];
       const monthKey = `${monthName} ${date.getFullYear()}`;
@@ -706,14 +705,12 @@ const importDatabase = (event) => {
         const userClassesRef = dbRef.current.collection(`artifacts/${appId}/users/${userId}/clases_padel`);
         const snapshot = await userClassesRef.get();
         snapshot.forEach(docSnap => docSnap.ref.delete());
-        for (const cls of data.clases) {
-          await userClassesRef.add(cls);
-        }
+        const addPromises = data.clases.map(cls => userClassesRef.add(cls));
+        await Promise.all(addPromises);
       }
-      alert("Base de datos importada correctamente.");
-      // ***** LÍNEA CORREGIDA: Forzar la recarga de datos para actualizar la UI *****
-      loadUserData(userId); 
-      // ***** FIN DE LA LÍNEA CORREGIDA *****
+      alert("Base de datos importada correctamente. La página se recargará para mostrar los nuevos datos.");
+      // LÍNEA CORREGIDA: Forzar la recarga de la página
+      window.location.reload(); 
     } catch (err) {
       alert("Error al importar el archivo JSON.");
       console.error(err);
@@ -723,7 +720,7 @@ const importDatabase = (event) => {
 };
 // ===== FIN FUNCIONES EXTRA =====
 
-// **NUEVA FUNCIÓN:** Elimina todos los alumnos de una clase agrupada
+// NUEVA FUNCIÓN: Elimina todos los alumnos de una clase agrupada
 const handleDeleteGroupedClass = async (ids) => {
   if (!window.confirm("¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.")) {
     return;
@@ -743,7 +740,7 @@ const handleDeleteGroupedClass = async (ids) => {
 
 const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
 
-// **LÓGICA MEJORADA:** Filtramos las clases agrupadas
+// LÓGICA MEJORADA: Filtramos las clases agrupadas
 const filteredClasses = groupedClasses.filter(cls => {
   const isMonthMatch = selectedMonth === 'Todos' || cls.date.substring(0, 7) === selectedMonth;
   const isSearchMatch = searchQuery === '' || cls.students.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -847,7 +844,7 @@ return (
             ) : (
                 <>
                   {showLoginModal ? (
-                    // ***** INICIO DEL MODAL DE LOGIN/REGISTRO *****
+                    // INICIO DEL MODAL DE LOGIN/REGISTRO
                     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
                       <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm">
                         <h2 className="text-2xl font-bold mb-4 text-center text-gray-900">
@@ -906,7 +903,7 @@ return (
                         </form>
                       </div>
                     </div>
-                    // ***** FIN DEL MODAL DE LOGIN/REGISTRO *****
+                    // FIN DEL MODAL DE LOGIN/REGISTRO
                   ) : (
                     // Contenido principal de la app (solo visible si hay un usuario logueado)
                     <>
@@ -1334,6 +1331,7 @@ return (
   </script>
 </body>
 </html>
+
 
 
 
