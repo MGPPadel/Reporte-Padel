@@ -1,47 +1,4 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Informe de Clases de Padel</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
-  
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    window.firebase = {
-      initializeApp,
-      getAuth,
-      signInAnonymously,
-      signInWithCustomToken,
-      onAuthStateChanged,
-      getFirestore,
-      doc,
-      getDoc,
-      setDoc,
-      onSnapshot,
-      collection,
-      query,
-      addDoc,
-      getDocs,
-      deleteDoc,
-      updateDoc
-    };
-  </script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
-
-</head>
-<body class="bg-gray-100 font-sans">
-  <div id="root"></div>
-
-  <script type="text/babel">
+<script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
     // Main App component
@@ -62,7 +19,24 @@
         4: 'bg-red-100',
       };
 
-      // State to manage the list of classes, new class input, and reports
+      // Estado para la edición de clases
+      const [editingClass, setEditingClass] = useState(null);
+
+      const [groupedClasses, setGroupedClasses] = useState([]);
+      
+      const firebaseConfigRef = useRef(null);
+      const dbRef = useRef(null);
+      const authRef = useRef(null);
+      const userRef = useRef(null);
+      
+      // NUEVOS ESTADOS para manejar el login/registro
+      const [showLoginModal, setShowLoginModal] = useState(true);
+      const [isRegistering, setIsRegistering] = useState(false);
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [loginError, setLoginError] = useState('');
+
+      // Omitimos los estados intermedios del código anterior para mantener la claridad
       const [classes, setClasses] = useState([]);
       const [newEntry, setNewEntry] = useState({
         studentName: '',
@@ -92,16 +66,6 @@
       // Estado para el filtro por rango de fechas
       const [startDate, setStartDate] = useState('');
       const [endDate, setEndDate] = useState('');
-      
-      // Estado para la edición de clases
-      const [editingClass, setEditingClass] = useState(null);
-
-      const [groupedClasses, setGroupedClasses] = useState([]);
-      
-      const firebaseConfigRef = useRef(null);
-      const dbRef = useRef(null);
-      const authRef = useRef(null);
-      const userRef = useRef(null);
 
       // Options for form dropdowns
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -155,44 +119,23 @@
 
             dbRef.current = db;
             authRef.current = auth;
-            // Use anonymous sign-in for simplicity
-            await firebase.signInAnonymously(auth);
-            const currentUserId = auth.currentUser?.uid;
-            setUserId(currentUserId);
-            userRef.current = currentUserId;
 
-            // Set up real-time listeners for classes and values
-            const userClassesRef = firebase.collection(db, `artifacts/${appId}/users/${currentUserId}/clases_padel`);
-            const userValuesDocRef = firebase.doc(db, `artifacts/${appId}/users/${currentUserId}/valores_clase/precios`);
-
-            // Listen for changes to editable values
-            firebase.onSnapshot(userValuesDocRef, (docSnap) => {
-              if (docSnap.exists()) {
-                const data = docSnap.data();
-                const newValues = {
-                  1: data['1'] || defaultValueMap[1],
-                  2: data['2'] || defaultValueMap[2],
-                  3: data['3'] || defaultValueMap[3],
-                  4: data['4'] || defaultValueMap[4],
-                };
-                setEditableValues(newValues);
-                updateClassesAndReports(classes, newValues); // Recalculate with new values
+            // ***** INICIO DE LA MODIFICACIÓN DE LA LÓGICA DE AUTENTICACIÓN *****
+            firebase.onAuthStateChanged(auth, (user) => {
+              if (user) {
+                // Si hay un usuario logueado, ocultamos el modal de login y cargamos sus datos
+                setUserId(user.uid);
+                userRef.current = user.uid;
+                setShowLoginModal(false);
+                loadUserData(user.uid);
               } else {
-                // If no document exists, set default values and save to Firestore
-                setEditableValues(defaultValueMap);
-                firebase.setDoc(userValuesDocRef, defaultValueMap);
+                // Si no hay usuario, mostramos el modal de login
+                setUserId(null);
+                setShowLoginModal(true);
+                setLoading(false);
               }
             });
 
-            // Listen for changes to classes
-            firebase.onSnapshot(userClassesRef, (snapshot) => {
-              const fetchedClasses = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-              }));
-              updateClassesAndReports(fetchedClasses, editableValues);
-              setLoading(false);
-            });
           } catch (error) {
             console.error("Error initializing Firebase:", error);
             // Show the config modal if initialization fails (e.g., wrong credentials)
@@ -201,6 +144,45 @@
             setLoading(false);
           }
         };
+
+        const loadUserData = (currentUserId) => {
+          setLoading(true);
+          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${currentUserId}/clases_padel`);
+          const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${currentUserId}/valores_clase/precios`);
+
+          // Listen for changes to editable values
+          firebase.onSnapshot(userValuesDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              const newValues = {
+                1: data['1'] || defaultValueMap[1],
+                2: data['2'] || defaultValueMap[2],
+                3: data['3'] || defaultValueMap[3],
+                4: data['4'] || defaultValueMap[4],
+              };
+              setEditableValues(newValues);
+              updateClassesAndReports(classes, newValues); // Recalculate with new values
+            } else {
+              // If no document exists, set default values and save to Firestore
+              setEditableValues(defaultValueMap);
+              // Solo creamos los valores por defecto si el usuario está logueado
+              if (currentUserId) {
+                firebase.setDoc(userValuesDocRef, defaultValueMap);
+              }
+            }
+          });
+
+          // Listen for changes to classes
+          firebase.onSnapshot(userClassesRef, (snapshot) => {
+            const fetchedClasses = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            updateClassesAndReports(fetchedClasses, editableValues);
+            setLoading(false);
+          });
+        };
+        // ***** FIN DE LA MODIFICACIÓN DE LA LÓGICA DE AUTENTICACIÓN *****
         
         // Initial check and setup
         const configFound = loadConfig();
@@ -212,6 +194,44 @@
         }
 
       }, []);
+
+      // **FUNCIÓN NUEVA para manejar el LOGIN**
+      const handleLogin = async (e) => {
+          e.preventDefault();
+          setLoginError('');
+          try {
+              await firebase.signInWithEmailAndPassword(authRef.current, email, password);
+              // El onAuthStateChanged se encargará de actualizar el estado
+          } catch (error) {
+              setLoginError('Error de inicio de sesión. Por favor, verifica tu correo y contraseña.');
+              console.error("Error signing in:", error);
+          }
+      };
+
+      // **FUNCIÓN NUEVA para manejar el REGISTRO**
+      const handleRegister = async (e) => {
+          e.preventDefault();
+          setLoginError('');
+          try {
+              const userCredential = await firebase.createUserWithEmailAndPassword(authRef.current, email, password);
+              // El onAuthStateChanged se encargará de actualizar el estado
+              alert('Registro exitoso! Ya puedes iniciar sesión.');
+              setIsRegistering(false); // Vuelve al formulario de login
+          } catch (error) {
+              setLoginError('Error de registro. El correo ya puede estar en uso o la contraseña es muy débil.');
+              console.error("Error registering:", error);
+          }
+      };
+      
+      // Función para cerrar sesión
+      const handleLogout = async () => {
+          try {
+              await authRef.current.signOut();
+              // El onAuthStateChanged se encargará de actualizar el estado
+          } catch (error) {
+              console.error("Error signing out:", error);
+          }
+      };
 
       // Function to calculate and update all values, colors, and reports
       const updateClassesAndReports = (currentClasses, currentValues) => {
@@ -720,26 +740,40 @@ return (
             </div>
             {/* FIN DE LA MODIFICACIÓN */}
             
-            <div className="flex gap-4 mb-6 justify-center">
-              <button onClick={exportDatabase} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                Exportar BD
-              </button>
-              <label className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600">
-                Importar BD
-                <input type="file" accept=".json" onChange={importDatabase} className="hidden" />
-              </label>
-            </div>
-            
-            {/* INICIO DE LOS BOTONES DE PDF CORREGIDOS */}
-            <div className="flex gap-4 mb-6 justify-center">
-              <button onClick={exportWeeklyPDF} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-                Exportar Informe Semanal (PDF)
-              </button>
-              <button onClick={exportMonthlyPDF} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-                Exportar Informe Mensual (PDF)
-              </button>
-            </div>
-            {/* FIN DE LOS BOTONES DE PDF CORREGIDOS */}
+            {/* INICIO DEL BOTÓN DE CERRAR SESIÓN */}
+            {userId && (
+              <div className="flex justify-end mb-4">
+                <button onClick={handleLogout} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                  Cerrar Sesión
+                </button>
+              </div>
+            )}
+            {/* FIN DEL BOTÓN DE CERRAR SESIÓN */}
+
+            {userId && (
+              <>
+                <div className="flex gap-4 mb-6 justify-center">
+                  <button onClick={exportDatabase} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                    Exportar BD
+                  </button>
+                  <label className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600">
+                    Importar BD
+                    <input type="file" accept=".json" onChange={importDatabase} className="hidden" />
+                  </label>
+                </div>
+                
+                {/* INICIO DE LOS BOTONES DE PDF CORREGIDOS */}
+                <div className="flex gap-4 mb-6 justify-center">
+                  <button onClick={exportWeeklyPDF} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                    Exportar Informe Semanal (PDF)
+                  </button>
+                  <button onClick={exportMonthlyPDF} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                    Exportar Informe Mensual (PDF)
+                  </button>
+                </div>
+                {/* FIN DE LOS BOTONES DE PDF CORREGIDOS */}
+              </>
+            )}
 
             <p className="text-center text-sm mb-6 text-gray-500 italic">
               {userIdDisplay}
@@ -786,416 +820,482 @@ return (
                 <p className="ml-4 text-gray-600">Conectando a la nube y cargando datos...</p>
               </div>
             ) : (
-              <>
-                {/* Editable Values Section */}
-                <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
-                  <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
-                    <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
-                  </h2>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Edita el valor de las clases según la cantidad de alumnos. Los cambios se guardarán automáticamente en la nube.
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {Object.entries(editableValues).map(([count, value]) => (
-                      <div key={count} className="p-4 bg-white rounded-lg shadow-md flex flex-col items-center">
-                        <label htmlFor={`value-${count}`} className="block text-sm font-medium text-gray-700 mb-1">
-                          Clase con {count} Alumno{count > 1 ? 's' : ''}
-                        </label>
-                        <input
-                          id={`value-${count}`}
-                          name={count}
-                          type="number"
-                          value={value}
-                          onChange={handleValueChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2 text-center text-lg font-bold"
-                          min="0"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Reports Section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  {/* Weekly Reports */}
-                  <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
-                      <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
-                    </h2>
-                    {weeklyReports.length > 0 ? (
-                      weeklyReports.map(report => (
-                        <div key={report.week} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">{report.week}</h3>
-                          <div className="grid grid-cols-2 gap-4 text-center">
-                            <div>
-                              <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
-                              <p className="text-xs font-medium text-gray-600">Total Clases</p>
-                            </div>
-                            <div>
-                              <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
-                              <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
-                            </div>
-                            <div className="col-span-2 mt-2 pt-2 border-t border-gray-200">
-                              <p className="text-xs font-semibold text-gray-700 mb-1">Clases por Alumno:</p>
-                                <p className="text-xs text-gray-600">1: {report.countsByStudent[1] || 0}, 2: {report.countsByStudent[2] || 0}, 3: {report.countsByStudent[3] || 0}, 4: {report.countsByStudent[4] || 0}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">No hay informes semanales disponibles.</p>
-                    )}
-                  </div>
-           
-                  {/* Monthly Reports */}
-                  <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                      <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
-                    </h2>
-                    {monthlyReports.length > 0 ? (
-                      monthlyReports.map(report => (
-                        <div key={report.month} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">{report.month}</h3>
-                          <div className="grid grid-cols-2 gap-4 text-center">
-                            <div>
-                              <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
-                              <p className="text-xs font-medium text-gray-600">Total Clases</p>
-                            </div>
-                            <div>
-                              <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
-                              <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
-                            </div>
-                            <div className="col-span-2 mt-2 pt-2 border-t border-gray-200">
-                              <p className="text-xs font-semibold text-gray-700 mb-1">Clases por Alumno:</p>
-                                <p className="text-xs text-gray-600">1: {report.countsByStudent[1] || 0}, 2: {report.countsByStudent[2] || 0}, 3: {report.countsByStudent[3] || 0}, 4: {report.countsByStudent[4] || 0}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">No hay informes mensuales disponibles.</p>
-                    )}
-                  </div>
-           
-                </div>
-
-                {/* Form to add new classes */}
-                <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
-                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                    <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <div className="md:col-span-1">
-                      <label htmlFor="date" className="block text-sm font-medium text-gray-600">
-                        Fecha
-                      </label>
-                      <input
-                        id="date"
-                        name="date"
-                        type="date"
-                        value={newEntry.date}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                      />
-                    </div>
-                    <div className="md:col-span-1">
-                      <label htmlFor="day" className="block text-sm font-medium text-gray-600">
-                        Día
-                      </label>
-                      <select
-                        id="day"
-                        name="day"
-                        value={newEntry.day}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                      >
-                        {dayOptions.map(day => (
-                          <option key={day} value={day}>{day}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="md:col-span-1">
-                      <label htmlFor="time" className="block text-sm font-medium text-gray-600">
-                        Horario
-                      </label>
-                      <select
-                        id="time"
-                        name="time"
-                        value={newEntry.time}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                      >
-                        {timeOptions.map(time => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="md:col-span-1">
-                      <label htmlFor="studentName" className="block text-sm font-medium text-gray-600">
-                        Nombre de Alumno
-                      </label>
-                      <input
-                        id="studentName"
-                        name="studentName"
-                        type="text"
-                        value={newEntry.studentName}
-                        onChange={handleInputChange}
-                        placeholder="Ej: GABRIEL"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                      />
-                    </div>
-                    <div className="md:col-span-1">
-                        <button
-                        type="submit"
-                        className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                      >
-                        Añadir
-                      </button>
-                    </div>
-                  </div>
-                </form>
-          
-                {/* Monthly Filter Section */}
-                <div className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                        <i className="fas fa-filter text-lg"></i> Filtros de Búsqueda
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Filtro por rango de fechas */}
-                        <div>
-                            <p className="text-sm font-medium text-gray-600 mb-2">Filtrar por Rango de Fechas</p>
-                            <div className="flex items-center space-x-2">
-                                <input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => {
-                                        setStartDate(e.target.value);
-                                        setSelectedMonth('Todos');
-                                    }}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                                />
-                                <span className="text-gray-500">a</span>
-                                <input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => {
-                                        setEndDate(e.target.value);
-                                        setSelectedMonth('Todos');
-                                    }}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                                />
-                            </div>
-                        </div>
-                        {/* Filtro por mes */}
-                        <div>
-                            <p className="text-sm font-medium text-gray-600 mb-2">Filtrar por Mes</p>
-                            <div className="flex flex-wrap gap-2">
-                                <button
-                                    onClick={() => setSelectedMonth('Todos')}
-                                    className={`px-4 py-2 rounded-md transition-colors ${selectedMonth === 'Todos' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-800 hover:bg-blue-200'}`}
-                                >
-                                    Todos
-                                </button>
-                                {availableMonths.map(month => (
-                                    <button
-                                        key={month}
-                                        onClick={() => {
-                                            setSelectedMonth(month);
-                                            setStartDate('');
-                                            setEndDate('');
-                                        }}
-                                        className={`px-4 py-2 rounded-md transition-colors ${selectedMonth === month ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-800 hover:bg-blue-200'}`}
-                                    >
-                                        {month}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        {/* Búsqueda por alumno */}
-                        <div className="md:col-span-2">
-                           <p className="text-sm font-medium text-gray-600 mb-2">Buscar Alumno</p>
-                            <input
-                                type="text"
-                                placeholder="Escribe el nombre de un alumno..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Table to display classes - MODIFICADA */}
-                <div className="overflow-x-auto rounded-lg shadow-md">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Fecha
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Día y Horario
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Alumnos
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Nº Alumnos
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Valor
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Acciones
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredClasses.length > 0 ? (
-                        filteredClasses.map((cls, index) => (
-                          <tr key={`${cls.date}-${cls.time}-${index}`} className={cls.color}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {formatDate(cls.date)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {cls.day} - {cls.time}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-500">
-                              {cls.students.join(', ')}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {cls.studentCount}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatCurrency(cls.value)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                              <button
-                                onClick={() => handleEditClass(cls)}
-                                className="text-blue-600 hover:text-blue-900 transition-colors"
-                                title="Editar Clase"
-                              >
-                                <i className="fas fa-edit"></i>
-                              </button>
-                              <button
-                                onClick={() => handleDeleteGroupedClass(cls.ids)}
-                                className="text-red-600 hover:text-red-900 transition-colors"
-                                title="Eliminar Clase"
-                              >
-                                <i className="fas fa-trash-alt"></i>
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500 italic">
-                            No hay clases registradas. ¡Añade una para empezar!
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Modal de edición */}
-                {editingClass && (
+                <>
+                  {showLoginModal ? (
+                    // ***** INICIO DEL MODAL DE LOGIN/REGISTRO *****
                     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
-                        <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
-                            <h2 className="text-2xl font-bold mb-4 text-gray-900">
-                                Editar Clase
-                            </h2>
-                            <form onSubmit={handleUpdateClass}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                    <div>
-                                        <label htmlFor="edit-date" className="block text-sm font-medium text-gray-600">Fecha</label>
-                                        <input
-                                            id="edit-date"
-                                            name="date"
-                                            type="date"
-                                            value={editingClass.date}
-                                            onChange={(e) => {
-                                                const { value } = e.target;
-                                                const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                                                const dateObj = new Date(value + 'T00:00:00');
-                                                const dayOfWeek = dateObj.getDay();
-                                                const newDayName = dayNames[dayOfWeek];
-                                                setEditingClass(prev => ({ ...prev, date: value, day: newDayName }));
-                                            }}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="edit-day" className="block text-sm font-medium text-gray-600">Día</label>
-                                        <select
-                                            id="edit-day"
-                                            name="day"
-                                            value={editingClass.day}
-                                            onChange={(e) => setEditingClass(prev => ({ ...prev, day: e.target.value }))}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                                        >
-                                            {dayOptions.map(day => <option key={day} value={day}>{day}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label htmlFor="edit-time" className="block text-sm font-medium text-gray-600">Horario</label>
-                                        <select
-                                            id="edit-time"
-                                            name="time"
-                                            value={editingClass.time}
-                                            onChange={(e) => setEditingClass(prev => ({ ...prev, time: e.target.value }))}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                                        >
-                                            {timeOptions.map(time => <option key={time} value={time}>{time}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-sm font-medium text-gray-600">Alumnos</label>
-                                        <div className="space-y-2 mt-1">
-                                            {editingClass.students.map((student, index) => (
-                                                <div key={editingClass.ids[index]} className="flex items-center gap-2">
-                                                    <input
-                                                        type="text"
-                                                        value={student}
-                                                        onChange={(e) => {
-                                                            const newStudents = [...editingClass.students];
-                                                            newStudents[index] = e.target.value;
-                                                            setEditingClass(prev => ({ ...prev, students: newStudents }));
-                                                        }}
-                                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDeleteStudentFromClass(editingClass.ids[index], editingClass.ids)}
-                                                        className="text-red-600 hover:text-red-900"
-                                                    >
-                                                        <i className="fas fa-trash-alt"></i>
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex justify-end gap-4 mt-4">
-                                    <button
-                                        type="button"
-                                        onClick={handleCancelEdit}
-                                        className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                                    >
-                                        Guardar Cambios
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+                      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm">
+                        <h2 className="text-2xl font-bold mb-4 text-center text-gray-900">
+                          {isRegistering ? "Crear una Cuenta" : "Iniciar Sesión"}
+                        </h2>
+                        <form onSubmit={isRegistering ? handleRegister : handleLogin}>
+                          <div className="mb-4">
+                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
+                              Correo Electrónico
+                            </label>
+                            <input
+                              id="email"
+                              type="email"
+                              placeholder="ejemplo@correo.com"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                              required
+                            />
+                          </div>
+                          <div className="mb-6">
+                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
+                              Contraseña
+                            </label>
+                            <input
+                              id="password"
+                              type="password"
+                              placeholder="********"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
+                              required
+                            />
+                          </div>
+                          {loginError && (
+                            <p className="text-red-500 text-xs italic mb-4">{loginError}</p>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <button
+                              type="submit"
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                            >
+                              {isRegistering ? "Registrar" : "Ingresar"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsRegistering(!isRegistering);
+                                setLoginError('');
+                              }}
+                              className="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800"
+                            >
+                              {isRegistering ? "¿Ya tienes una cuenta? Inicia sesión" : "¿No tienes cuenta? Regístrate"}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
                     </div>
-                )}
-              </>
+                    // ***** FIN DEL MODAL DE LOGIN/REGISTRO *****
+                  ) : (
+                    // Contenido principal de la app (solo visible si hay un usuario logueado)
+                    <>
+                      {/* Editable Values Section */}
+                      <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
+                        <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                          <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
+                        </h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Edita el valor de las clases según la cantidad de alumnos. Los cambios se guardarán automáticamente en la nube.
+                        </p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {Object.entries(editableValues).map(([count, value]) => (
+                            <div key={count} className="p-4 bg-white rounded-lg shadow-md flex flex-col items-center">
+                              <label htmlFor={`value-${count}`} className="block text-sm font-medium text-gray-700 mb-1">
+                                Clase con {count} Alumno{count > 1 ? 's' : ''}
+                              </label>
+                              <input
+                                id={`value-${count}`}
+                                name={count}
+                                type="number"
+                                value={value}
+                                onChange={handleValueChange}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2 text-center text-lg font-bold"
+                                min="0"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Reports Section */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        {/* Weekly Reports */}
+                        <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
+                          <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                            <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
+                          </h2>
+                          {weeklyReports.length > 0 ? (
+                            weeklyReports.map(report => (
+                              <div key={report.week} className="mb-4 p-4 bg-white rounded-lg shadow-md">
+                                <h3 className="text-lg font-bold text-gray-900 mb-2">{report.week}</h3>
+                                <div className="grid grid-cols-2 gap-4 text-center">
+                                  <div>
+                                    <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
+                                    <p className="text-xs font-medium text-gray-600">Total Clases</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
+                                    <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
+                                  </div>
+                                  <div className="col-span-2 mt-2 pt-2 border-t border-gray-200">
+                                    <p className="text-xs font-semibold text-gray-700 mb-1">Clases por Alumno:</p>
+                                      <p className="text-xs text-gray-600">1: {report.countsByStudent[1] || 0}, 2: {report.countsByStudent[2] || 0}, 3: {report.countsByStudent[3] || 0}, 4: {report.countsByStudent[4] || 0}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">No hay informes semanales disponibles.</p>
+                          )}
+                        </div>
+              
+                        {/* Monthly Reports */}
+                        <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
+                          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                            <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
+                          </h2>
+                          {monthlyReports.length > 0 ? (
+                            monthlyReports.map(report => (
+                              <div key={report.month} className="mb-4 p-4 bg-white rounded-lg shadow-md">
+                                <h3 className="text-lg font-bold text-gray-900 mb-2">{report.month}</h3>
+                                <div className="grid grid-cols-2 gap-4 text-center">
+                                  <div>
+                                    <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
+                                    <p className="text-xs font-medium text-gray-600">Total Clases</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
+                                    <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
+                                  </div>
+                                  <div className="col-span-2 mt-2 pt-2 border-t border-gray-200">
+                                    <p className="text-xs font-semibold text-gray-700 mb-1">Clases por Alumno:</p>
+                                      <p className="text-xs text-gray-600">1: {report.countsByStudent[1] || 0}, 2: {report.countsByStudent[2] || 0}, 3: {report.countsByStudent[3] || 0}, 4: {report.countsByStudent[4] || 0}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">No hay informes mensuales disponibles.</p>
+                          )}
+                        </div>
+              
+                      </div>
+
+                      {/* Form to add new classes */}
+                      <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
+                        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                          <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                          <div className="md:col-span-1">
+                            <label htmlFor="date" className="block text-sm font-medium text-gray-600">
+                              Fecha
+                            </label>
+                            <input
+                              id="date"
+                              name="date"
+                              type="date"
+                              value={newEntry.date}
+                              onChange={handleInputChange}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <label htmlFor="day" className="block text-sm font-medium text-gray-600">
+                              Día
+                            </label>
+                            <select
+                              id="day"
+                              name="day"
+                              value={newEntry.day}
+                              onChange={handleInputChange}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                            >
+                              {dayOptions.map(day => (
+                                <option key={day} value={day}>{day}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="md:col-span-1">
+                            <label htmlFor="time" className="block text-sm font-medium text-gray-600">
+                              Horario
+                            </label>
+                            <select
+                              id="time"
+                              name="time"
+                              value={newEntry.time}
+                              onChange={handleInputChange}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                            >
+                              {timeOptions.map(time => (
+                                <option key={time} value={time}>{time}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="md:col-span-1">
+                            <label htmlFor="studentName" className="block text-sm font-medium text-gray-600">
+                              Nombre de Alumno
+                            </label>
+                            <input
+                              id="studentName"
+                              name="studentName"
+                              type="text"
+                              value={newEntry.studentName}
+                              onChange={handleInputChange}
+                              placeholder="Ej: GABRIEL"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                              <button
+                              type="submit"
+                              className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                            >
+                              Añadir
+                            </button>
+                          </div>
+                        </div>
+                      </form>
+              
+                      {/* Monthly Filter Section */}
+                      <div className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
+                          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                              <i className="fas fa-filter text-lg"></i> Filtros de Búsqueda
+                          </h2>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Filtro por rango de fechas */}
+                              <div>
+                                  <p className="text-sm font-medium text-gray-600 mb-2">Filtrar por Rango de Fechas</p>
+                                  <div className="flex items-center space-x-2">
+                                      <input
+                                          type="date"
+                                          value={startDate}
+                                          onChange={(e) => {
+                                              setStartDate(e.target.value);
+                                              setSelectedMonth('Todos');
+                                          }}
+                                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                                      />
+                                      <span className="text-gray-500">a</span>
+                                      <input
+                                          type="date"
+                                          value={endDate}
+                                          onChange={(e) => {
+                                              setEndDate(e.target.value);
+                                              setSelectedMonth('Todos');
+                                          }}
+                                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                                      />
+                                  </div>
+                              </div>
+                              {/* Filtro por mes */}
+                              <div>
+                                  <p className="text-sm font-medium text-gray-600 mb-2">Filtrar por Mes</p>
+                                  <div className="flex flex-wrap gap-2">
+                                      <button
+                                          onClick={() => setSelectedMonth('Todos')}
+                                          className={`px-4 py-2 rounded-md transition-colors ${selectedMonth === 'Todos' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-800 hover:bg-blue-200'}`}
+                                      >
+                                          Todos
+                                      </button>
+                                      {availableMonths.map(month => (
+                                          <button
+                                              key={month}
+                                              onClick={() => {
+                                                  setSelectedMonth(month);
+                                                  setStartDate('');
+                                                  setEndDate('');
+                                              }}
+                                              className={`px-4 py-2 rounded-md transition-colors ${selectedMonth === month ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-800 hover:bg-blue-200'}`}
+                                          >
+                                              {month}
+                                          </button>
+                                      ))}
+                                  </div>
+                              </div>
+                              {/* Búsqueda por alumno */}
+                              <div className="md:col-span-2">
+                                <p className="text-sm font-medium text-gray-600 mb-2">Buscar Alumno</p>
+                                  <input
+                                      type="text"
+                                      placeholder="Escribe el nombre de un alumno..."
+                                      value={searchQuery}
+                                      onChange={(e) => setSearchQuery(e.target.value)}
+                                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                                  />
+                              </div>
+                          </div>
+                      </div>
+
+                      {/* Table to display classes - MODIFICADA */}
+                      <div className="overflow-x-auto rounded-lg shadow-md">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Fecha
+                              </th>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Día y Horario
+                              </th>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Alumnos
+                              </th>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Nº Alumnos
+                              </th>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Valor
+                              </th>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Acciones
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {filteredClasses.length > 0 ? (
+                              filteredClasses.map((cls, index) => (
+                                <tr key={`${cls.date}-${cls.time}-${index}`} className={cls.color}>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {formatDate(cls.date)}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {cls.day} - {cls.time}
+                                  </td>
+                                  <td className="px-6 py-4 text-sm text-gray-500">
+                                    {cls.students.join(', ')}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {cls.studentCount}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {formatCurrency(cls.value)}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                    <button
+                                      onClick={() => handleEditClass(cls)}
+                                      className="text-blue-600 hover:text-blue-900 transition-colors"
+                                      title="Editar Clase"
+                                    >
+                                      <i className="fas fa-edit"></i>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteGroupedClass(cls.ids)}
+                                      className="text-red-600 hover:text-red-900 transition-colors"
+                                      title="Eliminar Clase"
+                                    >
+                                      <i className="fas fa-trash-alt"></i>
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500 italic">
+                                  No hay clases registradas. ¡Añade una para empezar!
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Modal de edición */}
+                      {editingClass && (
+                          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+                              <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
+                                  <h2 className="text-2xl font-bold mb-4 text-gray-900">
+                                      Editar Clase
+                                  </h2>
+                                  <form onSubmit={handleUpdateClass}>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                          <div>
+                                              <label htmlFor="edit-date" className="block text-sm font-medium text-gray-600">Fecha</label>
+                                              <input
+                                                  id="edit-date"
+                                                  name="date"
+                                                  type="date"
+                                                  value={editingClass.date}
+                                                  onChange={(e) => {
+                                                      const { value } = e.target;
+                                                      const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                                                      const dateObj = new Date(value + 'T00:00:00');
+                                                      const dayOfWeek = dateObj.getDay();
+                                                      const newDayName = dayNames[dayOfWeek];
+                                                      setEditingClass(prev => ({ ...prev, date: value, day: newDayName }));
+                                                  }}
+                                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                              />
+                                          </div>
+                                          <div>
+                                              <label htmlFor="edit-day" className="block text-sm font-medium text-gray-600">Día</label>
+                                              <select
+                                                  id="edit-day"
+                                                  name="day"
+                                                  value={editingClass.day}
+                                                  onChange={(e) => setEditingClass(prev => ({ ...prev, day: e.target.value }))}
+                                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                              >
+                                                  {dayOptions.map(day => <option key={day} value={day}>{day}</option>)}
+                                              </select>
+                                          </div>
+                                          <div className="md:col-span-2">
+                                              <label htmlFor="edit-time" className="block text-sm font-medium text-gray-600">Horario</label>
+                                              <select
+                                                  id="edit-time"
+                                                  name="time"
+                                                  value={editingClass.time}
+                                                  onChange={(e) => setEditingClass(prev => ({ ...prev, time: e.target.value }))}
+                                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                              >
+                                                  {timeOptions.map(time => <option key={time} value={time}>{time}</option>)}
+                                              </select>
+                                          </div>
+                                          <div className="md:col-span-2">
+                                              <label className="block text-sm font-medium text-gray-600">Alumnos</label>
+                                              <div className="space-y-2 mt-1">
+                                                  {editingClass.students.map((student, index) => (
+                                                      <div key={editingClass.ids[index]} className="flex items-center gap-2">
+                                                          <input
+                                                              type="text"
+                                                              value={student}
+                                                              onChange={(e) => {
+                                                                  const newStudents = [...editingClass.students];
+                                                                  newStudents[index] = e.target.value;
+                                                                  setEditingClass(prev => ({ ...prev, students: newStudents }));
+                                                              }}
+                                                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                                                          />
+                                                          <button
+                                                              type="button"
+                                                              onClick={() => handleDeleteStudentFromClass(editingClass.ids[index], editingClass.ids)}
+                                                              className="text-red-600 hover:text-red-900"
+                                                          >
+                                                              <i className="fas fa-trash-alt"></i>
+                                                          </button>
+                                                      </div>
+                                                  ))}
+                                              </div>
+                                          </div>
+                                      </div>
+                                      <div className="flex justify-end gap-4 mt-4">
+                                          <button
+                                              type="button"
+                                              onClick={handleCancelEdit}
+                                              className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+                                          >
+                                              Cancelar
+                                          </button>
+                                          <button
+                                              type="submit"
+                                              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                          >
+                                              Guardar Cambios
+                                          </button>
+                                      </div>
+                                  </form>
+                              </div>
+                          </div>
+                      )}
+                    </>
+                  )}
+                </>
             )}
           </div>
         </div>
@@ -1209,6 +1309,7 @@ return (
   </script>
 </body>
 </html>
+
 
 
 
