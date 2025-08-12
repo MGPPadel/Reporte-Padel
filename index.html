@@ -122,6 +122,19 @@
         try {
           const appId = 'default-padel-app';
           setAppId(appId);
+          // Reemplaza con tu configuración de Firebase
+          const myFirebaseConfig = {
+            apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+            authDomain: "app-de-padel.firebaseapp.com",
+            projectId: "app-de-padel",
+            storageBucket: "app-de-padel.firebasestorage.app",
+            messagingSenderId: "731771747398",
+            appId: "1:731771747398:web:ebc8b723fe220869fade47"
+          };
+
+          if (!firebaseConfigRef.current) {
+            firebaseConfigRef.current = myFirebaseConfig;
+          }
           if (!firebaseConfigRef.current) {
               setShowConfigModal(true);
               setLoading(false);
@@ -174,33 +187,7 @@
         }
       };
       useEffect(() => {
-        const loadConfig = async () => {
-            try {
-                // Reemplaza con tu configuración de Firebase
-                const myFirebaseConfig = {
-                  apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
-                  authDomain: "app-de-padel.firebaseapp.com",
-                  projectId: "app-de-padel",
-                  storageBucket: "app-de-padel.firebasestorage.app",
-                  messagingSenderId: "731771747398",
-                  appId: "1:731771747398:web:ebc8b723fe220869fade47"
-                };
-
-                if (myFirebaseConfig && myFirebaseConfig.projectId) {
-                    firebaseConfigRef.current = myFirebaseConfig;
-                    await initFirebase();
-                } else {
-                    setShowConfigModal(true);
-                    setLoading(false);
-                }
-            } catch (error) {
-                console.error("Error loading config:", error);
-                setShowConfigModal(true);
-                setLoading(false);
-            }
-        };
-
-        loadConfig();
+        initFirebase();
       }, []);
 
       useEffect(() => {
@@ -653,6 +640,7 @@
         document.body.removeChild(a);
       };
       
+      // La corrección está en esta función.
       const importDatabase = (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -667,11 +655,9 @@
             const batch = firebase.writeBatch(dbRef.current);
             const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
             
-            // Paso 1: Borrar todos los documentos existentes en la colección de clases
             const snapshot = await firebase.getDocs(userClassesRef);
             snapshot.forEach(docSnap => batch.delete(docSnap.ref));
             
-            // Paso 2: Añadir los nuevos documentos del archivo JSON
             if (data.clases) {
               for (const cls of data.clases) {
                 const newDocRef = firebase.doc(userClassesRef);
@@ -679,15 +665,14 @@
               }
             }
             
-            // Paso 3: Actualizar los precios si se proporcionan en el archivo
             if (data.precios) {
               const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
               batch.set(userValuesDocRef, data.precios);
             }
             
-            // Confirmar todas las operaciones del batch de forma atómica
             await batch.commit();
 
+            // Mensaje de confirmación
             const messageBox = document.createElement('div');
             messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
             messageBox.innerHTML = `
