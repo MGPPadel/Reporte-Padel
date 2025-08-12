@@ -20,9 +20,9 @@
       signInAnonymously,
       signInWithCustomToken,
       onAuthStateChanged,
-      createUserWithEmailAndPassword, // Added for new user registration
-      signInWithEmailAndPassword, // Added for email and password sign-in
-      signOut, // Added for sign out
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      signOut,
       getFirestore,
       doc,
       getDoc,
@@ -48,7 +48,7 @@
 
   <script type="text/babel">
     const App = () => {
-      const { useState, useEffect, useRef } = React;
+      const { useState, useEffect, useRef, useMemo } = React;
       const defaultValueMap = {
         1: 12000,
         2: 19000,
@@ -61,7 +61,7 @@
         3: 'bg-blue-100',
         4: 'bg-red-100',
       };
-      const [classes, setClasses] = useState([]);
+      const [rawClasses, setRawClasses] = useState([]);
       const [newEntry, setNewEntry] = useState({
         studentName: '',
         day: '',
@@ -83,11 +83,10 @@
       const [startDate, setStartDate] = useState('');
       const [endDate, setEndDate] = useState('');
       const [editingClass, setEditingClass] = useState(null);
-      const [groupedClasses, setGroupedClasses] = useState([]);
       const [showConfirmationModal, setShowConfirmationModal] = useState(false);
       const [modalContent, setModalContent] = useState({ title: '', message: '', onConfirm: () => {} });
-      const [isLoggedIn, setIsLoggedIn] = useState(false); // New state to track login status
-      const [authForm, setAuthForm] = useState('login'); // 'login' or 'register'
+      const [isLoggedIn, setIsLoggedIn] = useState(false);
+      const [authForm, setAuthForm] = useState('login');
       const [authEmail, setAuthEmail] = useState('');
       const [authPassword, setAuthPassword] = useState('');
       const [authError, setAuthError] = useState('');
@@ -97,6 +96,7 @@
       const authRef = useRef(null);
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
       const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
+
       const formatCurrency = (value) => {
         return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
       };
@@ -125,53 +125,54 @@
         }
       };
       
-      const calculateReports = (processedClasses) => {
+      const calculateReports = (classesToReport) => {
         const weeklyReportMap = new Map();
         const monthlyReportMap = new Map();
 
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
         const processedClassKeys = new Set();
-        processedClasses.forEach(cls => {
-          const classKey = `${cls.date}-${cls.day}-${cls.time}`;
-          if (!processedClassKeys.has(classKey)) {
-            processedClassKeys.add(classKey);
 
-            const date = new Date(cls.date + 'T00:00:00');
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            const monthName = monthNames[month];
+        classesToReport.forEach(cls => {
+            const classKey = `${cls.date}-${cls.day}-${cls.time}`;
+            if (!processedClassKeys.has(classKey)) {
+                processedClassKeys.add(classKey);
 
-            const firstDayOfYear = new Date(year, 0, 1);
-            const pastDays = (date - firstDayOfYear) / 86400000;
-            const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
+                const date = new Date(cls.date + 'T00:00:00');
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const monthName = monthNames[month];
 
-            const weekKey = `${year}-Semana ${weekNumber}`;
-            const monthKey = `${monthName} ${year}`;
+                const firstDayOfYear = new Date(year, 0, 1);
+                const pastDays = (date - firstDayOfYear) / 86400000;
+                const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
 
-            if (!weeklyReportMap.has(weekKey)) {
-              weeklyReportMap.set(weekKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
+                const weekKey = `${year}-Semana ${weekNumber}`;
+                const monthKey = `${monthName} ${year}`;
+
+                if (!weeklyReportMap.has(weekKey)) {
+                    weeklyReportMap.set(weekKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
+                }
+                const weeklyReport = weeklyReportMap.get(weekKey);
+                weeklyReport.totalClasses++;
+                weeklyReport.totalEarnings += cls.value;
+                if (cls.studentCount >= 1 && cls.studentCount <= 4) {
+                    weeklyReport.countsByStudent[cls.studentCount]++;
+                }
+
+                if (!monthlyReportMap.has(monthKey)) {
+                    monthlyReportMap.set(monthKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
+                }
+                const monthlyReport = monthlyReportMap.get(monthKey);
+                monthlyReport.totalClasses++;
+                monthlyReport.totalEarnings += cls.value;
+                if (cls.studentCount >= 1 && cls.studentCount <= 4) {
+                    monthlyReport.countsByStudent[cls.studentCount]++;
+                }
             }
-            const weeklyReport = weeklyReportMap.get(weekKey);
-            weeklyReport.totalClasses++;
-            weeklyReport.totalEarnings += cls.value;
-            if (cls.studentCount >= 1 && cls.studentCount <= 4) {
-              weeklyReport.countsByStudent[cls.studentCount]++;
-            }
-
-            if (!monthlyReportMap.has(monthKey)) {
-              monthlyReportMap.set(monthKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
-            }
-            const monthlyReport = monthlyReportMap.get(monthKey);
-            monthlyReport.totalClasses++;
-            monthlyReport.totalEarnings += cls.value;
-            if (cls.studentCount >= 1 && cls.studentCount <= 4) {
-              monthlyReport.countsByStudent[cls.studentCount]++;
-            }
-          }
         });
+
         const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
         const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
-
         setWeeklyReports(weeklyReportsArray);
         setMonthlyReports(monthlyReportsArray);
       };
@@ -207,7 +208,6 @@
           dbRef.current = db;
           authRef.current = auth;
 
-          // Listen for auth state changes
           firebase.onAuthStateChanged(auth, (user) => {
             if (user) {
               setUserId(user.uid);
@@ -226,20 +226,16 @@
         }
       };
 
-      // Nuevo useEffect para manejar la suscripción a Firestore
       useEffect(() => {
         initFirebase();
       }, []);
 
       useEffect(() => {
         if (!dbRef.current || !userId) {
-          setClasses([]);
-          setGroupedClasses([]);
-          setWeeklyReports([]);
-          setMonthlyReports([]);
+          setRawClasses([]);
           return;
         }
-        setLoading(true);
+
         const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
         const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
 
@@ -248,70 +244,7 @@
             id: doc.id,
             ...doc.data()
           }));
-          
-          const classesByDayTime = fetchedClasses.reduce((acc, curr) => {
-            const key = `${curr.date}-${curr.day}-${curr.time}`;
-            if (!acc[key]) {
-              acc[key] = [];
-            }
-            acc[key].push(curr);
-            return acc;
-          }, {});
-
-          const processedClasses = fetchedClasses.map(cls => {
-            const key = `${cls.date}-${cls.day}-${cls.time}`;
-            const studentCount = (classesByDayTime[key] || []).length;
-            const classValue = editableValues[studentCount] || 0;
-            return {
-              ...cls,
-              studentCount,
-              value: classValue,
-              color: colorMap[studentCount] || '',
-            };
-          });
-
-          processedClasses.sort((a, b) => {
-            const dateA = new Date(a.date);
-            const dateB = new Date(b.date);
-            if (dateA.getTime() !== dateB.getTime()) {
-              return dateB.getTime() - dateA.getTime();
-            }
-            const dayIndexA = dayOptions.indexOf(a.day);
-            const dayIndexB = dayOptions.indexOf(b.day);
-            if (dayIndexA !== dayIndexB) {
-              return dayIndexA - dayIndexB;
-            }
-            const timeIndexA = timeOptions.indexOf(a.time);
-            const timeIndexB = timeOptions.indexOf(b.time);
-            return timeIndexA - timeIndexB;
-          });
-
-          setClasses(processedClasses);
-          calculateReports(processedClasses);
-          const months = [...new Set(processedClasses.map(cls => cls.date.substring(0, 7)))].sort();
-          setAvailableMonths(months);
-
-          const groupedMap = new Map();
-          processedClasses.forEach(cls => {
-            const key = `${cls.date}-${cls.day}-${cls.time}`;
-            if (!groupedMap.has(key)) {
-              groupedMap.set(key, {
-                date: cls.date,
-                day: cls.day,
-                time: cls.time,
-                studentCount: cls.studentCount,
-                value: cls.value,
-                color: cls.color,
-                students: [],
-                ids: []
-              });
-            }
-            const groupedClass = groupedMap.get(key);
-            groupedClass.students.push(cls.studentName);
-            groupedClass.ids.push(cls.id);
-          });
-          setGroupedClasses(Array.from(groupedMap.values()));
-          setLoading(false);
+          setRawClasses(fetchedClasses);
         });
 
         const unsubscribeValues = firebase.onSnapshot(userValuesDocRef, (docSnap) => {
@@ -335,7 +268,75 @@
           unsubscribeValues();
         };
 
-      }, [dbRef.current, userId, editableValues]);
+      }, [dbRef.current, userId]);
+      
+      const processedClasses = useMemo(() => {
+        const classesByDayTime = rawClasses.reduce((acc, curr) => {
+            const key = `${curr.date}-${curr.day}-${curr.time}`;
+            if (!acc[key]) {
+                acc[key] = [];
+            }
+            acc[key].push(curr);
+            return acc;
+        }, {});
+
+        const processed = rawClasses.map(cls => {
+            const key = `${cls.date}-${cls.day}-${cls.time}`;
+            const studentCount = (classesByDayTime[key] || []).length;
+            const classValue = editableValues[studentCount] || 0;
+            return {
+                ...cls,
+                studentCount,
+                value: classValue,
+                color: colorMap[studentCount] || '',
+            };
+        });
+
+        processed.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            if (dateA.getTime() !== dateB.getTime()) {
+                return dateB.getTime() - dateA.getTime();
+            }
+            const dayIndexA = dayOptions.indexOf(a.day);
+            const dayIndexB = dayOptions.indexOf(b.day);
+            if (dayIndexA !== dayIndexB) {
+                return dayIndexA - dayIndexB;
+            }
+            const timeIndexA = timeOptions.indexOf(a.time);
+            const timeIndexB = timeOptions.indexOf(b.time);
+            return timeIndexA - timeIndexB;
+        });
+
+        const months = [...new Set(processed.map(cls => cls.date.substring(0, 7)))].sort();
+        setAvailableMonths(months);
+        calculateReports(processed);
+        setLoading(false);
+        return processed;
+      }, [rawClasses, editableValues]);
+      
+      const groupedClasses = useMemo(() => {
+          const groupedMap = new Map();
+          processedClasses.forEach(cls => {
+              const key = `${cls.date}-${cls.day}-${cls.time}`;
+              if (!groupedMap.has(key)) {
+                  groupedMap.set(key, {
+                      date: cls.date,
+                      day: cls.day,
+                      time: cls.time,
+                      studentCount: cls.studentCount,
+                      value: cls.value,
+                      color: cls.color,
+                      students: [],
+                      ids: []
+                  });
+              }
+              const groupedClass = groupedMap.get(key);
+              groupedClass.students.push(cls.studentName);
+              groupedClass.ids.push(cls.id);
+          });
+          return Array.from(groupedMap.values());
+      }, [processedClasses]);
       
       const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -597,19 +598,19 @@
             headStyles: { fillColor: '#fca5a5' }
           });
           finalY = doc.autoTable.previous.finalY + 10;
-          const classesForMonth = classes.filter(cls => {
+          const classesForMonth = processedClasses.filter(cls => {
             const date = new Date(cls.date + 'T00:00:00');
             const monthName = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][date.getMonth()];
             const monthKey = `${monthName} ${date.getFullYear()}`;
             return monthKey === report.month;
           });
           if (classesForMonth.length > 0) {
-            const processedClasses = new Set();
+            const processed = new Set();
             const detailedTableData = classesForMonth.map(cls => {
               const classKey = `${cls.date}-${cls.day}-${cls.time}`;
-              const isFirstStudentInClass = !processedClasses.has(classKey);
+              const isFirstStudentInClass = !processed.has(classKey);
               if (isFirstStudentInClass) {
-                processedClasses.add(classKey);
+                processed.add(classKey);
               }
               return [
                 formatDate(cls.date),
@@ -637,7 +638,7 @@
       };
       
       const exportDatabase = () => {
-        const data = { precios: editableValues, clases: classes };
+        const data = { precios: editableValues, clases: rawClasses };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -727,18 +728,19 @@
         reader.readAsText(file);
       };
       
-      const filteredGroupedClasses = groupedClasses.filter(cls => {
-        const studentNames = cls.students.join(', ').toLowerCase();
-        const matchesSearch = searchQuery === '' || studentNames.includes(searchQuery.toLowerCase());
-        const matchesMonth = selectedMonth === 'Todos' || cls.date.startsWith(selectedMonth);
-        const classDate = new Date(cls.date);
-        const start = startDate ? new Date(startDate) : null;
-        const end = endDate ? new Date(endDate) : null;
-        const matchesDateRange = (!start || classDate >= start) && (!end || classDate <= end);
-        return matchesSearch && matchesMonth && matchesDateRange;
-      });
+      const filteredGroupedClasses = useMemo(() => {
+          return groupedClasses.filter(cls => {
+              const studentNames = cls.students.join(', ').toLowerCase();
+              const matchesSearch = searchQuery === '' || studentNames.includes(searchQuery.toLowerCase());
+              const matchesMonth = selectedMonth === 'Todos' || cls.date.startsWith(selectedMonth);
+              const classDate = new Date(cls.date);
+              const start = startDate ? new Date(startDate) : null;
+              const end = endDate ? new Date(endDate) : null;
+              const matchesDateRange = (!start || classDate >= start) && (!end || classDate <= end);
+              return matchesSearch && matchesMonth && matchesDateRange;
+          });
+      }, [groupedClasses, searchQuery, selectedMonth, startDate, endDate]);
       
-      // New Auth functions
       const handleAuthSubmit = async (e) => {
           e.preventDefault();
           setAuthError('');
@@ -765,7 +767,6 @@
           }
       };
       
-      // Auth screen component
       const AuthScreen = () => (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
           <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
@@ -810,7 +811,6 @@
                 {authForm === 'login' ? '¿No tienes una cuenta? Regístrate' : '¿Ya tienes una cuenta? Inicia sesión'}
               </button>
             </div>
-            {/* Displaying firebase userId for multi-user apps */}
             <div className="mt-4 text-center text-sm text-gray-500">
                 <p>ID de usuario: {userId}</p>
             </div>
@@ -818,7 +818,6 @@
         </div>
       );
       
-      // Confirmation Modal Component
       const ConfirmationModal = ({ title, message, onConfirm, onCancel }) => (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
           <div className="relative p-8 bg-white w-96 max-w-md mx-auto rounded-lg shadow-xl text-center">
@@ -836,7 +835,6 @@
         </div>
       );
 
-      // Main App content
       const MainApp = () => (
           <div className="container mx-auto p-4 md:p-8">
             <div className="flex justify-between items-center mb-6">
@@ -848,7 +846,6 @@
                     </button>
                 </div>
             </div>
-            {/* Modals */}
             {showConfigModal && (
               <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
                 <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
@@ -1021,8 +1018,7 @@
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredGroupedClasses.length > 0 ? (
-                                filteredGroupedClasses.map((cls, index) => (
-                                    // Utilizando una clave única y estable para evitar el "temblor"
+                                filteredGroupedClasses.map((cls) => (
                                     <tr key={`${cls.date}-${cls.time}`} className={`hover:bg-gray-50 ${cls.color}`}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(cls.date)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cls.day}</td>
@@ -1064,7 +1060,6 @@
                       <form onSubmit={handleUpdateClass}>
                           <div className="space-y-4">
                               {editingClass.students.map((student, index) => (
-                                  // Usando el ID del documento como key para una clave estable
                                   <div key={editingClass.ids[index]} className="flex items-center space-x-2">
                                       <input
                                           type="text"
@@ -1107,7 +1102,6 @@
               </div>
             )}
             
-            {/* Reports and Export section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               <div className="bg-white rounded-lg shadow-xl p-4 md:p-6">
                   <h2 className="text-2xl font-bold text-gray-700 mb-4">Informes Semanales</h2>
@@ -1121,7 +1115,7 @@
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
                               {weeklyReports.length > 0 ? (
-                                  weeklyReports.map((report, index) => (
+                                  weeklyReports.map((report) => (
                                       <tr key={report.week}>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{report.week}</td>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(report.totalEarnings)}</td>
@@ -1153,7 +1147,7 @@
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
                               {monthlyReports.length > 0 ? (
-                                  monthlyReports.map((report, index) => (
+                                  monthlyReports.map((report) => (
                                       <tr key={report.month}>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{report.month}</td>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(report.totalEarnings)}</td>
@@ -1190,7 +1184,6 @@
           </div>
       );
 
-      // Main render logic
       const renderApp = () => {
           if (loading) {
               return (
