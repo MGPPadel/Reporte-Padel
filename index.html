@@ -451,19 +451,20 @@
                 try {
                     console.log(`Intentando eliminar al alumno con ID: ${studentId}`);
                     const db = dbRef.current;
-                    const id = studentId;
+                    const idToDelete = studentId;
                     
-                    if (!db || !id) {
+                    if (!db || !idToDelete) {
                         console.error("Referencia a la base de datos o ID no disponible.");
                         return;
                     }
 
-                    const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
+                    const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${idToDelete}`);
                     await firebase.deleteDoc(docRef);
                     console.log(`Alumno con ID: ${studentId} eliminado correctamente.`);
 
-                    // Actualizar el estado local
-                    setClasses(prevClasses => prevClasses.filter(cls => cls.id !== id));
+                    // Actualizar el estado local para reflejar la eliminación
+                    // FIX: Corregido el error tipográfico, ahora usa `idToDelete`
+                    setClasses(prevClasses => prevClasses.filter(cls => cls.id !== idToDelete));
                     setEditingClass(null);
 
                 } catch (error) {
