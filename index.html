@@ -91,6 +91,10 @@
       const [authPassword, setAuthPassword] = useState('');
       const [authError, setAuthError] = useState('');
       
+      // NUEVO ESTADO: Para manejar los nombres de los estudiantes en el modal de edición de forma local
+      const [localEditedStudents, setLocalEditedStudents] = useState([]);
+      const [localEditedIds, setLocalEditedIds] = useState([]);
+      
       const firebaseConfigRef = useRef(null);
       const dbRef = useRef(null);
       const authRef = useRef(null);
@@ -403,20 +407,24 @@
         }
       };
       
+      // Actualiza el estado local del modal cuando se abre
       const handleEditClass = (classToEdit) => {
         setEditingClass(classToEdit);
+        setLocalEditedStudents(classToEdit.students);
+        setLocalEditedIds(classToEdit.ids);
       };
       
       // Función para manejar el cambio en los nombres de los alumnos en el modal de edición
+      // Ahora actualiza el estado local 'localEditedStudents'
       const handleEditStudentNameChange = (e, studentIndex) => {
-          const newStudents = [...editingClass.students];
+          const newStudents = [...localEditedStudents];
           newStudents[studentIndex] = e.target.value;
-          setEditingClass({ ...editingClass, students: newStudents });
+          setLocalEditedStudents(newStudents);
       };
 
       const handleUpdateClass = async (e) => {
         e.preventDefault();
-        if (!editingClass || editingClass.students.some(s => s.trim() === '')) {
+        if (!editingClass || localEditedStudents.some(s => s.trim() === '')) {
           const messageBox = document.createElement('div');
           messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
           messageBox.innerHTML = `
@@ -438,15 +446,15 @@
                 try {
                     const batch = firebase.writeBatch(dbRef.current);
                     
-                    editingClass.ids.forEach(id => {
+                    localEditedIds.forEach(id => {
                         const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
                         batch.delete(docRef);
                     });
             
-                    const newStudentCount = editingClass.students.length;
+                    const newStudentCount = localEditedStudents.length;
                     const newValue = editableValues[newStudentCount] || 0;
             
-                    for (const studentName of editingClass.students) {
+                    for (const studentName of localEditedStudents) {
                         const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
                         const newDocRef = firebase.doc(userClassesRef);
                         batch.set(newDocRef, {
@@ -460,6 +468,8 @@
             
                     await batch.commit();
                     setEditingClass(null);
+                    setLocalEditedStudents([]);
+                    setLocalEditedIds([]);
                 } catch (error) {
                     console.error("Error updating classes in Firestore:", error);
                 } finally {
@@ -472,6 +482,8 @@
 
       const handleCancelEdit = () => {
         setEditingClass(null);
+        setLocalEditedStudents([]);
+        setLocalEditedIds([]);
       };
       
       const handleDeleteStudentFromClass = (studentId) => {
@@ -491,12 +503,14 @@
                     const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${idToDelete}`);
                     await firebase.deleteDoc(docRef);
                     
-                    // Update editingClass state to reflect deletion
-                    setEditingClass(prev => ({
-                      ...prev,
-                      students: prev.students.filter((_, i) => prev.ids[i] !== idToDelete),
-                      ids: prev.ids.filter(id => id !== idToDelete)
-                    }));
+                    // Actualizamos el estado local para reflejar la eliminación
+                    const indexToDelete = localEditedIds.indexOf(studentId);
+                    if (indexToDelete > -1) {
+                        const newStudents = localEditedStudents.filter((_, i) => i !== indexToDelete);
+                        const newIds = localEditedIds.filter(id => id !== studentId);
+                        setLocalEditedStudents(newStudents);
+                        setLocalEditedIds(newIds);
+                    }
                 } catch (error) {
                     console.error("Error deleting student from class:", error);
                 } finally {
@@ -900,7 +914,6 @@
                     type="text"
                     id="studentName"
                     name="studentName"
-                    // CORRECTO: El valor del input está vinculado al estado 'newEntry.studentName'
                     value={newEntry.studentName}
                     onChange={handleInputChange}
                     className="mt-1 p-2 border rounded-md w-full focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -913,7 +926,6 @@
                     type="date"
                     id="date"
                     name="date"
-                    // CORRECTO: El valor del input está vinculado al estado 'newEntry.date'
                     value={newEntry.date}
                     onChange={handleInputChange}
                     className="mt-1 p-2 border rounded-md w-full focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -925,7 +937,6 @@
                   <select
                     id="time"
                     name="time"
-                    // CORRECTO: El valor del select está vinculado al estado 'newEntry.time'
                     value={newEntry.time}
                     onChange={handleInputChange}
                     className="mt-1 p-2 border rounded-md w-full focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1079,20 +1090,20 @@
                       </p>
                       <form onSubmit={handleUpdateClass}>
                           <div className="space-y-4">
-                              {editingClass.students.map((student, index) => (
-                                  <div key={editingClass.ids[index]} className="flex items-center space-x-2">
+                              {localEditedStudents.map((student, index) => (
+                                  <div key={localEditedIds[index]} className="flex items-center space-x-2">
                                       <input
                                           type="text"
-                                          // CORRECCIÓN: El valor del input ahora está directamente vinculado al alumno en el array.
+                                          // CORRECCIÓN: El valor del input ahora está directamente vinculado al estado local
                                           value={student}
-                                          // CORRECCIÓN: La función onChange actualiza solo el alumno específico en el array.
+                                          // CORRECCIÓN: La función onChange actualiza el estado local
                                           onChange={(e) => handleEditStudentNameChange(e, index)}
                                           className="flex-grow p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                                           required
                                       />
                                       <button
                                           type="button"
-                                          onClick={() => handleDeleteStudentFromClass(editingClass.ids[index])}
+                                          onClick={() => handleDeleteStudentFromClass(localEditedIds[index])}
                                           className="text-red-600 hover:text-red-800"
                                       >
                                           <i className="fas fa-user-minus"></i>
