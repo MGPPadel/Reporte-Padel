@@ -128,6 +128,7 @@
       const calculateReports = (classesToReport) => {
         const weeklyReportMap = new Map();
         const monthlyReportMap = new Map();
+        const availableMonthsSet = new Set();
 
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
         const processedClassKeys = new Set();
@@ -148,6 +149,7 @@
 
                 const weekKey = `${year}-Semana ${weekNumber}`;
                 const monthKey = `${monthName} ${year}`;
+                availableMonthsSet.add(cls.date.substring(0, 7));
 
                 if (!weeklyReportMap.has(weekKey)) {
                     weeklyReportMap.set(weekKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
@@ -173,8 +175,8 @@
 
         const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
         const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
-        setWeeklyReports(weeklyReportsArray);
-        setMonthlyReports(monthlyReportsArray);
+        const sortedAvailableMonths = [...availableMonthsSet].sort();
+        return { weeklyReportsArray, monthlyReportsArray, sortedAvailableMonths };
       };
 
       const initFirebase = async () => {
@@ -245,6 +247,7 @@
             ...doc.data()
           }));
           setRawClasses(fetchedClasses);
+          setLoading(false);
         });
 
         const unsubscribeValues = firebase.onSnapshot(userValuesDocRef, (docSnap) => {
@@ -269,49 +272,48 @@
         };
 
       }, [dbRef.current, userId]);
-      
+
       const processedClasses = useMemo(() => {
+        // First, group students by date-day-time
         const classesByDayTime = rawClasses.reduce((acc, curr) => {
-            const key = `${curr.date}-${curr.day}-${curr.time}`;
-            if (!acc[key]) {
-                acc[key] = [];
-            }
-            acc[key].push(curr);
-            return acc;
+          const key = `${curr.date}-${curr.day}-${curr.time}`;
+          if (!acc[key]) {
+            acc[key] = [];
+          }
+          acc[key].push(curr);
+          return acc;
         }, {});
-
+      
+        // Then, process each class with its student count and value
         const processed = rawClasses.map(cls => {
-            const key = `${cls.date}-${cls.day}-${cls.time}`;
-            const studentCount = (classesByDayTime[key] || []).length;
-            const classValue = editableValues[studentCount] || 0;
-            return {
-                ...cls,
-                studentCount,
-                value: classValue,
-                color: colorMap[studentCount] || '',
-            };
+          const key = `${cls.date}-${cls.day}-${cls.time}`;
+          const studentCount = (classesByDayTime[key] || []).length;
+          const classValue = editableValues[studentCount] || 0;
+          return {
+            ...cls,
+            studentCount,
+            value: classValue,
+            color: colorMap[studentCount] || '',
+          };
         });
-
+      
+        // Finally, sort the processed classes
         processed.sort((a, b) => {
-            const dateA = new Date(a.date);
-            const dateB = new Date(b.date);
-            if (dateA.getTime() !== dateB.getTime()) {
-                return dateB.getTime() - dateA.getTime();
-            }
-            const dayIndexA = dayOptions.indexOf(a.day);
-            const dayIndexB = dayOptions.indexOf(b.day);
-            if (dayIndexA !== dayIndexB) {
-                return dayIndexA - dayIndexB;
-            }
-            const timeIndexA = timeOptions.indexOf(a.time);
-            const timeIndexB = timeOptions.indexOf(b.time);
-            return timeIndexA - timeIndexB;
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          if (dateA.getTime() !== dateB.getTime()) {
+            return dateB.getTime() - dateA.getTime();
+          }
+          const dayIndexA = dayOptions.indexOf(a.day);
+          const dayIndexB = dayOptions.indexOf(b.day);
+          if (dayIndexA !== dayIndexB) {
+            return dayIndexA - dayIndexB;
+          }
+          const timeIndexA = timeOptions.indexOf(a.time);
+          const timeIndexB = timeOptions.indexOf(b.time);
+          return timeIndexA - timeIndexB;
         });
-
-        const months = [...new Set(processed.map(cls => cls.date.substring(0, 7)))].sort();
-        setAvailableMonths(months);
-        calculateReports(processed);
-        setLoading(false);
+      
         return processed;
       }, [rawClasses, editableValues]);
       
@@ -336,6 +338,14 @@
               groupedClass.ids.push(cls.id);
           });
           return Array.from(groupedMap.values());
+      }, [processedClasses]);
+      
+      // Separate useEffect for report calculation to prevent re-renders on every input change
+      useEffect(() => {
+          const { weeklyReportsArray, monthlyReportsArray, sortedAvailableMonths } = calculateReports(processedClasses);
+          setWeeklyReports(weeklyReportsArray);
+          setMonthlyReports(monthlyReportsArray);
+          setAvailableMonths(sortedAvailableMonths);
       }, [processedClasses]);
       
       const handleInputChange = (e) => {
