@@ -13,7 +13,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, deleteDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, deleteDoc, updateDoc, writeBatch, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     window.firebase = {
       initializeApp,
       getAuth,
@@ -31,7 +31,8 @@
       getDocs,
       deleteDoc,
       updateDoc,
-      writeBatch
+      writeBatch,
+      where
     };
   </script>
 
@@ -63,7 +64,7 @@
       const [classes, setClasses] = useState([]);
       const [newEntry, setNewEntry] = useState({
         studentName: '',
-        day: '', // Se inicializa vacío, se calculará al seleccionar la fecha.
+        day: '',
         time: '8:00 a. m.',
         date: new Date().toISOString().slice(0, 10),
       });
@@ -83,6 +84,9 @@
       const [endDate, setEndDate] = useState('');
       const [editingClass, setEditingClass] = useState(null);
       const [groupedClasses, setGroupedClasses] = useState([]);
+      // Estados para el modal de confirmación
+      const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+      const [modalContent, setModalContent] = useState({ title: '', message: '', onConfirm: () => {} });
       
       const firebaseConfigRef = useRef(null);
       const dbRef = useRef(null);
@@ -106,7 +110,6 @@
         e.preventDefault();
         try {
           const config = JSON.parse(userFirebaseConfig);
-          // Simple validation to check if the config looks correct
           if (config.apiKey && config.projectId) {
             firebaseConfigRef.current = config;
             setShowConfigModal(false);
@@ -181,6 +184,7 @@
       useEffect(() => {
         const loadConfig = async () => {
             try {
+                // Reemplaza con tu configuración de Firebase
                 const myFirebaseConfig = {
                   apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
                   authDomain: "app-de-padel.firebaseapp.com",
@@ -207,7 +211,6 @@
         loadConfig();
       }, []);
 
-      // La lógica principal se ha movido a esta función para ser reutilizable
       const updateClassesAndReports = (currentClasses) => {
         const classesByDayTime = currentClasses.reduce((acc, curr) => {
           const key = `${curr.date}-${curr.day}-${curr.time}`;
@@ -224,7 +227,6 @@
           return {
             ...cls,
             studentCount,
-            // El valor ya viene de Firestore, pero el color se calcula dinámicamente
             color: colorMap[studentCount] || '',
           };
         });
@@ -302,7 +304,7 @@
             }
             const weeklyReport = weeklyReportMap.get(weekKey);
             weeklyReport.totalClasses++;
-            weeklyReport.totalEarnings += cls.value; // Usa el valor guardado
+            weeklyReport.totalEarnings += cls.value;
             if (cls.studentCount >= 1 && cls.studentCount <= 4) {
               weeklyReport.countsByStudent[cls.studentCount]++;
             }
@@ -312,7 +314,7 @@
             }
             const monthlyReport = monthlyReportMap.get(monthKey);
             monthlyReport.totalClasses++;
-            monthlyReport.totalEarnings += cls.value; // Usa el valor guardado
+            monthlyReport.totalEarnings += cls.value;
             if (cls.studentCount >= 1 && cls.studentCount <= 4) {
               monthlyReport.countsByStudent[cls.studentCount]++;
             }
@@ -328,10 +330,9 @@
 
       const handleInputChange = (e) => {
         const { name, value } = e.target;
-        // Array de nombres de días de la semana en español
         const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
         if (name === 'date') {
-            const dateObj = new Date(value + 'T00:00:00'); // 'T00:00:00' para evitar problemas de zona horaria
+            const dateObj = new Date(value + 'T00:00:00');
             const dayOfWeek = dateObj.getDay();
             const newDayName = dayNames[dayOfWeek];
 
@@ -363,7 +364,6 @@
 
         try {
           const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-          // Obtener el número actual de alumnos para esta clase
           const existingClassesQuery = firebase.query(
             userClassesRef,
             firebase.where("date", "==", newEntry.date),
@@ -373,7 +373,6 @@
           const studentCount = existingClassesSnapshot.size + 1;
           const classValue = editableValues[studentCount] || 0;
 
-          // Crear un nuevo objeto de clase con el valor fijo
           const classToSave = {
               ...newEntry,
               value: classValue,
@@ -407,93 +406,108 @@
           return;
         }
         
-        const confirmed = window.confirm("¿Estás seguro de que quieres guardar los cambios? Esto eliminará los datos anteriores y creará clases nuevas.");
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-          const batch = firebase.writeBatch(dbRef.current);
-          
-          editingClass.ids.forEach(id => {
-            const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
-            batch.delete(docRef);
-          });
-
-          // Obtener el nuevo número de alumnos después de la edición
-          const newStudentCount = editingClass.students.length;
-          const newValue = editableValues[newStudentCount] || 0;
-
-          for (const studentName of editingClass.students) {
-            const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-            const newDocRef = firebase.doc(userClassesRef);
-            batch.set(newDocRef, {
-                studentName: studentName,
-                day: editingClass.day,
-                time: editingClass.time,
-                date: editingClass.date,
-                value: newValue, // Se guarda el nuevo valor
-            });
-          }
-
-          await batch.commit();
-          setEditingClass(null);
-        } catch (error) {
-          console.error("Error updating classes in Firestore:", error);
-        }
+        // Modal de confirmación
+        setModalContent({
+            title: 'Confirmar Actualización',
+            message: '¿Estás seguro de que quieres guardar los cambios? Esto eliminará los datos anteriores y creará clases nuevas.',
+            onConfirm: async () => {
+                try {
+                    const batch = firebase.writeBatch(dbRef.current);
+                    
+                    editingClass.ids.forEach(id => {
+                        const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
+                        batch.delete(docRef);
+                    });
+            
+                    const newStudentCount = editingClass.students.length;
+                    const newValue = editableValues[newStudentCount] || 0;
+            
+                    for (const studentName of editingClass.students) {
+                        const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
+                        const newDocRef = firebase.doc(userClassesRef);
+                        batch.set(newDocRef, {
+                            studentName: studentName,
+                            day: editingClass.day,
+                            time: editingClass.time,
+                            date: editingClass.date,
+                            value: newValue,
+                        });
+                    }
+            
+                    await batch.commit();
+                    setEditingClass(null);
+                } catch (error) {
+                    console.error("Error updating classes in Firestore:", error);
+                } finally {
+                    setShowConfirmationModal(false);
+                }
+            }
+        });
+        setShowConfirmationModal(true);
       };
 
       const handleCancelEdit = () => {
         setEditingClass(null);
       };
-
-      const handleDeleteStudentFromClass = async (studentId) => {
-          if (!window.confirm("¿Estás seguro de que quieres eliminar a este alumno de la clase?")) {
-              return;
-          }
-          try {
-              const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${studentId}`);
-              await firebase.deleteDoc(docRef);
-
-              setEditingClass(prev => {
-                  if (!prev) return null;
-                  const studentIndex = prev.ids.indexOf(studentId);
-                  if (studentIndex > -1) {
-                      const newStudents = prev.students.filter((_, i) => i !== studentIndex);
-                      const newIds = prev.ids.filter(id => id !== studentId);
-                      return { ...prev, students: newStudents, ids: newIds };
+      
+      const handleDeleteStudentFromClass = (studentId) => {
+          setModalContent({
+              title: 'Confirmar Eliminación',
+              message: '¿Estás seguro de que quieres eliminar a este alumno de la clase?',
+              onConfirm: async () => {
+                  try {
+                      const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${studentId}`);
+                      await firebase.deleteDoc(docRef);
+      
+                      setEditingClass(prev => {
+                          if (!prev) return null;
+                          const studentIndex = prev.ids.indexOf(studentId);
+                          if (studentIndex > -1) {
+                              const newStudents = prev.students.filter((_, i) => i !== studentIndex);
+                              const newIds = prev.ids.filter(id => id !== studentId);
+                              return { ...prev, students: newStudents, ids: newIds };
+                          }
+                          return prev;
+                      });
+                  } catch (error) {
+                      console.error("Error deleting student from class:", error);
+                  } finally {
+                      setShowConfirmationModal(false);
                   }
-                  return prev;
-              });
-
-          } catch (error) {
-              console.error("Error deleting student from class:", error);
-          }
+              }
+          });
+          setShowConfirmationModal(true);
       };
 
-      const handleDeleteGroupedClass = async (ids) => {
-        if (!window.confirm("¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.")) {
-          return;
-        }
-        try {
-          const db = dbRef.current;
-          if (!db) {
-              console.error("Referencia a la base de datos no disponible.");
-              return;
-          }
-          
-          const batch = firebase.writeBatch(db);
-          
-          ids.forEach(id => {
-            const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
-            batch.delete(docRef);
-          });
-          
-          await batch.commit();
-          
-        } catch (error) {
-          console.error("Error al eliminar la clase completa:", error);
-        }
+      const handleDeleteGroupedClass = (ids) => {
+        setModalContent({
+            title: 'Confirmar Eliminación',
+            message: '¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.',
+            onConfirm: async () => {
+                try {
+                    const db = dbRef.current;
+                    if (!db) {
+                        console.error("Referencia a la base de datos no disponible.");
+                        return;
+                    }
+                    
+                    const batch = firebase.writeBatch(db);
+                    
+                    ids.forEach(id => {
+                        const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
+                        batch.delete(docRef);
+                    });
+                    
+                    await batch.commit();
+                    
+                } catch (error) {
+                    console.error("Error al eliminar la clase completa:", error);
+                } finally {
+                    setShowConfirmationModal(false);
+                }
+            }
+        });
+        setShowConfirmationModal(true);
       };
       
       const exportWeeklyPDF = () => {
@@ -772,6 +786,30 @@
                 </div>
               </div>
             )}
+            
+            {showConfirmationModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm">
+                        <h2 className="text-xl font-bold mb-4">{modalContent.title}</h2>
+                        <p className="text-gray-700 mb-6">{modalContent.message}</p>
+                        <div className="flex justify-end gap-4">
+                            <button
+                                onClick={() => setShowConfirmationModal(false)}
+                                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => modalContent.onConfirm()}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                            >
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             
             {loading ? (
               <div className="flex justify-center items-center h-48">
@@ -1097,6 +1135,7 @@
   </script>
 </body>
 </html>
+
 
 
 
