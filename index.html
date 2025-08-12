@@ -444,7 +444,6 @@
       };
       
       const handleDeleteStudentFromClass = (studentId) => {
-        setEditingClass(null);
         setModalContent({
             title: 'Confirmar Eliminación',
             message: '¿Estás seguro de que quieres eliminar a este alumno de la clase?',
@@ -460,12 +459,7 @@
 
                     const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
                     await firebase.deleteDoc(docRef);
-                    setEditingClass(prev => {
-                        if (!prev) return null;
-                        const newStudents = prev.students.filter((_, i) => prev.ids[i] !== id);
-                        const newIds = prev.ids.filter(prevId => prevId !== id);
-                        return { ...prev, students: newStudents, ids: newIds };
-                    });
+                    setEditingClass(null);
                 } catch (error) {
                     console.error("Error deleting student from class:", error);
                 } finally {
