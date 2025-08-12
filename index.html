@@ -91,6 +91,7 @@
       const [modalContent, setModalContent] = useState({ title: '', message: '', onConfirm: () => {} });
       const [db, setDb] = useState(null);
       const [auth, setAuth] = useState(null);
+      const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false);
       
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
       const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
@@ -114,24 +115,50 @@
         });
         setShowConfirmationModal(true);
       };
+      
+      // Función para manejar el envío del formulario de configuración de Firebase
+      const handleConfigSubmit = async (e) => {
+        e.preventDefault();
+        setConfigError('');
+        try {
+          const config = JSON.parse(userFirebaseConfig);
+          // Verificar si el objeto de configuración tiene las propiedades necesarias
+          if (!config.apiKey || !config.authDomain || !config.projectId) {
+            setConfigError('El objeto de configuración de Firebase no es válido. Faltan propiedades esenciales.');
+            return;
+          }
+          // Si es válido, guardar la configuración en una variable global o de estado
+          // En este caso, simplemente recargamos el estado para que useEffect se dispare
+          window.__firebase_config = JSON.stringify(config);
+          setIsFirebaseInitialized(false); // Forzar la re-inicialización
+          setShowConfigModal(false);
+        } catch (error) {
+          setConfigError('Formato JSON no válido. Por favor, asegúrate de que el formato sea correcto.');
+          console.error("Error parsing Firebase config:", error);
+        }
+      };
+
 
       // Hook de efecto para la inicialización de Firebase.
-      // Se ejecuta solo una vez al cargar el componente.
+      // Se ejecuta solo una vez al cargar el componente y cuando isFirebaseInitialized es falso.
       useEffect(() => {
         const loadFirebase = async () => {
           try {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             setAppId(appId);
             
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-            
-            if (!firebaseConfig) {
+            let firebaseConfig;
+            if (typeof __firebase_config !== 'undefined') {
+              firebaseConfig = JSON.parse(__firebase_config);
+            } else if (userFirebaseConfig) {
+              firebaseConfig = JSON.parse(userFirebaseConfig);
+            } else {
               console.log("No se encontró la configuración de Firebase. Mostrando modal.");
               setShowConfigModal(true);
               setLoading(false);
               return;
             }
-
+            
             const app = firebase.initializeApp(firebaseConfig);
             const authInstance = firebase.getAuth(app);
             const dbInstance = firebase.getFirestore(app);
@@ -149,6 +176,7 @@
 
             const currentUserId = authInstance.currentUser?.uid;
             setUserId(currentUserId);
+            setIsFirebaseInitialized(true);
             
           } catch (error) {
             console.error("Error initializing Firebase:", error);
@@ -157,9 +185,11 @@
             setLoading(false);
           }
         };
-
-        loadFirebase();
-      }, []);
+        
+        if (!isFirebaseInitialized) {
+          loadFirebase();
+        }
+      }, [isFirebaseInitialized]);
 
       // Hook de efecto para los listeners de Firestore.
       // Se ejecuta CADA VEZ que 'db' o 'userId' cambian, asegurando que estén disponibles.
