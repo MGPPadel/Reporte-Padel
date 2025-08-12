@@ -45,7 +45,6 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    // Default values for class earnings based on student count
     const defaultValueMap = {
       1: 12000,
       2: 19000,
@@ -53,7 +52,6 @@
       4: 26000,
     };
 
-    // Background colors for the table rows
     const colorMap = {
       1: 'bg-orange-100',
       2: 'bg-green-100',
@@ -61,13 +59,12 @@
       4: 'bg-red-100',
     };
 
-    // State to manage the list of classes, new class input, and reports
     const [classes, setClasses] = useState([]);
     const [newEntry, setNewEntry] = useState({
       studentName: '',
       day: 'Lunes',
       time: '8:00 a. m.',
-      date: new Date().toISOString().slice(0, 10), // Default to today's date
+      date: new Date().toISOString().slice(0, 10),
     });
     const [weeklyReports, setWeeklyReports] = useState([]);
     const [monthlyReports, setMonthlyReports] = useState([]);
@@ -77,24 +74,13 @@
     const [showConfigModal, setShowConfigModal] = useState(false);
     const [userFirebaseConfig, setUserFirebaseConfig] = useState('');
     const [configError, setConfigError] = useState('');
-
-    // New state to manage the editable values
     const [editableValues, setEditableValues] = useState(defaultValueMap);
-
-    // State for filtering classes by month
     const [selectedMonth, setSelectedMonth] = useState('Todos');
     const [availableMonths, setAvailableMonths] = useState([]);
-    
-    // Estado para la búsqueda de alumnos
     const [searchQuery, setSearchQuery] = useState('');
-    
-    // Estado para el filtro por rango de fechas
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    
-    // Estado para la edición de clases
     const [editingClass, setEditingClass] = useState(null);
-
     const [groupedClasses, setGroupedClasses] = useState([]);
     
     const firebaseConfigRef = useRef(null);
@@ -102,26 +88,21 @@
     const authRef = useRef(null);
     const userRef = useRef(null);
 
-    // Options for form dropdowns
     const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
 
-    // Helper function to format currency
     const formatCurrency = (value) => {
       return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
     };
 
-    // Helper function to format date from YYYY-MM-DD to DD/MM/YYYY
     const formatDate = (dateString) => {
       if (!dateString) return '';
       const [year, month, day] = dateString.split('-');
       return `${day}/${month}/${year}`;
     };
 
-    // Initialize Firebase and setup listeners
     useEffect(() => {
       const loadConfig = () => {
-          // Tu configuración de Firebase. Sustituye este objeto con tu propia configuración.
           const myFirebaseConfig = {
             "apiKey": "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYG",
             "authDomain": "app-de-padel.firebaseapp.com",
@@ -133,14 +114,13 @@
           
           firebaseConfigRef.current = myFirebaseConfig;
           
-          // Retornamos true para indicar que la configuración ya está lista y no se necesita el modal
           return true;
       };
 
       const initFirebase = async () => {
         setLoading(true);
         try {
-          const appId = 'default-padel-app'; // Using a fixed app id for consistency
+          const appId = 'default-padel-app';
           setAppId(appId);
           if (!firebaseConfigRef.current) {
               setShowConfigModal(true);
@@ -154,17 +134,14 @@
 
           dbRef.current = db;
           authRef.current = auth;
-          // Use anonymous sign-in for simplicity
           await firebase.signInAnonymously(auth);
           const currentUserId = auth.currentUser?.uid;
           setUserId(currentUserId);
           userRef.current = currentUserId;
 
-          // Set up real-time listeners for classes and values
           const userClassesRef = firebase.collection(db, `artifacts/${appId}/users/${currentUserId}/clases_padel`);
           const userValuesDocRef = firebase.doc(db, `artifacts/${appId}/users/${currentUserId}/valores_clase/precios`);
 
-          // Listen for changes to editable values
           firebase.onSnapshot(userValuesDocRef, (docSnap) => {
             if (docSnap.exists()) {
               const data = docSnap.data();
@@ -175,15 +152,13 @@
                 4: data['4'] || defaultValueMap[4],
               };
               setEditableValues(newValues);
-              updateClassesAndReports(classes, newValues); // Recalculate with new values
+              updateClassesAndReports(classes, newValues);
             } else {
-              // If no document exists, set default values and save to Firestore
               setEditableValues(defaultValueMap);
               firebase.setDoc(userValuesDocRef, defaultValueMap);
             }
           });
 
-          // Listen for changes to classes
           firebase.onSnapshot(userClassesRef, (snapshot) => {
             const fetchedClasses = snapshot.docs.map(doc => ({
               id: doc.id,
@@ -194,14 +169,12 @@
           });
         } catch (error) {
           console.error("Error initializing Firebase:", error);
-          // Show the config modal if initialization fails (e.g., wrong credentials)
           setShowConfigModal(true);
           setConfigError('Error al conectar a Firebase. Revisa tu configuración e inténtalo de nuevo.');
           setLoading(false);
         }
       };
       
-      // Initial check and setup
       const configFound = loadConfig();
       if (configFound) {
           initFirebase();
@@ -212,9 +185,7 @@
 
     }, []);
 
-    // Function to calculate and update all values, colors, and reports
     const updateClassesAndReports = (currentClasses, currentValues) => {
-      // Group classes by day and time to count students
       const classesByDayTime = currentClasses.reduce((acc, curr) => {
         const key = `${curr.date}-${curr.day}-${curr.time}`;
         if (!acc[key]) {
@@ -224,7 +195,6 @@
         return acc;
       }, {});
 
-      // Map through the classes to update their values and colors using the currentValues
       const updatedClasses = currentClasses.map(cls => {
         const key = `${cls.date}-${cls.day}-${cls.time}`;
         const studentCount = (classesByDayTime[key] || []).length;
@@ -236,12 +206,11 @@
         };
       });
 
-      // Lógica de ordenamiento para que las clases más recientes estén arriba
       updatedClasses.sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
         if (dateA.getTime() !== dateB.getTime()) {
-          return dateB.getTime() - dateA.getTime(); // Orden descendente por fecha
+          return dateB.getTime() - dateA.getTime();
         }
         const dayIndexA = dayOptions.indexOf(a.day);
         const dayIndexB = dayOptions.indexOf(b.day);
@@ -255,11 +224,9 @@
 
       setClasses(updatedClasses);
       calculateReports(updatedClasses);
-      // Extract unique months for the filter buttons
       const months = [...new Set(updatedClasses.map(cls => cls.date.substring(0, 7)))].sort();
       setAvailableMonths(months);
 
-      // Agrupar las clases para la tabla de visualización
       const groupedMap = new Map();
       updatedClasses.forEach(cls => {
         const key = `${cls.date}-${cls.day}-${cls.time}`;
@@ -280,12 +247,10 @@
         groupedClass.ids.push(cls.id);
       });
 
-      // Convertir el Map a un array
       const groupedArray = Array.from(groupedMap.values());
       setGroupedClasses(groupedArray);
     };
 
-    // Function to calculate the weekly and monthly reports
     const calculateReports = (updatedClasses) => {
       const weeklyReportMap = new Map();
       const monthlyReportMap = new Map();
@@ -297,12 +262,11 @@
         if (!processedClassKeys.has(classKey)) {
           processedClassKeys.add(classKey);
 
-          const date = new Date(cls.date + 'T00:00:00'); // Normalize to avoid timezone issues
+          const date = new Date(cls.date + 'T00:00:00');
           const year = date.getFullYear();
           const month = date.getMonth();
           const monthName = monthNames[month];
 
-          // Calculate week number (simple approximation)
           const firstDayOfYear = new Date(year, 0, 1);
           const pastDays = (date - firstDayOfYear) / 86400000;
           const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
@@ -310,7 +274,6 @@
           const weekKey = `${year}-Semana ${weekNumber}`;
           const monthKey = `${monthName} ${year}`;
 
-          // Update weekly report
           if (!weeklyReportMap.has(weekKey)) {
             weeklyReportMap.set(weekKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
           }
@@ -321,7 +284,6 @@
             weeklyReport.countsByStudent[cls.studentCount]++;
           }
 
-          // Update monthly report
           if (!monthlyReportMap.has(monthKey)) {
             monthlyReportMap.set(monthKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
           }
@@ -334,7 +296,6 @@
         }
       });
 
-      // Convert maps to arrays for rendering
       const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
       const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
 
@@ -342,7 +303,6 @@
       setMonthlyReports(monthlyReportsArray);
     };
 
-    // Función para actualizar el día automáticamente
     const handleInputChange = (e) => {
       const { name, value } = e.target;
       const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -402,7 +362,7 @@
       }
 
       try {
-        const batch = firebase.writeBatch(dbRef.current); // Uso correcto de writeBatch
+        const batch = firebase.writeBatch(dbRef.current);
         
         editingClass.ids.forEach(id => {
           const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
@@ -455,7 +415,6 @@
         }
     };
 
-    // **FUNCIÓN CORREGIDA:** Elimina todos los alumnos de una clase agrupada
     const handleDeleteGroupedClass = async (ids) => {
       if (!window.confirm("¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.")) {
         return;
@@ -467,7 +426,7 @@
             return;
         }
         
-        const batch = firebase.writeBatch(db); // Uso CORRECTO de writeBatch en el objeto de la base de datos
+        const batch = firebase.writeBatch(db);
         
         ids.forEach(id => {
           const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
@@ -478,28 +437,6 @@
         
       } catch (error) {
         console.error("Error al eliminar la clase completa:", error);
-      }
-    };
-    
-    const handleDeleteClass = async (id) => {
-      try {
-        const userClassesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
-        await firebase.deleteDoc(userClassesDocRef);
-      } catch (error) {
-        console.error("Error deleting class from Firestore:", error);
-      }
-    };
-    
-    const handleConfigSubmit = (e) => {
-      e.preventDefault();
-      try {
-        const config = JSON.parse(userFirebaseConfig);
-        localStorage.setItem('firebaseConfig', JSON.stringify(config));
-        setShowConfigModal(false);
-        firebaseConfigRef.current = config;
-        window.location.reload();
-      } catch (error) {
-        setConfigError('Configuración de Firebase no válida. Asegúrate de que sea un JSON válido.');
       }
     };
     
@@ -767,7 +704,6 @@
               </div>
             ) : (
               <>
-                {/* Editable Values Section */}
                 <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
                   <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
                     <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
@@ -795,9 +731,7 @@
                   </div>
                 </div>
 
-                {/* Reports Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  {/* Weekly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
                     <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
                       <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
@@ -827,7 +761,6 @@
                     )}
                   </div>
            
-                  {/* Monthly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
                     <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                       <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
@@ -859,7 +792,6 @@
            
                 </div>
 
-                {/* Form to add new classes */}
                 <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
                   <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                     <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
@@ -935,13 +867,11 @@
                   </div>
                 </form>
           
-                {/* Monthly Filter Section */}
                 <div className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
                     <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                         <i className="fas fa-filter text-lg"></i> Filtros de Búsqueda
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Filtro por rango de fechas */}
                         <div>
                             <p className="text-sm font-medium text-gray-600 mb-2">Filtrar por Rango de Fechas</p>
                             <div className="flex items-center space-x-2">
@@ -966,7 +896,6 @@
                                 />
                             </div>
                         </div>
-                        {/* Filtro por mes */}
                         <div>
                             <p className="text-sm font-medium text-gray-600 mb-2">Filtrar por Mes</p>
                             <div className="flex flex-wrap gap-2">
@@ -991,7 +920,6 @@
                                 ))}
                             </div>
                         </div>
-                        {/* Búsqueda por alumno */}
                         <div className="md:col-span-2">
                            <p className="text-sm font-medium text-gray-600 mb-2">Buscar Alumno</p>
                             <input
@@ -1005,7 +933,6 @@
                     </div>
                 </div>
 
-                {/* Table to display classes - MODIFICADA */}
                 <div className="overflow-x-auto rounded-lg shadow-md">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-100">
@@ -1078,7 +1005,6 @@
                   </table>
                 </div>
 
-                {/* Modal de edición */}
                 {editingClass && (
                     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
                         <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
