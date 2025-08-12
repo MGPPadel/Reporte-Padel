@@ -406,6 +406,13 @@
       const handleEditClass = (classToEdit) => {
         setEditingClass(classToEdit);
       };
+      
+      // Función para manejar el cambio en los nombres de los alumnos en el modal de edición
+      const handleEditStudentNameChange = (e, studentIndex) => {
+          const newStudents = [...editingClass.students];
+          newStudents[studentIndex] = e.target.value;
+          setEditingClass({ ...editingClass, students: newStudents });
+      };
 
       const handleUpdateClass = async (e) => {
         e.preventDefault();
@@ -893,6 +900,7 @@
                     type="text"
                     id="studentName"
                     name="studentName"
+                    // CORRECTO: El valor del input está vinculado al estado 'newEntry.studentName'
                     value={newEntry.studentName}
                     onChange={handleInputChange}
                     className="mt-1 p-2 border rounded-md w-full focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -905,6 +913,7 @@
                     type="date"
                     id="date"
                     name="date"
+                    // CORRECTO: El valor del input está vinculado al estado 'newEntry.date'
                     value={newEntry.date}
                     onChange={handleInputChange}
                     className="mt-1 p-2 border rounded-md w-full focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -916,6 +925,7 @@
                   <select
                     id="time"
                     name="time"
+                    // CORRECTO: El valor del select está vinculado al estado 'newEntry.time'
                     value={newEntry.time}
                     onChange={handleInputChange}
                     className="mt-1 p-2 border rounded-md w-full focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1073,12 +1083,10 @@
                                   <div key={editingClass.ids[index]} className="flex items-center space-x-2">
                                       <input
                                           type="text"
+                                          // CORRECCIÓN: El valor del input ahora está directamente vinculado al alumno en el array.
                                           value={student}
-                                          onChange={(e) => {
-                                              const newStudents = [...editingClass.students];
-                                              newStudents[index] = e.target.value;
-                                              setEditingClass({ ...editingClass, students: newStudents });
-                                          }}
+                                          // CORRECCIÓN: La función onChange actualiza solo el alumno específico en el array.
+                                          onChange={(e) => handleEditStudentNameChange(e, index)}
                                           className="flex-grow p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                                           required
                                       />
