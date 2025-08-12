@@ -461,12 +461,7 @@
                     const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${idToDelete}`);
                     await firebase.deleteDoc(docRef);
                     console.log(`Alumno con ID: ${studentId} eliminado correctamente.`);
-
-                    // Actualizar el estado local para reflejar la eliminación
-                    // FIX: Corregido el error tipográfico, ahora usa `idToDelete`
-                    setClasses(prevClasses => prevClasses.filter(cls => cls.id !== idToDelete));
-                    setEditingClass(null);
-
+                    
                 } catch (error) {
                     console.error("Error deleting student from class:", error);
                 } finally {
@@ -500,9 +495,6 @@
                     
                     await batch.commit();
                     console.log("Clase eliminada correctamente mediante batch commit.");
-
-                    // Actualizar el estado local para reflejar la eliminación
-                    setClasses(prevClasses => prevClasses.filter(cls => !ids.includes(cls.id)));
 
                 } catch (error) {
                     console.error("Error al eliminar la clase completa:", error);
