@@ -140,6 +140,7 @@
           userRef.current = currentUserId;
           const userClassesRef = firebase.collection(db, `artifacts/${appId}/users/${currentUserId}/clases_padel`);
           const userValuesDocRef = firebase.doc(db, `artifacts/${appId}/users/${currentUserId}/valores_clase/precios`);
+          
           firebase.onSnapshot(userValuesDocRef, (docSnap) => {
             if (docSnap.exists()) {
               const data = docSnap.data();
@@ -155,14 +156,16 @@
               firebase.setDoc(userValuesDocRef, defaultValueMap);
             }
           });
+
           firebase.onSnapshot(userClassesRef, (snapshot) => {
             const fetchedClasses = snapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data()
             }));
-            updateClassesAndReports(fetchedClasses);
+            updateClassesAndReports(fetchedClasses, editableValues);
             setLoading(false);
           });
+          
         } catch (error) {
           console.error("Error initializing Firebase:", error);
           setShowConfigModal(true);
@@ -199,7 +202,14 @@
 
         loadConfig();
       }, []);
-      const updateClassesAndReports = (currentClasses) => {
+
+      useEffect(() => {
+        if(classes.length > 0) {
+            updateClassesAndReports(classes, editableValues);
+        }
+      }, [editableValues]);
+
+      const updateClassesAndReports = (currentClasses, currentEditableValues) => {
         const classesByDayTime = currentClasses.reduce((acc, curr) => {
           const key = `${curr.date}-${curr.day}-${curr.time}`;
           if (!acc[key]) {
@@ -208,12 +218,15 @@
           acc[key].push(curr);
           return acc;
         }, {});
+        
         const updatedClasses = currentClasses.map(cls => {
           const key = `${cls.date}-${cls.day}-${cls.time}`;
           const studentCount = (classesByDayTime[key] || []).length;
+          const classValue = currentEditableValues[studentCount] || 0;
           return {
             ...cls,
             studentCount,
+            value: classValue,
             color: colorMap[studentCount] || '',
           };
         });
@@ -1114,95 +1127,3 @@
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
