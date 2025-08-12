@@ -156,7 +156,6 @@
                 4: data['4'] || defaultValueMap[4],
               };
               setEditableValues(newValues);
-              updateClassesAndReports(classes, newValues);
             } else {
               setEditableValues(defaultValueMap);
               firebase.setDoc(userValuesDocRef, defaultValueMap);
@@ -168,7 +167,7 @@
               id: doc.id,
               ...doc.data()
             }));
-            updateClassesAndReports(fetchedClasses, editableValues);
+            updateClassesAndReports(fetchedClasses);
             setLoading(false);
           });
         } catch (error) {
@@ -182,8 +181,6 @@
       useEffect(() => {
         const loadConfig = async () => {
             try {
-                // CAMBIO: Por favor, pega tu configuración de Firebase aquí.
-                // Reemplaza el objeto completo a continuación con tu propia configuración.
                 const myFirebaseConfig = {
                   apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
                   authDomain: "app-de-padel.firebaseapp.com",
@@ -193,12 +190,10 @@
                   appId: "1:731771747398:web:ebc8b723fe220869fade47"
                 };
 
-                // Si se encuentra una configuración válida, la usamos.
                 if (myFirebaseConfig && myFirebaseConfig.projectId) {
                     firebaseConfigRef.current = myFirebaseConfig;
                     await initFirebase();
                 } else {
-                    // Si no, mostramos el modal para que el usuario la ingrese.
                     setShowConfigModal(true);
                     setLoading(false);
                 }
@@ -212,7 +207,8 @@
         loadConfig();
       }, []);
 
-      const updateClassesAndReports = (currentClasses, currentValues) => {
+      // La lógica principal se ha movido a esta función para ser reutilizable
+      const updateClassesAndReports = (currentClasses) => {
         const classesByDayTime = currentClasses.reduce((acc, curr) => {
           const key = `${curr.date}-${curr.day}-${curr.time}`;
           if (!acc[key]) {
@@ -228,7 +224,7 @@
           return {
             ...cls,
             studentCount,
-            value: currentValues[studentCount] || 0,
+            // El valor ya viene de Firestore, pero el color se calcula dinámicamente
             color: colorMap[studentCount] || '',
           };
         });
@@ -306,7 +302,7 @@
             }
             const weeklyReport = weeklyReportMap.get(weekKey);
             weeklyReport.totalClasses++;
-            weeklyReport.totalEarnings += cls.value;
+            weeklyReport.totalEarnings += cls.value; // Usa el valor guardado
             if (cls.studentCount >= 1 && cls.studentCount <= 4) {
               weeklyReport.countsByStudent[cls.studentCount]++;
             }
@@ -316,7 +312,7 @@
             }
             const monthlyReport = monthlyReportMap.get(monthKey);
             monthlyReport.totalClasses++;
-            monthlyReport.totalEarnings += cls.value;
+            monthlyReport.totalEarnings += cls.value; // Usa el valor guardado
             if (cls.studentCount >= 1 && cls.studentCount <= 4) {
               monthlyReport.countsByStudent[cls.studentCount]++;
             }
@@ -367,7 +363,23 @@
 
         try {
           const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-          await firebase.addDoc(userClassesRef, newEntry);
+          // Obtener el número actual de alumnos para esta clase
+          const existingClassesQuery = firebase.query(
+            userClassesRef,
+            firebase.where("date", "==", newEntry.date),
+            firebase.where("time", "==", newEntry.time)
+          );
+          const existingClassesSnapshot = await firebase.getDocs(existingClassesQuery);
+          const studentCount = existingClassesSnapshot.size + 1;
+          const classValue = editableValues[studentCount] || 0;
+
+          // Crear un nuevo objeto de clase con el valor fijo
+          const classToSave = {
+              ...newEntry,
+              value: classValue,
+          };
+          
+          await firebase.addDoc(userClassesRef, classToSave);
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
         } catch (error) {
           console.error("Error adding class to Firestore:", error);
@@ -381,7 +393,6 @@
       const handleUpdateClass = async (e) => {
         e.preventDefault();
         if (!editingClass || editingClass.students.some(s => s.trim() === '')) {
-          // Utilizar un modal en lugar de alert
           const messageBox = document.createElement('div');
           messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
           messageBox.innerHTML = `
@@ -409,6 +420,10 @@
             batch.delete(docRef);
           });
 
+          // Obtener el nuevo número de alumnos después de la edición
+          const newStudentCount = editingClass.students.length;
+          const newValue = editableValues[newStudentCount] || 0;
+
           for (const studentName of editingClass.students) {
             const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
             const newDocRef = firebase.doc(userClassesRef);
@@ -417,6 +432,7 @@
                 day: editingClass.day,
                 time: editingClass.time,
                 date: editingClass.date,
+                value: newValue, // Se guarda el nuevo valor
             });
           }
 
@@ -649,7 +665,6 @@
                 await firebase.addDoc(userClassesRef, cls);
               }
             }
-            // Utilizar un modal en lugar de alert
             const messageBox = document.createElement('div');
             messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
             messageBox.innerHTML = `
@@ -662,7 +677,6 @@
             `;
             document.body.appendChild(messageBox);
           } catch (err) {
-            // Utilizar un modal en lugar de alert
             const messageBox = document.createElement('div');
             messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
             messageBox.innerHTML = `
@@ -873,7 +887,6 @@
                       <label htmlFor="date" className="block text-sm font-medium text-gray-700">
                         Fecha
                       </label>
-                      {/* CAMBIO: Se envuelve el input de fecha y se añade el span para el día */}
                       <div className="flex items-center gap-2">
                         <input
                           type="date"
@@ -884,7 +897,6 @@
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
                           required
                         />
-                        {/* Se muestra el día de la semana si el valor existe */}
                         {newEntry.day && (
                           <span className="mt-1 text-sm font-medium text-gray-700">
                             ({newEntry.day})
@@ -1085,6 +1097,7 @@
   </script>
 </body>
 </html>
+
 
 
 
