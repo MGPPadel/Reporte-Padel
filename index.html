@@ -83,7 +83,6 @@
       const [groupedClasses, setGroupedClasses] = useState([]);
       const [showConfirmationModal, setShowConfirmationModal] = useState(false);
       const [modalContent, setModalContent] = useState({ title: '', message: '', onConfirm: () => {} });
-      const [idsToDelete, setIdsToDelete] = useState(null); // Nuevo estado para los IDs a eliminar
       
       const firebaseConfigRef = useRef(null);
       const dbRef = useRef(null);
@@ -433,14 +432,13 @@
       
       const handleDeleteStudentFromClass = (studentId) => {
         setEditingClass(null);
-        setIdsToDelete([studentId]); // Guarda el ID del alumno a eliminar
         setModalContent({
             title: 'Confirmar Eliminación',
             message: '¿Estás seguro de que quieres eliminar a este alumno de la clase?',
             onConfirm: async () => {
                 try {
                     const db = dbRef.current;
-                    const id = idsToDelete[0]; // Usa el estado guardado
+                    const id = studentId;
                     
                     if (!db || !id) {
                         console.error("Referencia a la base de datos o ID no disponible.");
@@ -459,7 +457,6 @@
                     console.error("Error deleting student from class:", error);
                 } finally {
                     setShowConfirmationModal(false);
-                    setIdsToDelete(null);
                 }
             }
         });
@@ -468,14 +465,13 @@
 
       const handleDeleteGroupedClass = (ids) => {
         setEditingClass(null); 
-        setIdsToDelete(ids); // Guarda los IDs de la clase completa
         setModalContent({
             title: 'Confirmar Eliminación',
             message: '¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.',
             onConfirm: async () => {
                 try {
                     const db = dbRef.current;
-                    const idsToProcess = idsToDelete; // Usa el estado guardado
+                    const idsToProcess = ids;
                     if (!db || !idsToProcess) {
                         console.error("Referencia a la base de datos o IDs no disponibles.");
                         return;
@@ -493,7 +489,6 @@
                     console.error("Error al eliminar la clase completa:", error);
                 } finally {
                     setShowConfirmationModal(false);
-                    setIdsToDelete(null);
                 }
             }
         });
@@ -1119,6 +1114,7 @@
   </script>
 </body>
 </html>
+
 
 
 
