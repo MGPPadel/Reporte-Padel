@@ -449,6 +449,7 @@
             message: '¿Estás seguro de que quieres eliminar a este alumno de la clase?',
             onConfirm: async () => {
                 try {
+                    console.log(`Intentando eliminar al alumno con ID: ${studentId}`);
                     const db = dbRef.current;
                     const id = studentId;
                     
@@ -459,6 +460,7 @@
 
                     const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
                     await firebase.deleteDoc(docRef);
+                    console.log(`Alumno con ID: ${studentId} eliminado correctamente.`);
                     setEditingClass(null);
                 } catch (error) {
                     console.error("Error deleting student from class:", error);
@@ -469,7 +471,7 @@
         });
         setShowConfirmationModal(true);
       };
-
+      
       const handleDeleteGroupedClass = (ids) => {
         setEditingClass(null); 
         setModalContent({
@@ -477,10 +479,11 @@
             message: '¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.',
             onConfirm: async () => {
                 try {
+                    console.log(`Intentando eliminar la clase con los siguientes IDs: ${ids.join(', ')}`);
                     const db = dbRef.current;
                     const idsToProcess = ids;
-                    if (!db || !idsToProcess) {
-                        console.error("Referencia a la base de datos o IDs no disponibles.");
+                    if (!db || !idsToProcess || idsToProcess.length === 0) {
+                        console.error("Referencia a la base de datos o IDs no disponibles para la eliminación.");
                         return;
                     }
                     
@@ -491,7 +494,7 @@
                     });
                     
                     await batch.commit();
-                    
+                    console.log("Clase eliminada correctamente mediante batch commit.");
                 } catch (error) {
                     console.error("Error al eliminar la clase completa:", error);
                 } finally {
