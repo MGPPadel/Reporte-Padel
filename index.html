@@ -31,10 +31,16 @@
     const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-    // Inicializa Firebase con la sintaxis correcta para la versión "compat"
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
+    // Se agrega una verificación para la configuración de Firebase antes de inicializar la app
+    let app, db, auth;
+    if (firebaseConfig && firebaseConfig.projectId) {
+      // Inicializa Firebase con la sintaxis correcta para la versión "compat"
+      app = firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      auth = firebase.auth();
+    } else {
+      console.error('Firebase Error: "projectId" no fue proporcionado en la configuración.');
+    }
     
     // Componente principal de la aplicación
     const App = () => {
@@ -55,6 +61,11 @@
       // FUNCIÓN DE AUTENTICACIÓN
       // -------------------------------------------------------------
       useEffect(() => {
+        if (!auth) {
+          setIsLoading(false);
+          return;
+        }
+
         // Escucha los cambios en el estado de autenticación
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
           if (user) {
@@ -86,7 +97,7 @@
       const classesPath = userId ? `artifacts/${appId}/users/${userId}/classes` : null;
 
       useEffect(() => {
-        if (!isAuthReady || !userId) return;
+        if (!isAuthReady || !userId || !db) return;
 
         const q = db.collection(classesPath);
         const unsubscribe = q.onSnapshot((querySnapshot) => {
@@ -118,7 +129,7 @@
 
       // Otras funciones (agregar, editar, eliminar) son las mismas.
       const handleDeleteGroupedClass = async (classIds) => {
-        if (!userId) return;
+        if (!userId || !db) return;
         const batch = db.batch();
         classIds.forEach(id => {
           batch.delete(db.collection(classesPath).doc(id));
@@ -142,7 +153,7 @@
       };
 
       const handleSaveEdit = async () => {
-        if (!userId || !editingClass) return;
+        if (!userId || !editingClass || !db) return;
         const { ids, date, time, students } = editingClass;
         const newStudents = students.split(',').map(s => s.trim()).filter(s => s);
 
@@ -173,6 +184,7 @@
       // NUEVAS FUNCIONES DE AUTENTICACIÓN
       // -------------------------------------------------------------
       const handleAuthAction = async () => {
+        if (!auth) return;
         setAuthError('');
         try {
           if (isRegistering) {
@@ -186,6 +198,7 @@
       };
 
       const handleLogout = async () => {
+        if (!auth) return;
         try {
           await auth.signOut();
           console.log('Sesión cerrada con éxito');
@@ -207,6 +220,18 @@
 
       // Si no hay un usuario logueado, muestra el formulario de autenticación
       if (!userId) {
+        // Si no hay configuración de Firebase, mostrar un mensaje de error
+        if (!firebaseConfig || !firebaseConfig.projectId) {
+          return (
+            <div className="min-h-screen bg-red-100 flex items-center justify-center p-4">
+              <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center">
+                <h1 className="text-2xl font-bold mb-4 text-red-800">Error de Configuración</h1>
+                <p className="text-red-700">No se pudo inicializar Firebase. El `projectId` no fue proporcionado. Por favor, asegúrate de que la configuración sea correcta.</p>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
             <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
