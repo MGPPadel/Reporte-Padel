@@ -473,6 +473,12 @@
                     const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${idToDelete}`);
                     await firebase.deleteDoc(docRef);
                     
+                    // Update editingClass state to reflect deletion
+                    setEditingClass(prev => ({
+                      ...prev,
+                      students: prev.students.filter((_, i) => prev.ids[i] !== idToDelete),
+                      ids: prev.ids.filter(id => id !== idToDelete)
+                    }));
                 } catch (error) {
                     console.error("Error deleting student from class:", error);
                 } finally {
@@ -1016,7 +1022,8 @@
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredGroupedClasses.length > 0 ? (
                                 filteredGroupedClasses.map((cls, index) => (
-                                    <tr key={index} className={`hover:bg-gray-50 ${cls.color}`}>
+                                    // Utilizando una clave única y estable para evitar el "temblor"
+                                    <tr key={`${cls.date}-${cls.time}`} className={`hover:bg-gray-50 ${cls.color}`}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(cls.date)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cls.day}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cls.time}</td>
@@ -1057,6 +1064,7 @@
                       <form onSubmit={handleUpdateClass}>
                           <div className="space-y-4">
                               {editingClass.students.map((student, index) => (
+                                  // Usando el ID del documento como key para una clave estable
                                   <div key={editingClass.ids[index]} className="flex items-center space-x-2">
                                       <input
                                           type="text"
@@ -1114,7 +1122,7 @@
                           <tbody className="bg-white divide-y divide-gray-200">
                               {weeklyReports.length > 0 ? (
                                   weeklyReports.map((report, index) => (
-                                      <tr key={index}>
+                                      <tr key={report.week}>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{report.week}</td>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(report.totalEarnings)}</td>
                                       </tr>
@@ -1146,7 +1154,7 @@
                           <tbody className="bg-white divide-y divide-gray-200">
                               {monthlyReports.length > 0 ? (
                                   monthlyReports.map((report, index) => (
-                                      <tr key={index}>
+                                      <tr key={report.month}>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{report.month}</td>
                                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(report.totalEarnings)}</td>
                                       </tr>
