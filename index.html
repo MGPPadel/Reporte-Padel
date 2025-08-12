@@ -46,21 +46,18 @@
   <script type="text/babel">
     const App = () => {
       const { useState, useEffect, useRef } = React;
-
       const defaultValueMap = {
         1: 12000,
         2: 19000,
         3: 24000,
         4: 26000,
       };
-
       const colorMap = {
         1: 'bg-orange-100',
         2: 'bg-green-100',
         3: 'bg-blue-100',
         4: 'bg-red-100',
       };
-
       const [classes, setClasses] = useState([]);
       const [newEntry, setNewEntry] = useState({
         studentName: '',
@@ -92,10 +89,8 @@
       const dbRef = useRef(null);
       const authRef = useRef(null);
       const userRef = useRef(null);
-
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
       const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
-
       const formatCurrency = (value) => {
         return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
       };
@@ -123,7 +118,6 @@
           console.error("Error parsing config JSON:", error);
         }
       };
-
       const initFirebase = async () => {
         setLoading(true);
         try {
@@ -145,10 +139,8 @@
           const currentUserId = auth.currentUser?.uid;
           setUserId(currentUserId);
           userRef.current = currentUserId;
-
           const userClassesRef = firebase.collection(db, `artifacts/${appId}/users/${currentUserId}/clases_padel`);
           const userValuesDocRef = firebase.doc(db, `artifacts/${appId}/users/${currentUserId}/valores_clase/precios`);
-
           firebase.onSnapshot(userValuesDocRef, (docSnap) => {
             if (docSnap.exists()) {
               const data = docSnap.data();
@@ -164,7 +156,6 @@
               firebase.setDoc(userValuesDocRef, defaultValueMap);
             }
           });
-
           firebase.onSnapshot(userClassesRef, (snapshot) => {
             const fetchedClasses = snapshot.docs.map(doc => ({
               id: doc.id,
@@ -180,7 +171,6 @@
           setLoading(false);
         }
       };
-      
       useEffect(() => {
         const loadConfig = async () => {
             try {
@@ -210,7 +200,6 @@
 
         loadConfig();
       }, []);
-
       const updateClassesAndReports = (currentClasses) => {
         const classesByDayTime = currentClasses.reduce((acc, curr) => {
           const key = `${curr.date}-${curr.day}-${curr.time}`;
@@ -220,7 +209,6 @@
           acc[key].push(curr);
           return acc;
         }, {});
-
         const updatedClasses = currentClasses.map(cls => {
           const key = `${cls.date}-${cls.day}-${cls.time}`;
           const studentCount = (classesByDayTime[key] || []).length;
@@ -246,7 +234,6 @@
           const timeIndexB = timeOptions.indexOf(b.time);
           return timeIndexA - timeIndexB;
         });
-
         setClasses(updatedClasses);
         calculateReports(updatedClasses);
         const months = [...new Set(updatedClasses.map(cls => cls.date.substring(0, 7)))].sort();
@@ -271,7 +258,6 @@
           groupedClass.students.push(cls.studentName);
           groupedClass.ids.push(cls.id);
         });
-
         const groupedArray = Array.from(groupedMap.values());
         setGroupedClasses(groupedArray);
       };
@@ -320,14 +306,12 @@
             }
           }
         });
-
         const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
         const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
 
         setWeeklyReports(weeklyReportsArray);
         setMonthlyReports(monthlyReportsArray);
       };
-
       const handleInputChange = (e) => {
         const { name, value } = e.target;
         const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -372,12 +356,10 @@
           const existingClassesSnapshot = await firebase.getDocs(existingClassesQuery);
           const studentCount = existingClassesSnapshot.size + 1;
           const classValue = editableValues[studentCount] || 0;
-
           const classToSave = {
               ...newEntry,
               value: classValue,
           };
-          
           await firebase.addDoc(userClassesRef, classToSave);
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
         } catch (error) {
@@ -451,6 +433,9 @@
       };
       
       const handleDeleteStudentFromClass = (studentId) => {
+          // El problema residía en que la vista de edición podía interferir con el modal.
+          // Nos aseguramos de que no haya ninguna clase en edición antes de mostrar el modal.
+          setEditingClass(null);
           setModalContent({
               title: 'Confirmar Eliminación',
               message: '¿Estás seguro de que quieres eliminar a este alumno de la clase?',
@@ -458,16 +443,12 @@
                   try {
                       const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${studentId}`);
                       await firebase.deleteDoc(docRef);
-      
+                      
                       setEditingClass(prev => {
                           if (!prev) return null;
-                          const studentIndex = prev.ids.indexOf(studentId);
-                          if (studentIndex > -1) {
-                              const newStudents = prev.students.filter((_, i) => i !== studentIndex);
-                              const newIds = prev.ids.filter(id => id !== studentId);
-                              return { ...prev, students: newStudents, ids: newIds };
-                          }
-                          return prev;
+                          const newStudents = prev.students.filter((_, i) => prev.ids[i] !== studentId);
+                          const newIds = prev.ids.filter(id => id !== studentId);
+                          return { ...prev, students: newStudents, ids: newIds };
                       });
                   } catch (error) {
                       console.error("Error deleting student from class:", error);
@@ -480,6 +461,8 @@
       };
 
       const handleDeleteGroupedClass = (ids) => {
+        // Al igual que con el borrado de alumnos, nos aseguramos de no estar en modo de edición.
+        setEditingClass(null); 
         setModalContent({
             title: 'Confirmar Eliminación',
             message: '¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.',
@@ -515,9 +498,7 @@
         const doc = new jsPDF();
         doc.setFontSize(16);
         doc.text("Informe Semanal - Clases de Pádel", 14, 15);
-
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
         const tableData = weeklyReports.map(r => {
           const [year, weekText] = r.week.split('-');
           const weekNumber = weekText.replace('Semana ', '');
@@ -606,7 +587,6 @@
             const monthKey = `${monthName} ${date.getFullYear()}`;
             return monthKey === report.month;
           });
-
           if (classesForMonth.length > 0) {
             const processedClasses = new Set();
             const detailedTableData = classesForMonth.map(cls => {
@@ -644,7 +624,6 @@
         
         doc.save("informe_mensual_detallado.pdf");
       };
-
       const exportDatabase = () => {
         const data = {
           precios: editableValues,
@@ -659,7 +638,6 @@
         a.click();
         document.body.removeChild(a);
       };
-
       const importDatabase = (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -667,55 +645,20 @@
         reader.onload = async (e) => {
           try {
             const data = JSON.parse(e.target.result);
-
-            // 1. Actualizar precios si vienen en el archivo
             if (data.precios) {
-              const userValuesDocRef = firebase.doc(
-                dbRef.current,
-                `artifacts/${appId}/users/${userId}/valores_clase/precios`
-              );
+              const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
               await firebase.setDoc(userValuesDocRef, data.precios);
-              setEditableValues(data.precios);
             }
-
             if (data.clases) {
-              const userClassesRef = firebase.collection(
-                dbRef.current,
-                `artifacts/${appId}/users/${userId}/clases_padel`
-              );
-
-              // Borrar todas las clases actuales
+              const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
               const snapshot = await firebase.getDocs(userClassesRef);
-              for (const docSnap of snapshot.docs) {
-                await firebase.deleteDoc(docSnap.ref);
-              }
-
-              // Insertar nuevas clases recalculando valor
-              const insertedClasses = [];
+              snapshot.forEach(docSnap => firebase.deleteDoc(docSnap.ref));
               for (const cls of data.clases) {
-                const studentCount = cls.studentCount || 1; // Si no existe, asumir 1
-                const classValue = editableValues[studentCount] || 0;
-
-                const docRef = await firebase.addDoc(userClassesRef, {
-                  ...cls,
-                  value: classValue,
-                });
-
-                insertedClasses.push({
-                  id: docRef.id, // ID real de Firestore
-                  ...cls,
-                  value: classValue,
-                });
+                await firebase.addDoc(userClassesRef, cls);
               }
-
-              // Actualizar estado local para que puedas eliminar/editar sin recargar
-              updateClassesAndReports(insertedClasses);
             }
-
-            // Mensaje de éxito
-            const messageBox = document.createElement("div");
-            messageBox.className =
-              "fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center";
+            const messageBox = document.createElement('div');
+            messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
             messageBox.innerHTML = `
               <div class="bg-white p-6 rounded-lg shadow-xl">
                 <p>Base de datos importada correctamente.</p>
@@ -726,9 +669,8 @@
             `;
             document.body.appendChild(messageBox);
           } catch (err) {
-            const messageBox = document.createElement("div");
-            messageBox.className =
-              "fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center";
+            const messageBox = document.createElement('div');
+            messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
             messageBox.innerHTML = `
               <div class="bg-white p-6 rounded-lg shadow-xl">
                 <p>Error al importar el archivo JSON.</p>
@@ -742,9 +684,6 @@
           }
         };
         reader.readAsText(file);
-
-        };
-        reader.readAsText(file);
       };
 
       const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
@@ -756,7 +695,6 @@
                                  (endDate === '' || new Date(cls.date) <= new Date(endDate));
         return isMonthMatch && isSearchMatch && isDateRangeMatch;
       });
-
       return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
           <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
@@ -804,8 +742,8 @@
                     <textarea
                       value={userFirebaseConfig}
                       onChange={(e) => {
-                        setUserFirebaseConfig(e.target.value);
-                        setConfigError('');
+                          setUserFirebaseConfig(e.target.value);
+                          setConfigError('');
                       }}
                       className="w-full h-40 p-3 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                       placeholder='Pega tu objeto JSON aquí: { "apiKey": "...", "authDomain": "...", ... }'
@@ -1129,11 +1067,11 @@
                                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cls.day}</td>
                                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cls.time}</td>
                                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                <ul className="list-disc list-inside">
+                                                  <ul className="list-disc list-inside">
                                                   {cls.students.map((student, i) => (
-                                                    <li key={i}>{student}</li>
+                                                      <li key={i}>{student}</li>
                                                   ))}
-                                                </ul>
+                                                  </ul>
                                               </td>
                                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(cls.value)}</td>
                                               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -1174,6 +1112,7 @@
   </script>
 </body>
 </html>
+
 
 
 
