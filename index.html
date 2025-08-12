@@ -9,8 +9,7 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
-  <link rel="icon" type="image/png" href="favicon PADEL LOGO.png">
-
+  
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -444,14 +443,27 @@
         setEditingClass(null);
       };
 
-      // **NUEVA FUNCIÓN:** Eliminar un solo alumno de una clase agrupada
-      const handleDeleteStudentFromClass = async (studentId, classIds) => {
+      // **FUNCIÓN ACTUALIZADA: Ahora también actualiza el estado local del modal**
+      const handleDeleteStudentFromClass = async (studentId) => {
           if (!window.confirm("¿Estás seguro de que quieres eliminar a este alumno de la clase?")) {
               return;
           }
           try {
               const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${studentId}`);
               await firebase.deleteDoc(docRef);
+
+              // Actualiza el estado local para que el modal se actualice al instante
+              setEditingClass(prev => {
+                  if (!prev) return null;
+                  const studentIndex = prev.ids.indexOf(studentId);
+                  if (studentIndex > -1) {
+                      const newStudents = prev.students.filter((_, i) => i !== studentIndex);
+                      const newIds = prev.ids.filter(id => id !== studentId);
+                      return { ...prev, students: newStudents, ids: newIds };
+                  }
+                  return prev;
+              });
+
           } catch (error) {
               console.error("Error deleting student from class:", error);
           }
@@ -1167,8 +1179,9 @@ return (
                                                     />
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleDeleteStudentFromClass(editingClass.ids[index], editingClass.ids)}
+                                                        onClick={() => handleDeleteStudentFromClass(editingClass.ids[index])}
                                                         className="text-red-600 hover:text-red-900"
+                                                        title="Eliminar Alumno"
                                                     >
                                                         <i className="fas fa-trash-alt"></i>
                                                     </button>
@@ -1210,6 +1223,7 @@ return (
   </script>
 </body>
 </html>
+
 
 
 
