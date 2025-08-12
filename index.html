@@ -176,7 +176,6 @@
         try {
           const appId = 'default-padel-app';
           setAppId(appId);
-          // Reemplaza con tu configuración de Firebase
           const myFirebaseConfig = {
             apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
             authDomain: "app-de-padel.firebaseapp.com",
@@ -202,7 +201,6 @@
           dbRef.current = db;
           authRef.current = auth;
 
-          // Si ya tenemos un userId, lo usamos, si no, intentamos el inicio de sesión anónimo
           if (!userRef.current) {
             await firebase.signInAnonymously(auth);
             const currentUserId = auth.currentUser?.uid;
@@ -217,22 +215,23 @@
         }
       };
       
-      // Función para cargar los datos con un userId específico
       const loadUserData = (newUserId) => {
         setLoading(true);
         setUserId(newUserId);
         userRef.current = newUserId;
       };
 
-      // Nuevo useEffect para manejar la suscripción a Firestore
       useEffect(() => {
         initFirebase();
       }, []);
 
       useEffect(() => {
         if (!dbRef.current || !userId) {
+          console.log("Waiting for DB and UserID to be ready...");
           return;
         }
+
+        console.log("Setting up Firestore listeners for user:", userId);
 
         const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
         const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
@@ -243,7 +242,6 @@
             ...doc.data()
           }));
           
-          // Reagrupamos y calculamos todo desde cero para evitar errores de sincronización
           const classesByDayTime = fetchedClasses.reduce((acc, curr) => {
             const key = `${curr.date}-${curr.day}-${curr.time}`;
             if (!acc[key]) {
@@ -368,17 +366,11 @@
 
         try {
           const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-          const existingClassesQuery = firebase.query(
-            userClassesRef,
-            firebase.where("date", "==", newEntry.date),
-            firebase.where("time", "==", newEntry.time)
-          );
-          const existingClassesSnapshot = await firebase.getDocs(existingClassesQuery);
-          const studentCount = existingClassesSnapshot.size + 1;
-          const classValue = editableValues[studentCount] || 0;
+          // No es necesario un query, el `onSnapshot` se encarga de recalcular el conteo
           const classToSave = {
               ...newEntry,
-              value: classValue,
+              // El valor se calculará en el onSnapshot
+              value: 0,
           };
           await firebase.addDoc(userClassesRef, classToSave);
           setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
