@@ -91,7 +91,8 @@
       const [authPassword, setAuthPassword] = useState('');
       const [authError, setAuthError] = useState('');
       
-      // NUEVO ESTADO: Para manejar los nombres de los estudiantes en el modal de edición de forma local
+      // FIX PARA EL BUG DEL FOCO: Estos estados locales ahora manejan los datos del modal de edición.
+      // Esto evita que se re-renderice todo el componente y pierdas el foco al escribir.
       const [localEditedStudents, setLocalEditedStudents] = useState([]);
       const [localEditedIds, setLocalEditedIds] = useState([]);
       
@@ -415,7 +416,7 @@
       };
       
       // Función para manejar el cambio en los nombres de los alumnos en el modal de edición
-      // Ahora actualiza el estado local 'localEditedStudents'
+      // FIX PARA EL BUG DEL FOCO: Esta función ahora solo actualiza el estado local 'localEditedStudents'
       const handleEditStudentNameChange = (e, studentIndex) => {
           const newStudents = [...localEditedStudents];
           newStudents[studentIndex] = e.target.value;
