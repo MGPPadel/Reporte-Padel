@@ -81,9 +81,9 @@
       const [endDate, setEndDate] = useState('');
       const [editingClass, setEditingClass] = useState(null);
       const [groupedClasses, setGroupedClasses] = useState([]);
-      // Estados para el modal de confirmación
       const [showConfirmationModal, setShowConfirmationModal] = useState(false);
       const [modalContent, setModalContent] = useState({ title: '', message: '', onConfirm: () => {} });
+      const [idsToDelete, setIdsToDelete] = useState(null); // Nuevo estado para los IDs a eliminar
       
       const firebaseConfigRef = useRef(null);
       const dbRef = useRef(null);
@@ -388,7 +388,6 @@
           return;
         }
         
-        // Modal de confirmación
         setModalContent({
             title: 'Confirmar Actualización',
             message: '¿Estás seguro de que quieres guardar los cambios? Esto eliminará los datos anteriores y creará clases nuevas.',
@@ -433,50 +432,57 @@
       };
       
       const handleDeleteStudentFromClass = (studentId) => {
-          // El problema residía en que la vista de edición podía interferir con el modal.
-          // Nos aseguramos de que no haya ninguna clase en edición antes de mostrar el modal.
-          setEditingClass(null);
-          setModalContent({
-              title: 'Confirmar Eliminación',
-              message: '¿Estás seguro de que quieres eliminar a este alumno de la clase?',
-              onConfirm: async () => {
-                  try {
-                      const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${studentId}`);
-                      await firebase.deleteDoc(docRef);
-                      
-                      setEditingClass(prev => {
-                          if (!prev) return null;
-                          const newStudents = prev.students.filter((_, i) => prev.ids[i] !== studentId);
-                          const newIds = prev.ids.filter(id => id !== studentId);
-                          return { ...prev, students: newStudents, ids: newIds };
-                      });
-                  } catch (error) {
-                      console.error("Error deleting student from class:", error);
-                  } finally {
-                      setShowConfirmationModal(false);
-                  }
-              }
-          });
-          setShowConfirmationModal(true);
+        setEditingClass(null);
+        setIdsToDelete([studentId]); // Guarda el ID del alumno a eliminar
+        setModalContent({
+            title: 'Confirmar Eliminación',
+            message: '¿Estás seguro de que quieres eliminar a este alumno de la clase?',
+            onConfirm: async () => {
+                try {
+                    const db = dbRef.current;
+                    const id = idsToDelete[0]; // Usa el estado guardado
+                    
+                    if (!db || !id) {
+                        console.error("Referencia a la base de datos o ID no disponible.");
+                        return;
+                    }
+
+                    const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
+                    await firebase.deleteDoc(docRef);
+                    setEditingClass(prev => {
+                        if (!prev) return null;
+                        const newStudents = prev.students.filter((_, i) => prev.ids[i] !== id);
+                        const newIds = prev.ids.filter(prevId => prevId !== id);
+                        return { ...prev, students: newStudents, ids: newIds };
+                    });
+                } catch (error) {
+                    console.error("Error deleting student from class:", error);
+                } finally {
+                    setShowConfirmationModal(false);
+                    setIdsToDelete(null);
+                }
+            }
+        });
+        setShowConfirmationModal(true);
       };
 
       const handleDeleteGroupedClass = (ids) => {
-        // Al igual que con el borrado de alumnos, nos aseguramos de no estar en modo de edición.
         setEditingClass(null); 
+        setIdsToDelete(ids); // Guarda los IDs de la clase completa
         setModalContent({
             title: 'Confirmar Eliminación',
             message: '¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.',
             onConfirm: async () => {
                 try {
                     const db = dbRef.current;
-                    if (!db) {
-                        console.error("Referencia a la base de datos no disponible.");
+                    const idsToProcess = idsToDelete; // Usa el estado guardado
+                    if (!db || !idsToProcess) {
+                        console.error("Referencia a la base de datos o IDs no disponibles.");
                         return;
                     }
                     
                     const batch = firebase.writeBatch(db);
-                    
-                    ids.forEach(id => {
+                    idsToProcess.forEach(id => {
                         const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
                         batch.delete(docRef);
                     });
@@ -487,6 +493,7 @@
                     console.error("Error al eliminar la clase completa:", error);
                 } finally {
                     setShowConfirmationModal(false);
+                    setIdsToDelete(null);
                 }
             }
         });
@@ -1112,6 +1119,7 @@
   </script>
 </body>
 </html>
+
 
 
 
