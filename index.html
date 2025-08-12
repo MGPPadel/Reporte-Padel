@@ -637,6 +637,7 @@
         
         doc.save("informe_mensual_detallado.pdf");
       };
+      
       const exportDatabase = () => {
         const data = {
           precios: editableValues,
@@ -651,6 +652,7 @@
         a.click();
         document.body.removeChild(a);
       };
+      
       const importDatabase = (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -658,23 +660,39 @@
         reader.onload = async (e) => {
           try {
             const data = JSON.parse(e.target.result);
-            if (data.precios) {
-              const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
-              await firebase.setDoc(userValuesDocRef, data.precios);
+            if (!data.precios && !data.clases) {
+              throw new Error("El archivo JSON no tiene el formato esperado.");
             }
+            
+            const batch = firebase.writeBatch(dbRef.current);
+            const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
+            
+            // Paso 1: Borrar todos los documentos existentes en la colección de clases
+            const snapshot = await firebase.getDocs(userClassesRef);
+            snapshot.forEach(docSnap => batch.delete(docSnap.ref));
+            
+            // Paso 2: Añadir los nuevos documentos del archivo JSON
             if (data.clases) {
-              const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-              const snapshot = await firebase.getDocs(userClassesRef);
-              snapshot.forEach(docSnap => firebase.deleteDoc(docSnap.ref));
               for (const cls of data.clases) {
-                await firebase.addDoc(userClassesRef, cls);
+                const newDocRef = firebase.doc(userClassesRef);
+                batch.set(newDocRef, cls);
               }
             }
+            
+            // Paso 3: Actualizar los precios si se proporcionan en el archivo
+            if (data.precios) {
+              const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
+              batch.set(userValuesDocRef, data.precios);
+            }
+            
+            // Confirmar todas las operaciones del batch de forma atómica
+            await batch.commit();
+
             const messageBox = document.createElement('div');
             messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
             messageBox.innerHTML = `
               <div class="bg-white p-6 rounded-lg shadow-xl">
-                <p>Base de datos importada correctamente.</p>
+                <p>Base de datos importada correctamente. Se han borrado los datos anteriores.</p>
                 <div class="flex justify-end mt-4">
                   <button class="bg-blue-500 text-white px-4 py-2 rounded-md" onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)">Aceptar</button>
                 </div>
@@ -686,14 +704,14 @@
             messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
             messageBox.innerHTML = `
               <div class="bg-white p-6 rounded-lg shadow-xl">
-                <p>Error al importar el archivo JSON.</p>
+                <p>Error al importar el archivo JSON. Asegúrate de que el formato sea correcto.</p>
                 <div class="flex justify-end mt-4">
                   <button class="bg-blue-500 text-white px-4 py-2 rounded-md" onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)">Aceptar</button>
                 </div>
               </div>
             `;
             document.body.appendChild(messageBox);
-            console.error(err);
+            console.error("Error importing database:", err);
           }
         };
         reader.readAsText(file);
