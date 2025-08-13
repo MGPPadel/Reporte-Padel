@@ -85,7 +85,7 @@
         studentName: '',
         day: '',
         time: '8:00 a. m.',
-        date: new Date().toISOString().slice(0, 10),
+        date: new Date().getFullYear() + '-' + ('0' + (new Date().getMonth() + 1)).slice(-2) + '-' + ('0' + new Date().getDate()).slice(-2),
         studentCount: 1, 
         price: defaultClassPrices[1], 
       });
@@ -178,17 +178,17 @@
       };
 
       const handleDateChange = (e) => {
-          const newDate = e.target.value;
-          const [year, month, day] = newDate.split('-').map(Number);
-const dateObj = new Date(year, month - 1, day); 
-          const dayIndex = dateObj.getDay(); 
-          const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; 
-          setNewEntry(prev => ({
-              ...prev,
-              date: newDate,
-              day: newDay,
-          }));
-      };
+  const newDate = e.target.value;
+  const [year, month, day] = newDate.split('-').map(Number);
+  const dateObj = new Date(Date.UTC(year, month - 1, day)); 
+  const dayIndex = dateObj.getUTCDay(); 
+  const newDay = daysOfWeek[dayIndex];
+  setNewEntry(prev => ({
+    ...prev,
+    date: newDate,
+    day: newDay,
+  }));
+};
 
       useEffect(() => {
         setNewEntry(prev => ({
@@ -202,14 +202,14 @@ const dateObj = new Date(year, month - 1, day);
       }, []);
 
       useEffect(() => {
-          if (newEntry.date) {
-              const [year, month, day] = newEntry.date.split('-').map(Number);
-const dateObj = new Date(year, month - 1, day);
-              const dayIndex = dateObj.getDay();
-              const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1];
-              setNewEntry(prev => ({ ...prev, day: newDay }));
-          }
-      }, [newEntry.date]);
+  if (newEntry.date) {
+    const [year, month, day] = newEntry.date.split('-').map(Number);
+    const dateObj = new Date(Date.UTC(year, month - 1, day));
+    const dayIndex = dateObj.getUTCDay();
+    const newDay = daysOfWeek[dayIndex];
+    setNewEntry(prev => ({ ...prev, day: newDay }));
+  }
+}, [newEntry.date]);
 
       const fetchPrices = async (db, currentUserId) => {
         if (!currentUserId) {
@@ -922,7 +922,10 @@ const dateObj = new Date(year, month - 1, day);
                                 <tbody className="bg-white divide-y divide-gray-200">
                                   {groupedClasses[monthKey].map((entry) => (
                                     <tr key={entry.id} className={`${colorMap[entry.studentCount]} hover:bg-gray-200 transition-colors`}>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(entry.date).toLocaleDateString()}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{(() => {
+      const [y, m, d] = entry.date.split('-').map(Number);
+      return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+    })()}</td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.day}</td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.time}</td>
                                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
@@ -1094,3 +1097,4 @@ const dateObj = new Date(year, month - 1, day);
   </script>
 </body>
 </html>
+
