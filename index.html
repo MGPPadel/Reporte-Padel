@@ -54,7 +54,7 @@
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo } = React;
 
-    const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+    const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const timesOfDay = [
       '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
     ];
@@ -181,7 +181,7 @@
           const newDate = e.target.value;
           const dateObj = new Date(newDate.replace(/-/g, '/')) 
           const dayIndex = dateObj.getDay(); 
-          const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; 
+          const newDay = daysOfWeek[dayIndex]; 
           setNewEntry(prev => ({
               ...prev,
               date: newDate,
@@ -204,7 +204,7 @@
           if (newEntry.date) {
               const dateObj = new Date(newEntry.date.replace(/-/g, '/'));
               const dayIndex = dateObj.getDay();
-              const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1];
+              const newDay = daysOfWeek[dayIndex];
               setNewEntry(prev => ({ ...prev, day: newDay }));
           }
       }, [newEntry.date]);
