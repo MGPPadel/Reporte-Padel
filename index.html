@@ -178,17 +178,18 @@
       };
 
       const handleDateChange = (e) => {
-          const newDate = e.target.value;
-          const [year, month, day] = newDate.split('-').map(Number);
-const dateObj = new Date(year, month - 1, day); 
-          const dayIndex = dateObj.getDay(); 
-          const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; 
-          setNewEntry(prev => ({
-              ...prev,
-              date: newDate,
-              day: newDay,
-          }));
-      };
+    const newDate = e.target.value;
+    const [year, month, day] = newDate.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, day);
+    const dayIndex = dateObj.getDay();
+    // Ajusta el índice para que Lunes sea 0 y Domingo sea 6
+    const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; 
+    setNewEntry(prev => ({
+        ...prev,
+        date: newDate,
+        day: daysOfWeek[dayIndex], // Usamos el array daysOfWeek tal cual
+    }));
+};
 
       useEffect(() => {
         setNewEntry(prev => ({
@@ -297,50 +298,42 @@ const dateObj = new Date(year, month - 1, day);
       };
 
       const handleAddEntry = async () => {
-        if (!newEntry.studentName || !newEntry.day || !newEntry.date || !newEntry.studentCount) {
-          showMessageBox('Error', 'Por favor, completa todos los campos.', 'error');
-          return;
-        }
+    // ... validación de campos ...
+    
+    if (!userId) {
+        showMessageBox('Error', 'Debes iniciar sesión para registrar clases.', 'error');
+        return;
+    }
 
-        if (!userId) {
-          showMessageBox('Error', 'Debes iniciar sesión para registrar clases.', 'error');
-          return;
-        }
-        
-        try {
-          const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
-          const q = firebase.query(
-            classesCollectionRef,
-            firebase.where("date", "==", newEntry.date),
-            firebase.where("day", "==", newEntry.day),
-            firebase.where("time", "==", newEntry.time)
-          );
+    try {
+        const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
 
-          if (isEditing) {
-            const classDocRef = firebase.doc(classesCollectionRef, editedClassId);
-            const updatedData = {
-              studentNames: newEntry.studentName.split(',').map(s => s.trim()), 
-              day: newEntry.day,
-              time: newEntry.time,
-              date: newEntry.date,
-              studentCount: newEntry.studentCount,
-              price: newEntry.price,
+        // Si el usuario ingresa varios nombres, se registran como clases separadas
+        const studentNames = newEntry.studentName.split(',').map(s => s.trim());
+        const batch = firebase.writeBatch(dbRef.current);
+
+        studentNames.forEach(name => {
+            const classData = {
+                studentName: name, // Ahora es una cadena, no un array
+                day: newEntry.day,
+                time: newEntry.time,
+                date: newEntry.date,
+                studentCount: newEntry.studentCount,
+                price: newEntry.price,
             };
-            await firebase.updateDoc(classDocRef, updatedData);
-            showMessageBox('Éxito', 'Clase actualizada con éxito.', 'success');
-          } else {
-            const querySnapshot = await firebase.getDocs(q);
+            const newDocRef = firebase.doc(classesCollectionRef);
+            batch.set(newDocRef, classData);
+        });
 
-            if (!querySnapshot.empty) {
-              const existingClassDoc = querySnapshot.docs[0];
-              const existingData = existingClassDoc.data();
-              const existingStudents = existingData.studentNames || [];
-              const newStudentName = newEntry.studentName;
-
-              if (existingStudents.includes(newStudentName)) {
-                showMessageBox('Error', 'Este alumno ya está registrado en esta clase.', 'error');
-                return;
-              }
+        await batch.commit();
+        showMessageBox('Éxito', 'Clase(s) registrada(s) con éxito.', 'success');
+        
+        // ... limpiar el formulario ...
+    } catch (error) {
+        console.error("Error saving document: ", error);
+        showMessageBox('Error', 'Error al registrar la clase.', 'error');
+    }
+};
 
               const updatedStudentNames = [...existingStudents, newStudentName];
               
