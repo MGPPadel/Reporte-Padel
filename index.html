@@ -4,22 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Informe de Clases de Padel</title>
-  <!-- React, ReactDOM, Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Font Awesome para los íconos -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
   <!-- Librerías para exportar a PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <!-- Firebase -->
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div id="root"></div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, deleteDoc, updateDoc, writeBatch, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, deleteDoc, updateDoc, writeBatch, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     window.firebase = {
       initializeApp,
@@ -39,20 +46,11 @@
       updateDoc,
       writeBatch,
       where,
-      getDocs
+      getDocs,
+      orderBy
     };
   </script>
   
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-  </style>
-</head>
-<body class="bg-gray-100">
-  <div id="root"></div>
-
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo } = React;
 
@@ -62,14 +60,13 @@
     ];
     
     const defaultClassPrices = {
-      1: 12000,
-      2: 19000,
-      3: 24000,
-      4: 26000,
+      1: 5000,
+      2: 3000,
+      3: 2500,
+      4: 2000,
     };
     const peopleOptions = [1, 2, 3, 4];
     
-    // Color map for classes based on student count
     const colorMap = {
         1: 'bg-yellow-100',
         2: 'bg-green-100',
@@ -85,13 +82,13 @@
       const [classes, setClasses] = useState([]);
       const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
       const [newEntry, setNewEntry] = useState({
-  studentNames: [''], // Se cambia a un array de nombres
-  day: '',
-  time: '8:00 a. m.',
-  date: new Date().toISOString().slice(0, 10),
-  studentCount: 1,
-  price: defaultClassPrices[1],
-});
+        studentName: '',
+        day: '',
+        time: '8:00 a. m.',
+        date: new Date().toISOString().slice(0, 10),
+        studentCount: 1, 
+        price: defaultClassPrices[1], 
+      });
       const [monthlyReports, setMonthlyReports] = useState([]);
       const [isEditing, setIsEditing] = useState(false);
       const [editedClassId, setEditedClassId] = useState(null);
@@ -183,9 +180,9 @@
       const handleDateChange = (e) => {
           const newDate = e.target.value;
           const [year, month, day] = newDate.split('-').map(Number);
-          const dateObj = new Date(year, month - 1, day); 
+const dateObj = new Date(year, month - 1, day); 
           const dayIndex = dateObj.getDay(); 
-          const newDay = daysOfWeek[dayIndex]; 
+          const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; 
           setNewEntry(prev => ({
               ...prev,
               date: newDate,
@@ -194,24 +191,22 @@
       };
 
       useEffect(() => {
-    // Cuando studentCount cambie, actualiza el precio y el número de campos de nombre.
-    setNewEntry(prev => ({
-      ...prev,
-      price: customPrices[prev.studentCount],
-      studentNames: Array(prev.studentCount).fill(''), // Crea un array con el número correcto de cadenas vacías
-     }));
-  }, [newEntry.studentCount, customPrices]);
-   
-        useEffect(() => {
-          initFirebase();
+        setNewEntry(prev => ({
+          ...prev,
+          price: customPrices[prev.studentCount]
+        }));
+      }, [newEntry.studentCount, customPrices]);
+
+      useEffect(() => {
+        initFirebase();
       }, []);
 
       useEffect(() => {
           if (newEntry.date) {
               const [year, month, day] = newEntry.date.split('-').map(Number);
-              const dateObj = new Date(year, month - 1, day);
+const dateObj = new Date(year, month - 1, day);
               const dayIndex = dateObj.getDay();
-              const newDay = daysOfWeek[dayIndex];
+              const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1];
               setNewEntry(prev => ({ ...prev, day: newDay }));
           }
       }, [newEntry.date]);
@@ -219,7 +214,7 @@
       const fetchPrices = async (db, currentUserId) => {
         if (!currentUserId) {
             setCustomPrices(defaultClassPrices);
-            return null;
+            return;
         }
         try {
             const docRef = firebase.doc(db, `artifacts/${appIdRef.current}/users/${currentUserId}/settings/prices`);
@@ -236,7 +231,6 @@
             return unsubscribe;
         } catch (error) {
             console.error("Error setting up prices listener:", error);
-            return null;
         }
       };
 
@@ -244,20 +238,19 @@
         if (!currentUserId) {
           setClasses([]);
           setMonthlyReports([]);
-          return null;
+          return;
         }
 
         const classesCollectionRef = firebase.collection(db, `artifacts/${appIdRef.current}/users/${currentUserId}/classes`);
-        const q = firebase.query(classesCollectionRef);
+        const q = firebase.query(classesCollectionRef, firebase.orderBy("date", "desc"));
         
         const unsubscribe = firebase.onSnapshot(q, (snapshot) => {
           const fetchedClasses = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
           }));
-          const sortedClasses = fetchedClasses.sort((a, b) => new Date(b.date) - new Date(a.date));
-          setClasses(sortedClasses);
-          generateReports(sortedClasses);
+          setClasses(fetchedClasses);
+          generateReports(fetchedClasses);
         }, (error) => {
           console.error("Error fetching classes:", error);
         });
@@ -266,9 +259,8 @@
       };
 
       useEffect(() => {
-        let unsubscribePrices = null;
-        let unsubscribeClasses = null;
-
+        let unsubscribePrices;
+        let unsubscribeClasses;
         if (dbRef.current && userId) {
           unsubscribePrices = fetchPrices(dbRef.current, userId);
           unsubscribeClasses = fetchClasses(dbRef.current, userId);
@@ -285,11 +277,10 @@
       const generateReports = (fetchedClasses) => {
         const monthly = {};
 
-        // Group classes by month and year
         fetchedClasses.forEach(entry => {
           const [year, month] = entry.date.split('-');
-          const monthKey = `${year}-${month}`; // e.g., '2025-08'
-          
+          const monthKey = `${year}-${month}`;
+
           if (!monthly[monthKey]) {
             monthly[monthKey] = { count: 0, total: 0 };
           }
@@ -297,46 +288,19 @@
           monthly[monthKey].total += entry.price; 
         });
 
-        // Convert the object to an array and format the month names
         const monthlyReportsData = Object.keys(monthly).map(monthKey => ({
-          monthKey, // e.g., '2025-08'
           month: new Date(monthKey + '-01').toLocaleString('es-ES', { year: 'numeric', month: 'long' }),
           count: monthly[monthKey].count,
           total: monthly[monthKey].total,
-        }));
-        
-        // Sort the reports by month key (most recent first)
-        monthlyReportsData.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
-        
+        })).sort((a, b) => new Date(b.month) - new Date(a.month));
         setMonthlyReports(monthlyReportsData);
       };
 
-   const handleAddEntry = async () => {
-    if (!newEntry.studentNames.every(name => name.trim() !== '')) {
-      showMessageBox('Error', 'Por favor, completa todos los nombres de los alumnos.', 'error');
-      return;
-    }
-
-    try {
-        const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
-        
-        const classData = {
-            studentNames: newEntry.studentNames, // Pasa el array directamente
-            day: newEntry.day,
-            time: newEntry.time,
-            date: newEntry.date,
-            studentCount: newEntry.studentCount,
-            price: newEntry.price,
-        };
-        
-        // ... (resto del código)
-    } catch (error) {
-        // ... (manejo de errores)
-    }
-};
-    setView('add');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-};
+      const handleAddEntry = async () => {
+        if (!newEntry.studentName || !newEntry.day || !newEntry.date || !newEntry.studentCount) {
+          showMessageBox('Error', 'Por favor, completa todos los campos.', 'error');
+          return;
+        }
 
         if (!userId) {
           showMessageBox('Error', 'Debes iniciar sesión para registrar clases.', 'error');
@@ -345,44 +309,72 @@
         
         try {
           const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
-          
-          const classData = {
-              studentNames: newEntry.studentName.split(',').map(s => s.trim()),
+          const q = firebase.query(
+            classesCollectionRef,
+            firebase.where("date", "==", newEntry.date),
+            firebase.where("day", "==", newEntry.day),
+            firebase.where("time", "==", newEntry.time)
+          );
+
+          if (isEditing) {
+            const classDocRef = firebase.doc(classesCollectionRef, editedClassId);
+            const updatedData = {
+              studentNames: newEntry.studentName.split(',').map(s => s.trim()), 
               day: newEntry.day,
               time: newEntry.time,
               date: newEntry.date,
               studentCount: newEntry.studentCount,
               price: newEntry.price,
-          };
-          
-          if (isEditing) {
-            const classDocRef = firebase.doc(classesCollectionRef, editedClassId);
-            await firebase.updateDoc(classDocRef, classData);
+            };
+            await firebase.updateDoc(classDocRef, updatedData);
             showMessageBox('Éxito', 'Clase actualizada con éxito.', 'success');
           } else {
-            const q = firebase.query(
-              classesCollectionRef,
-              firebase.where("date", "==", newEntry.date),
-              firebase.where("time", "==", newEntry.time)
-            );
             const querySnapshot = await firebase.getDocs(q);
 
             if (!querySnapshot.empty) {
-              showMessageBox('Error', 'Ya existe una clase en la misma fecha y hora. Usa la función de editar si quieres modificarla.', 'error');
-              return;
+              const existingClassDoc = querySnapshot.docs[0];
+              const existingData = existingClassDoc.data();
+              const existingStudents = existingData.studentNames || [];
+              const newStudentName = newEntry.studentName;
+
+              if (existingStudents.includes(newStudentName)) {
+                showMessageBox('Error', 'Este alumno ya está registrado en esta clase.', 'error');
+                return;
+              }
+
+              const updatedStudentNames = [...existingStudents, newStudentName];
+              
+              if (updatedStudentNames.length > existingData.studentCount) {
+                  showMessageBox('Error', `Esta clase solo es para ${existingData.studentCount} personas.`, 'error');
+                  return;
+              }
+
+              const docRef = existingClassDoc.ref;
+              await firebase.updateDoc(docRef, {
+                studentNames: updatedStudentNames,
+              });
+              showMessageBox('Éxito', `Alumno "${newStudentName}" añadido a la clase existente.`, 'success');
+            } else {
+              const classData = {
+                studentNames: [newEntry.studentName],
+                day: newEntry.day,
+                time: newEntry.time,
+                date: newEntry.date,
+                studentCount: newEntry.studentCount,
+                price: newEntry.price,
+              };
+              await firebase.addDoc(classesCollectionRef, classData);
+              showMessageBox('Éxito', 'Clase registrada con éxito.', 'success');
             }
-            await firebase.addDoc(classesCollectionRef, classData);
-            showMessageBox('Éxito', 'Clase registrada con éxito.', 'success');
           }
           
-        setNewEntry({
-    studentNames: [''], // Restablece a un array con una cadena vacía
-    day: '',
-    time: '8:00 a. m.',
-    date: new Date().toISOString().slice(0, 10),
-    studentCount: 1,
-    price: customPrices[1],
-});
+          setNewEntry({
+            studentName: '',
+            day: '',
+            time: '8:00 a. m.',
+            date: new Date().toISOString().slice(0, 10),
+            studentCount: 1,
+            price: customPrices[1],
           });
           setIsEditing(false);
           setEditedClassId(null);
@@ -425,7 +417,6 @@
           studentCount: entry.studentCount,
           price: entry.price,
         });
-        setView('add');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
       
@@ -488,83 +479,92 @@
         };
         input.click();
       };
-
+      
       const handleExportPdf = () => {
-        const input = tableRef.current;
-        if (!input || classes.length === 0) {
-          showMessageBox('Advertencia', 'No hay datos para exportar.', 'error');
-          return;
-        }
+          const input = tableRef.current;
+          if (!input || classes.length === 0) {
+              showMessageBox('Advertencia', 'No hay datos para exportar.', 'error');
+              return;
+          }
 
-        const tableClone = input.cloneNode(true);
-        const pdfContent = document.createElement('div');
-        pdfContent.style.width = '100%';
-        pdfContent.style.padding = '20px';
-        pdfContent.style.boxSizing = 'border-box';
-        pdfContent.style.fontFamily = 'Inter, sans-serif';
-        pdfContent.innerHTML = `
-          <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Informe de Clases de Padel</h1>
-          ${tableClone.outerHTML}
-          <div style="margin-top: 50px; text-align: right;">
-            <p style="border-bottom: 1px solid #000; width: 250px; display: inline-block;"></p>
-            <p style="margin-top: 5px; font-size: 14px; font-weight: bold;">Mariana Garcia Pinto</p>
-          </div>
-        `;
-        document.body.appendChild(pdfContent);
+          const tableClone = input.cloneNode(true);
+          tableClone.querySelectorAll('h3').forEach(h3 => {
+              h3.textContent = h3.textContent.toUpperCase();
+          });
+          
+          const pdfContent = document.createElement('div');
+          pdfContent.style.width = '100%';
+          pdfContent.style.padding = '20px';
+          pdfContent.style.boxSizing = 'border-box';
+          pdfContent.style.fontFamily = 'Inter, sans-serif';
 
-        window.html2canvas(pdfContent, { scale: 2 }).then((canvas) => {
-          const imgData = canvas.toDataURL('image/png');
-          const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
-          const imgProps = pdf.getImageProperties(imgData);
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-          pdf.save(`reporte-padel-${new Date().toISOString().slice(0, 10)}.pdf`);
-          showMessageBox('Éxito', 'Reporte PDF exportado con éxito.', 'success');
-        }).catch(error => {
-          console.error("Error generating PDF:", error);
-          showMessageBox('Error', 'Error al generar el PDF.', 'error');
-        }).finally(() => {
-          document.body.removeChild(pdfContent);
-        });
+          pdfContent.innerHTML = `
+              <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Informe de Clases de Padel</h1>
+              ${tableClone.outerHTML}
+              <div style="margin-top: 50px; text-align: right;">
+                <p style="border-bottom: 1px solid #000; width: 250px; display: inline-block;"></p>
+                <p style="margin-top: 5px; font-size: 14px; font-weight: bold;">Mariana Garcia Pinto</p>
+              </div>
+          `;
+
+          document.body.appendChild(pdfContent);
+
+          html2canvas(pdfContent, {
+            scale: 2 
+          }).then((canvas) => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jspdf.jsPDF('p', 'mm', 'a4'); 
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`reporte-padel-${new Date().toISOString().slice(0, 10)}.pdf`);
+            showMessageBox('Éxito', 'Reporte PDF exportado con éxito.', 'success');
+          }).catch(error => {
+            console.error("Error generating PDF:", error);
+            showMessageBox('Error', 'Error al generar el PDF.', 'error');
+          }).finally(() => {
+              document.body.removeChild(pdfContent);
+          });
       };
-
+      
       const handleSignIn = async () => {
-        if (!email || !password) {
-          showMessageBox('Error', 'Por favor, ingresa un email y una contraseña.', 'error');
-          return;
-        }
-        try {
-          await firebase.signInWithEmailAndPassword(authRef.current, email, password);
-          showMessageBox('Éxito', 'Inicio de sesión exitoso.', 'success');
-        } catch (error) {
-          console.error("Error al iniciar sesión:", error.message);
-          showMessageBox('Error', 'Error al iniciar sesión. Verifica tus credenciales.', 'error');
-        }
+          if (!email || !password) {
+              showMessageBox('Error', 'Por favor, ingresa un email y una contraseña.', 'error');
+              return;
+          }
+          try {
+              await firebase.signInWithEmailAndPassword(authRef.current, email, password);
+              showMessageBox('Éxito', 'Inicio de sesión exitoso.', 'success');
+          } catch (error) {
+              console.error("Error al iniciar sesión:", error.message);
+              showMessageBox('Error', 'Error al iniciar sesión. Verifica tus credenciales.', 'error');
+          }
       };
 
       const handleSignUp = async () => {
-        if (!email || !password) {
-          showMessageBox('Error', 'Por favor, ingresa un email y una contraseña.', 'error');
-          return;
-        }
-        try {
-          await firebase.createUserWithEmailAndPassword(authRef.current, email, password);
-          showMessageBox('Éxito', 'Registro exitoso. ¡Bienvenido!', 'success');
-        } catch (error) {
-          console.error("Error al registrar:", error.message);
-          showMessageBox('Error', 'Error al registrar. Intenta con otro email.', 'error');
-        }
+          if (!email || !password) {
+              showMessageBox('Error', 'Por favor, ingresa un email y una contraseña.', 'error');
+              return;
+          }
+          try {
+              await firebase.createUserWithEmailAndPassword(authRef.current, email, password);
+              showMessageBox('Éxito', 'Registro exitoso. ¡Bienvenido!', 'success');
+          } catch (error) {
+              console.error("Error al registrar:", error.message);
+              showMessageBox('Error', 'Error al registrar. Intenta con otro email.', 'error');
+          }
       };
-
+      
       const handleSignOut = async () => {
-        try {
-          await firebase.signOut(authRef.current);
-          showMessageBox('Éxito', 'Cierre de sesión exitoso.', 'success');
-        } catch (error) {
-          console.error("Error al cerrar sesión:", error.message);
-          showMessageBox('Error', 'Error al cerrar sesión.', 'error');
-        }
+          try {
+              await firebase.signOut(authRef.current);
+              showMessageBox('Éxito', 'Cierre de sesión exitoso.', 'success');
+          } catch (error) {
+              console.error("Error al cerrar sesión:", error.message);
+              showMessageBox('Error', 'Error al cerrar sesión.', 'error');
+          }
       };
 
       const handleSaveConfig = () => {
@@ -580,511 +580,518 @@
 
       const handleSavePrices = async () => {
         if (!userId) {
-          showMessageBox('Error', 'Debes iniciar sesión para guardar los precios.', 'error');
-          return;
+            showMessageBox('Error', 'Debes iniciar sesión para guardar los precios.', 'error');
+            return;
         }
         try {
-          const pricesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/settings/prices`);
-          await firebase.setDoc(pricesDocRef, customPrices);
-          showMessageBox('Éxito', 'Precios guardados con éxito.', 'success');
+            const pricesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/settings/prices`);
+            await firebase.setDoc(pricesDocRef, customPrices);
+            showMessageBox('Éxito', 'Precios guardados con éxito.', 'success');
         } catch (error) {
-          console.error("Error al guardar los precios:", error);
-          showMessageBox('Error', 'Error al guardar los precios.', 'error');
+            console.error("Error al guardar los precios:", error);
+            showMessageBox('Error', 'Error al guardar los precios.', 'error');
         }
       };
-      
-      const getFilteredAndGroupedClasses = (classes, filterText) => {
-        const filteredClasses = classes.filter(cls =>
-          cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()))
-        );
-        
-        // Group classes by month and year
-        const grouped = filteredClasses.reduce((acc, cls) => {
-          const date = new Date(cls.date);
-          const year = date.getFullYear();
-          const month = date.getMonth();
-          const monthKey = `${year}-${month}`; // e.g., '2025-7' for August 2025
-          
-          if (!acc[monthKey]) {
-            acc[monthKey] = {
-              monthName: date.toLocaleString('es-ES', { month: 'long', year: 'numeric' }),
-              classes: []
-            };
-          }
-          acc[monthKey].classes.push(cls);
-          return acc;
-        }, {});
-        
-        // Convert the object to an array and sort by date
-        return Object.values(grouped).sort((a, b) => new Date(b.classes[0].date) - new Date(a.classes[0].date));
-      };
 
+      const getFilteredAndGroupedClasses = (classes, filterText) => {
+          const filteredClasses = classes.filter(cls => 
+              cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()))
+          );
+          
+          return filteredClasses.reduce((acc, cls) => {
+              const [year, month] = cls.date.split('-');
+              const monthKey = `${year}-${month}`;
+              if (!acc[monthKey]) {
+                acc[monthKey] = [];
+              }
+              acc[monthKey].push(cls);
+              return acc;
+          }, {});
+      };
+      
+      const groupedClasses = getFilteredAndGroupedClasses(classes, filterText);
 
       const daysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
       const firstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay(); // 0 = Domingo
-      
       const classesForDay = useMemo(() => {
-        const formattedDate = selectedDate.toISOString().slice(0, 10);
-        return classes.filter(cls => cls.date === formattedDate);
+          const formattedDate = selectedDate.toISOString().slice(0, 10);
+          return classes.filter(cls => cls.date === formattedDate);
       }, [classes, selectedDate]);
-
       const hasClassesOnDate = (date) => {
-        const formattedDate = date.toISOString().slice(0, 10);
-        return classes.some(cls => cls.date === formattedDate);
+          const formattedDate = date.toISOString().slice(0, 10);
+          return classes.some(cls => cls.date === formattedDate);
       };
+      
+      const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
+          if (!show) return null;
 
-      const MessageBox = ({ title, content, type, onConfirm, onClose }) => {
-        const bgColor = type === 'success' ? 'bg-green-100' : type === 'error' ? 'bg-red-100' : 'bg-white';
-        const borderColor = type === 'success' ? 'border-green-500' : type === 'error' ? 'border-red-500' : 'border-gray-400';
-        const titleColor = type === 'success' ? 'text-green-800' : type === 'error' ? 'text-red-800' : 'text-gray-900';
-        const buttonColor = type === 'success' ? 'bg-green-500 hover:bg-green-600' : type === 'error' ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600';
+          let icon, bgColor, buttonColor, titleColor;
+          switch (type) {
+              case 'success':
+                  icon = <i className="fas fa-check-circle text-4xl text-green-500"></i>;
+                  bgColor = 'bg-white';
+                  titleColor = 'text-green-600';
+                  break;
+              case 'error':
+                  icon = <i className="fas fa-times-circle text-4xl text-red-500"></i>;
+                  bgColor = 'bg-white';
+                  titleColor = 'text-red-600';
+                  break;
+              case 'confirm':
+                  icon = <i className="fas fa-question-circle text-4xl text-blue-500"></i>;
+                  bgColor = 'bg-white';
+                  titleColor = 'text-blue-600';
+                  break;
+              default:
+                  icon = null;
+          }
 
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50">
-            <div className={`p-6 rounded-lg shadow-xl border-l-4 ${bgColor} ${borderColor} w-11/12 max-w-sm`}>
-              <h3 className={`text-xl font-bold mb-4 ${titleColor}`}>{title}</h3>
-              <p className="text-gray-700 mb-6">{content}</p>
-              <div className="flex justify-end space-x-4">
-                {type === 'confirm' && (
-                  <button onClick={onClose} className="py-2 px-4 rounded-lg bg-gray-300 text-gray-800 hover:bg-gray-400">Cancelar</button>
-                )}
-                <button onClick={() => { onConfirm && onConfirm(); onClose(); }} className={`py-2 px-4 rounded-lg text-white font-bold ${buttonColor}`}>
-                  {type === 'confirm' ? 'Aceptar' : 'Cerrar'}
-                </button>
+          return (
+              <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                  <div className={`p-6 rounded-xl shadow-xl w-full max-w-sm text-center ${bgColor} transform transition-all duration-300 ease-in-out scale-100`}>
+                      <div className="mb-4">{icon}</div>
+                      <h3 className={`text-lg font-bold mb-2 ${titleColor}`}>{title}</h3>
+                      <p className="mb-6 text-gray-700">{content}</p>
+                      <div className="flex justify-around">
+                          {type === 'confirm' && (
+                              <button
+                                  onClick={onClose}
+                                  className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors"
+                              >
+                                  Cancelar
+                              </button>
+                          )}
+                          <button
+                              onClick={() => {
+                                  if (onConfirm) onConfirm();
+                                  onClose();
+                              }}
+                              className={`px-4 py-2 text-white rounded-lg transition-colors ${type === 'confirm' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                          >
+                              {type === 'confirm' ? 'Confirmar' : 'Entendido'}
+                          </button>
+                      </div>
+                  </div>
               </div>
-            </div>
-          </div>
-        );
+          );
       };
-
-      if (loading) {
-        return (
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-blue-500 text-xl font-bold animate-pulse">Cargando...</div>
-          </div>
-        );
-      }
+      
+      const filteredClassesForSelectedDate = useMemo(() => {
+          return classesForDay.filter(cls => 
+              cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()))
+          );
+      }, [classesForDay, filterText]);
 
       return (
-        <div className="container mx-auto px-4 py-8 bg-white rounded-lg shadow-xl">
-          {messageBox.show && (
-            <MessageBox
-              title={messageBox.title}
-              content={messageBox.content}
-              type={messageBox.type}
-              onConfirm={messageBox.onConfirm}
-              onClose={closeMessageBox}
-            />
-          )}
-
+        <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
+          <MessageBox
+            show={messageBox.show}
+            title={messageBox.title}
+            content={messageBox.content}
+            type={messageBox.type}
+            onConfirm={messageBox.onConfirm}
+            onClose={closeMessageBox}
+          />
           {showConfigModal && (
-            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
-              <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
-                <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">Configuración de Firebase</h2>
-                <p className="text-gray-600 mb-6 text-center">
-                  Por favor, pega tu objeto de configuración de Firebase aquí.
-                </p>
-                {configError && <p className="text-red-500 text-center mb-4">{configError}</p>}
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+              <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4">Configurar Firebase</h2>
+                {configError && <p className="text-red-500 text-sm mb-4">{configError}</p>}
                 <textarea
-                  className="w-full h-40 p-4 mb-4 border border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="E.g., { 'apiKey': '...', 'projectId': '...' }"
+                  className="w-full h-32 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Pega tu objeto de configuración de Firebase aquí..."
                   value={firebaseConfigInput}
                   onChange={(e) => setFirebaseConfigInput(e.target.value)}
                 ></textarea>
                 <button
-                  onClick={handleSaveConfig}
-                  className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                  onClick={() => handleSaveConfig()}
+                  className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
                 >
-                  Guardar y Conectar
+                  Guardar Configuración
                 </button>
               </div>
             </div>
           )}
 
-          {!userId ? (
-            <div className="max-w-md mx-auto p-8 bg-white rounded-lg shadow-2xl mt-10">
-              <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-6">Acceso a la App de Padel</h2>
-              <p className="text-center text-gray-500 mb-8">
-                Inicia sesión o regístrate para empezar a gestionar tus clases.
-              </p>
-              <div className="space-y-4">
-                <input
-                  type="email"
-                  placeholder="Correo electrónico"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <input
-                  type="password"
-                  placeholder="Contraseña"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button
-                  onClick={handleSignIn}
-                  className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg hover:bg-blue-700 transition-colors"
-                >
-                  <i className="fas fa-sign-in-alt mr-2"></i> Iniciar Sesión
-                </button>
-                <button
-                  onClick={handleSignUp}
-                  className="w-full bg-green-600 text-white font-bold py-3 rounded-lg shadow-lg hover:bg-green-700 transition-colors"
-                >
-                  <i className="fas fa-user-plus mr-2"></i> Registrarse
-                </button>
-              </div>
+          {loading ? (
+            <div className="flex justify-center items-center h-48">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+              <p className="ml-4 text-gray-600">Conectando a la nube y cargando datos...</p>
             </div>
-          ) : (
-            <>
-              <div className="flex flex-col md:flex-row justify-between items-center mb-8 pb-4 border-b-2 border-gray-200">
-                <div className="flex items-center space-x-4 mb-4 md:mb-0">
-                  <h1 className="text-4xl font-extrabold text-gray-800">
-                    <i className="fas fa-tennis-ball text-blue-500 mr-2"></i> Informe de Clases
-                  </h1>
-                </div>
+          ) : userId ? (
+            <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
+              <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
-                  <button onClick={handleSignOut} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">
-                    <i className="fas fa-sign-out-alt mr-2"></i> Salir
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-6h-2v6zm0-8h2V7h-2v2z" />
+                  </svg>
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Reporte Padel</h1>
+                    <p className="text-sm text-gray-500">Versión 12.8</p>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button onClick={handleExportData} className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18h14v2H5v-2z" />
+                    </svg>
+                    <span>Exportar BD</span>
+                  </button>
+                  <button onClick={handleImportData} className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-600 transition-colors flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 15v-3h-4V5h-2v7H9v3H5l7 7 7-7z" />
+                    </svg>
+                    <span>Importar BD</span>
+                  </button>
+                  <button onClick={handleExportPdf} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-colors flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 4h-3V2H8v2H5c-1.1 0-1.99.9-1.99 2L3 20c0 1.1.89 2 1.99 2H19c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V6h14v14zM9 10h6v2H9v-2zm0 4h6v2H9v-2z" />
+                    </svg>
+                    <span>Exportar PDF</span>
+                  </button>
+                  <button onClick={handleSignOut} className="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-600 transition-colors flex items-center space-x-1">
+                    <i className="fas fa-sign-out-alt"></i>
+                    <span>Cerrar Sesión</span>
                   </button>
                 </div>
               </div>
 
-              <div className="flex space-x-1 mb-6 border-b border-gray-200">
-                <button
-                  onClick={() => setView('list')}
-                  className={`flex-1 py-3 px-4 text-center text-sm font-bold transition-colors ${view === 'list' ? 'bg-blue-600 text-white rounded-t-lg' : 'bg-gray-200 text-gray-700 rounded-t-lg hover:bg-gray-300'}`}
-                >
-                  <i className="fas fa-list mr-2"></i> Listado
-                </button>
-                <button
-                  onClick={() => setView('add')}
-                  className={`flex-1 py-3 px-4 text-center text-sm font-bold transition-colors ${view === 'add' ? 'bg-blue-600 text-white rounded-t-lg' : 'bg-gray-200 text-gray-700 rounded-t-lg hover:bg-gray-300'}`}
-                >
-                  <i className="fas fa-plus-circle mr-2"></i> Añadir Clase
-                </button>
-                <button
-                  onClick={() => setView('reports')}
-                  className={`flex-1 py-3 px-4 text-center text-sm font-bold transition-colors ${view === 'reports' ? 'bg-blue-600 text-white rounded-t-lg' : 'bg-gray-200 text-gray-700 rounded-t-lg hover:bg-gray-300'}`}
-                >
-                  <i className="fas fa-chart-bar mr-2"></i> Reportes
-                </button>
-                <button
-                  onClick={() => { setView('calendar'); setSelectedDate(new Date()); }}
-                  className={`flex-1 py-3 px-4 text-center text-sm font-bold transition-colors ${view === 'calendar' ? 'bg-blue-600 text-white rounded-t-lg' : 'bg-gray-200 text-gray-700 rounded-t-lg hover:bg-gray-300'}`}
-                >
-                  <i className="fas fa-calendar-alt mr-2"></i> Calendario
-                </button>
-                <button
-                  onClick={() => setView('settings')}
-                  className={`flex-1 py-3 px-4 text-center text-sm font-bold transition-colors ${view === 'settings' ? 'bg-blue-600 text-white rounded-t-lg' : 'bg-gray-200 text-gray-700 rounded-t-lg hover:bg-gray-300'}`}
-                >
-                  <i className="fas fa-cog mr-2"></i> Configuración
-                </button>
+              <div className="bg-blue-50 border-l-4 border-blue-400 text-blue-800 p-4 mb-6 rounded-lg">
+                <p className="font-bold">¡Bienvenido de nuevo!</p>
+                <p>Has iniciado sesión con el ID de usuario: <span className="font-mono bg-blue-200 px-1 rounded">{userId}</span></p>
               </div>
 
-{view === 'add' && (
-  <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
-    <h2 className="text-2xl font-bold text-gray-800 mb-6">
-      {isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}
-    </h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-      {/* ➡️ Mover el select de alumnos al inicio */}
-      <select
-        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={newEntry.studentCount}
-        onChange={(e) => setNewEntry(prev => ({...prev, studentCount: parseInt(e.target.value), price: customPrices[parseInt(e.target.value)]}))}
-      >
-        <option value="" disabled>Selecciona la cantidad de alumnos</option>
-        {peopleOptions.map(num => (
-          <option key={num} value={num}>
-            {num} {num === 1 ? 'Alumno' : 'Alumnos'}
-          </option>
-        ))}
-      </select>
-      
-      {Array.from({ length: newEntry.studentCount }).map((_, index) => (
-    <input
-        key={index}
-        type="text"
-        placeholder={`Nombre del Alumno ${index + 1}`}
-        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={newEntry.studentNames[index] || ''}
-        onChange={(e) => {
-            const newNames = [...newEntry.studentNames];
-            newNames[index] = e.target.value;
-            setNewEntry(prev => ({ ...prev, studentNames: newNames }));
-        }}
-    />
-))}
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-chart-bar text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">Informes Mensuales</h2>
+              </div>
+              <div className="overflow-x-auto mb-6">
+                <div className="flex space-x-4 pb-4">
+                  {monthlyReports.map((report, index) => (
+                    <div key={index} className="flex-none w-64 bg-gray-50 p-4 rounded-xl shadow-md">
+                      <h3 className="font-semibold text-gray-700">{report.month.toUpperCase()}</h3>
+                      <p className="text-sm text-gray-600">Clases: {report.count}</p>
+                      <p className="text-lg font-bold text-gray-900 mt-1">Total: ${report.total.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-      <input
-        type="date"
-        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={newEntry.date}
-        onChange={handleDateChange}
-      />
-      <select
-        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={newEntry.time}
-        onChange={(e) => setNewEntry({...newEntry, time: e.target.value})}
-      >
-        <option value="" disabled>Selecciona la hora</option>
-        {timesOfDay.map(time => (
-          <option key={time} value={time}>
-            {time}
-          </option>
-        ))}
-      </select>
-    </div>
-    <div className="flex space-x-4">
-      <p className="text-lg font-semibold text-gray-700">Día de la semana: <span className="text-blue-600">{newEntry.day || 'N/A'}</span></p>
-      <p className="text-lg font-semibold text-gray-700">Precio de la clase: <span className="text-green-600">${newEntry.price}</span></p>
-    </div>
-    <div className="mt-6 flex space-x-4">
-      <button
-        onClick={handleAddEntry}
-        className="flex-1 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-      >
-        <i className="fas fa-save mr-2"></i> {isEditing ? 'Guardar Cambios' : 'Registrar Clase'}
-      </button>
-      {isEditing && (
-        <button
-          onClick={handleCancelEdit}
-          className="bg-gray-400 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-500 transition-colors"
-        >
-          <i className="fas fa-times-circle mr-2"></i> Cancelar
-        </button>
-      )}
-    </div>
-  </div>
-)}
-
-              {view === 'list' && (
-                <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">Listado de Clases</h2>
-                  <div className="flex justify-between items-center mb-6">
-                    <input
-                      type="text"
-                      placeholder="Filtrar por nombre de alumno..."
-                      value={filterText}
-                      onChange={(e) => setFilterText(e.target.value)}
-                      className="p-3 border border-gray-300 rounded-lg flex-1 mr-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex space-x-2">
-                        <button onClick={handleExportData} className="p-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                            <i className="fas fa-download"></i>
-                        </button>
-                        <button onClick={handleImportData} className="p-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                            <i className="fas fa-upload"></i>
-                        </button>
-                        <button onClick={handleExportPdf} className="p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                            <i className="fas fa-file-pdf"></i>
-                        </button>
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-cogs text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">Configuración de Precios</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
+                {peopleOptions.map(count => (
+                  <div key={count}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Precio para {count} {count === 1 ? 'persona' : 'personas'}
+                    </label>
+                    <div className="relative mt-1 rounded-md shadow-sm">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <span className="text-gray-500 sm:text-sm">$</span>
+                      </div>
+                      <input
+                        type="number"
+                        value={customPrices[count] || ''}
+                        onChange={(e) => setCustomPrices({ ...customPrices, [count]: parseInt(e.target.value) || 0 })}
+                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
                     </div>
                   </div>
-                  <div ref={tableRef} className="overflow-x-auto rounded-lg shadow">
-                    <table className="min-w-full bg-white">
-                      <thead className="bg-blue-600 text-white">
-                        <tr>
-                          <th className="py-3 px-4 text-left">Fecha</th>
-                          <th className="py-3 px-4 text-left">Día</th>
-                          <th className="py-3 px-4 text-left">Hora</th>
-                          <th className="py-3 px-4 text-left">Alumnos</th>
-                          <th className="py-3 px-4 text-left">Alumnos Totales</th>
-                          <th className="py-3 px-4 text-left">Precio por Clase</th>
-                          <th className="py-3 px-4 text-left">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getFilteredAndGroupedClasses(classes, filterText).length > 0 ? (
-                          getFilteredAndGroupedClasses(classes, filterText).map(monthGroup => (
-                            <React.Fragment key={monthGroup.monthName}>
-                              <tr className="bg-gray-200">
-                                <th colSpan="7" className="py-2 px-4 text-left text-sm font-bold text-gray-700">
-                                  {monthGroup.monthName}
-                                </th>
-                              </tr>
-                              {monthGroup.classes.map(entry => (
-                                <tr key={entry.id} className={`${colorMap[entry.studentCount] || 'bg-white'} border-b border-gray-200 hover:bg-opacity-75 transition-colors`}>
-                                  <td className="py-3 px-4">{entry.date}</td>
-                                  <td className="py-3 px-4">{entry.day}</td>
-                                  <td className="py-3 px-4">{entry.time}</td>
-                                  <td className="py-3 px-4">
-                                    <ul className="list-none m-0 p-0">
-                                      {entry.studentNames.map((name, index) => (
-                                        <li key={index} className="flex items-center space-x-2">
-                                          <i className="fas fa-user-circle text-sm text-gray-500"></i>
-                                          <span>{name}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </td>
-                                  <td className="py-3 px-4">{entry.studentCount}</td>
-                                  <td className="py-3 px-4">${entry.price}</td>
-                                  <td className="py-3 px-4 flex space-x-2">
-                                    <button onClick={() => handleEditEntry(entry)} className="text-blue-500 hover:text-blue-700 transition-colors">
-                                      <i className="fas fa-edit"></i>
-                                    </button>
-                                    <button onClick={() => confirmDeletion(entry)} className="text-red-500 hover:text-red-700 transition-colors">
-                                      <i className="fas fa-trash"></i>
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </React.Fragment>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="7" className="py-4 text-center text-gray-500">
-                              No hay clases registradas.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                ))}
+                <div className="md:col-span-2 lg:col-span-1 flex items-end">
+                  <button onClick={handleSavePrices} className="w-full bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-indigo-700 transition-colors">
+                    Guardar Precios
+                  </button>
                 </div>
-              )}
+              </div>
               
-              {view === 'reports' && (
-                <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">Reportes Mensuales</h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    <i className="fas fa-info-circle mr-1"></i> Se muestran solo los meses con clases registradas, ordenados del más reciente al más antiguo.
-                  </p>
-                  <div className="overflow-x-auto rounded-lg shadow">
-                    <table className="min-w-full bg-white">
-                      <thead className="bg-blue-600 text-white">
-                        <tr>
-                          <th className="py-3 px-4 text-left">Mes</th>
-                          <th className="py-3 px-4 text-left">Clases Totales</th>
-                          <th className="py-3 px-4 text-left">Ingreso Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {monthlyReports.length > 0 ? (
-                          monthlyReports.map((report, index) => (
-                            <tr key={index} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                              <td className="py-3 px-4">{report.month}</td>
-                              <td className="py-3 px-4">{report.count}</td>
-                              <td className="py-3 px-4">${report.total}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="3" className="py-4 text-center text-gray-500">
-                              No hay datos de reportes.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-plus-circle text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
+                <input
+                  type="text"
+                  placeholder="Nombre del Alumno"
+                  value={newEntry.studentName}
+                  onChange={(e) => setNewEntry({ ...newEntry, studentName: e.target.value })}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <input
+                  type="date"
+                  value={newEntry.date}
+                  onChange={handleDateChange}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <select
+                  value={newEntry.day}
+                  disabled={true}
+                  className="p-3 border border-gray-300 rounded-lg bg-gray-200 cursor-not-allowed text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {daysOfWeek.map(day => <option key={day} value={day}>{day}</option>)}
+                </select>
+                <select
+                  value={newEntry.time}
+                  onChange={(e) => setNewEntry({ ...newEntry, time: e.target.value })}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {timesOfDay.map(time => <option key={time} value={time}>{time}</option>)}
+                </select>
+                <select
+                  value={newEntry.studentCount}
+                  onChange={(e) => setNewEntry({ ...newEntry, studentCount: parseInt(e.target.value) })}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {peopleOptions.map(count => <option key={count} value={count}>{count} {count === 1 ? 'persona' : 'personas'}</option>)}
+                </select>
+                <div className="p-3 border border-gray-300 rounded-lg bg-white flex items-center justify-between col-span-1">
+                  <span className="text-gray-500">Valor de la Clase:</span>
+                  <span className="font-bold text-gray-900">${newEntry.price.toLocaleString()}</span>
                 </div>
-              )}
+                {isEditing ? (
+                  <div className="md:col-span-2 lg:col-span-2 flex space-x-2">
+                    <button onClick={handleAddEntry} className="w-1/2 bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                      Guardar Cambios
+                    </button>
+                    <button onClick={handleCancelEdit} className="w-1/2 bg-gray-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-600 transition-colors">
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={handleAddEntry} className="md:col-span-2 lg:col-span-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                    Registrar Clase
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-list-ul text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">Listado de Clases Registradas</h2>
+              </div>
+              <div className="flex justify-between items-center mb-4">
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={() => setView('list')}
+                      className={`py-2 px-4 rounded-lg font-bold transition-colors ${view === 'list' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      <i className="fas fa-list mr-2"></i>Vista de Lista
+                    </button>
+                    <button 
+                      onClick={() => setView('calendar')}
+                      className={`py-2 px-4 rounded-lg font-bold transition-colors ${view === 'calendar' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      <i className="fas fa-calendar-alt mr-2"></i>Vista de Calendario
+                    </button>
+                  </div>
+                  {view === 'list' && (
+                      <input
+                          type="text"
+                          placeholder="Filtrar por nombre de alumno..."
+                          value={filterText}
+                          onChange={(e) => setFilterText(e.target.value)}
+                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full md:w-1/2 lg:w-1/3"
+                      />
+                  )}
+              </div>
               
-              {view === 'calendar' && (
-                <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">Calendario de Clases</h2>
-                  <div className="flex justify-between items-center mb-4">
+              {view === 'list' ? (
+                <div ref={tableRef} className="bg-white rounded-xl shadow-md mb-6">
+                  {Object.keys(groupedClasses).length > 0 ? (
+                    Object.keys(groupedClasses).sort((a, b) => b.localeCompare(a)).map(monthKey => {
+                      const [year, month] = monthKey.split('-');
+                      const displayDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+                      return (
+                          <div key={monthKey} className="pb-4">
+                            <h3 className="bg-gray-100 font-bold text-lg p-4 sticky top-0 border-b border-gray-200">
+                              {displayDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
+                            </h3>
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                  <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Día</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Horario</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alumnos</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {groupedClasses[monthKey].map((entry) => (
+                                    <tr key={entry.id} className={`${colorMap[entry.studentCount]} hover:bg-gray-200 transition-colors`}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(entry.date).toLocaleDateString()}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.day}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.time}</td>
+                                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                        <ul className="list-disc list-inside">
+                                          {entry.studentNames.map((name, index) => (
+                                            <li key={index}>{name}</li>
+                                          ))}
+                                        </ul>
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${entry.price.toLocaleString()}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button onClick={() => handleEditEntry(entry)} className="text-blue-600 hover:text-blue-900 mr-2">
+                                          <i className="fas fa-edit"></i>
+                                        </button>
+                                        <button onClick={() => confirmDeletion(entry)} className="text-red-600 hover:text-red-900">
+                                          <i className="fas fa-trash-alt"></i>
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-6 text-center italic text-gray-500">
+                      No hay clases registradas.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
                     <button
-                      onClick={() => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-                      className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors"
+                      onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1))}
+                      className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors"
                     >
                       <i className="fas fa-chevron-left"></i>
                     </button>
-                    <span className="text-lg font-bold">
+                    <h3 className="text-xl font-bold">
                       {selectedDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
-                    </span>
+                    </h3>
                     <button
-                      onClick={() => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-                      className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors"
+                      onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1))}
+                      className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors"
                     >
                       <i className="fas fa-chevron-right"></i>
                     </button>
                   </div>
-                  <div className="grid grid-cols-7 text-center font-bold bg-blue-600 text-white rounded-t-lg">
-                    {daysOfWeek.map(day => (
-                      <div key={day} className="p-3">
-                        {day.substring(0, 3)}
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-7 gap-1 text-center font-semibold text-sm mb-2">
+                    {daysOfWeek.map(day => <span key={day} className="text-gray-500">{day.substring(0, 3)}</span>)}
                   </div>
-                  <div className="grid grid-cols-7 border border-gray-300 rounded-b-lg">
-                    {(() => {
-                        const firstDay = firstDayOfMonth(selectedDate);
-                        const startDay = firstDay; // First day of week is Sunday (0)
-                        const emptyCells = [...Array(startDay)].map((_, i) => (
-                          <div key={`empty-${i}`} className="p-4 border border-gray-200"></div>
-                        ));
-                        return emptyCells;
-                    })()}
-                    {[...Array(daysInMonth(selectedDate))].map((_, i) => {
+                  <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: firstDayOfMonth(selectedDate) === 0 ? 6 : firstDayOfMonth(selectedDate) - 1 }).map((_, i) => (
+                      <span key={`empty-${i}`} className="p-2 text-gray-400"></span>
+                    ))}
+                    {Array.from({ length: daysInMonth(selectedDate) }).map((_, i) => {
                       const day = i + 1;
                       const date = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+                      const isToday = date.toDateString() === new Date().toDateString();
                       const hasClasses = hasClassesOnDate(date);
+                      const isSelected = date.toDateString() === selectedDate.toDateString();
+
                       return (
-                        <div
+                        <button
                           key={day}
-                          className={`relative p-4 border border-gray-200 cursor-pointer transition-colors ${hasClasses ? 'bg-blue-100 hover:bg-blue-200' : 'hover:bg-gray-100'}`}
+                          onClick={() => setSelectedDate(date)}
+                          className={`
+                            p-2 rounded-lg aspect-square flex items-center justify-center 
+                            transition-colors font-semibold 
+                            ${isSelected ? 'bg-blue-600 text-white' : hasClasses ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' : 'bg-gray-50 hover:bg-gray-200'}
+                            ${isToday && !isSelected && 'border-2 border-blue-400'}
+                          `}
                         >
-                          <span className="font-bold">{day}</span>
-                          {hasClasses && (
-                            <div className="absolute top-1 right-1 h-2 w-2 bg-blue-500 rounded-full"></div>
-                          )}
-                        </div>
+                          {day}
+                        </button>
                       );
                     })}
                   </div>
-                </div>
-              )}
-              
-              {view === 'settings' && (
-                <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">Configuración de Precios</h2>
-                  <p className="text-gray-600 mb-4">
-                    Establece el precio por clase según la cantidad de alumnos. Estos precios se aplicarán por defecto al registrar nuevas clases.
-                  </p>
-                  <div className="space-y-4 mb-6">
-                    {peopleOptions.map(num => (
-                      <div key={num} className="flex items-center space-x-4">
-                        <label className="text-lg font-semibold text-gray-700 w-32">
-                          {num} {num === 1 ? 'Alumno' : 'Alumnos'}:
-                        </label>
-                        <div className="flex flex-1 items-center rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500">
-                          <span className="bg-gray-200 text-gray-700 py-3 px-4 rounded-l-lg border-r border-gray-300">
-                            $
-                          </span>
-                          <input
-                            type="number"
-                            className="flex-1 p-3 rounded-r-lg focus:outline-none"
-                            value={customPrices[num] || ''}
-                            onChange={(e) => setCustomPrices({...customPrices, [num]: parseFloat(e.target.value) || 0})}
-                          />
+                  <div className="mt-6">
+                    <h4 className="text-xl font-bold mb-4">Clases para el {selectedDate.toLocaleDateString('es-ES', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</h4>
+                     <input
+                          type="text"
+                          placeholder="Filtrar por nombre de alumno..."
+                          value={filterText}
+                          onChange={(e) => setFilterText(e.target.value)}
+                          className="p-2 mb-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+                      />
+                    {filteredClassesForSelectedDate.length > 0 ? (
+                        <div className="space-y-4">
+                            {filteredClassesForSelectedDate.map(cls => (
+                                <div key={cls.id} className={`p-4 rounded-xl shadow-md ${colorMap[cls.studentCount]}`}>
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <p className="font-bold text-gray-900">{cls.time} - {cls.studentNames.join(', ')}</p>
+                                            <p className="text-sm text-gray-600">{cls.studentCount} {cls.studentCount === 1 ? 'persona' : 'personas'} - ${cls.price.toLocaleString()}</p>
+                                        </div>
+                                        <div className="flex space-x-2">
+                                            <button onClick={() => handleEditEntry(cls)} className="text-blue-600 hover:text-blue-900">
+                                                <i className="fas fa-edit"></i>
+                                            </button>
+                                            <button onClick={() => confirmDeletion(cls)} className="text-red-600 hover:text-red-900">
+                                                <i className="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                      </div>
-                    ))}
+                    ) : (
+                        <div className="p-6 text-center italic text-gray-500 bg-gray-50 rounded-xl">
+                            No hay clases para esta fecha.
+                        </div>
+                    )}
                   </div>
-                  <button
-                    onClick={handleSavePrices}
-                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <i className="fas fa-save mr-2"></i> Guardar Precios
-                  </button>
                 </div>
               )}
-            </>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+              <div className="w-full max-w-sm p-6 bg-white rounded-xl shadow-lg text-center">
+                <h2 className="text-2xl font-bold mb-4 text-gray-900">Iniciar Sesión</h2>
+                <p className="text-sm text-gray-600 mb-6">Inicia sesión para ver y gestionar tus clases de pádel.</p>
+                <div className="mb-4">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Correo electrónico"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="mb-6">
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Contraseña"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <button 
+                  onClick={handleSignIn} 
+                  className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                >
+                  Iniciar Sesión
+                </button>
+                <button 
+                  onClick={handleSignUp} 
+                  className="w-full mt-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition-colors"
+                >
+                  Registrarse
+                </button>
+              </div>
+            </div>
           )}
         </div>
       );
     };
 
     ReactDOM.render(
-      <App />,
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>,
       document.getElementById('root')
     );
   </script>
 </body>
 </html>
+
