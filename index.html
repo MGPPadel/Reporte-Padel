@@ -278,26 +278,25 @@ const dateObj = new Date(year, month - 1, day);
       }, [userId]);
 
       const generateReports = (fetchedClasses) => {
-        const monthly = {};
+    const monthly = {};
+    fetchedClasses.forEach(entry => {
+        const [year, month] = entry.date.split('-');
+        const monthKey = `${year}-${month}`;
 
-        fetchedClasses.forEach(entry => {
-          const [year, month] = entry.date.split('-');
-          const monthKey = `${year}-${month}`;
-
-          if (!monthly[monthKey]) {
+        if (!monthly[monthKey]) {
             monthly[monthKey] = { count: 0, total: 0 };
-          }
-          monthly[monthKey].count++;
-          monthly[monthKey].total += entry.price; 
-        });
+        }
+        monthly[monthKey].count++;
+        monthly[monthKey].total += entry.price;
+    });
 
-        const monthlyReportsData = Object.keys(monthly).map(monthKey => ({
-          month: new Date(monthKey + '-01').toLocaleString('es-ES', { year: 'numeric', month: 'long' }),
-          count: monthly[monthKey].count,
-          total: monthly[monthKey].total,
-        })).sort((a, b) => new Date(b.month) - new Date(a.month));
-        setMonthlyReports(monthlyReportsData);
-      };
+    const monthlyReportsData = Object.keys(monthly).map(monthKey => ({
+        month: new Date(monthKey + '-01').toLocaleString('es-ES', { year: 'numeric', month: 'long' }),
+        count: monthly[monthKey].count,
+        total: monthly[monthKey].total,
+    })).sort((a, b) => new Date(b.month) - new Date(a.month));
+    setMonthlyReports(monthlyReportsData);
+};
 
       const handleAddEntry = async () => {
         if (!newEntry.studentName || !newEntry.day || !newEntry.date || !newEntry.studentCount) {
