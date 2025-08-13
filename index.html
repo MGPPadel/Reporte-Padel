@@ -179,16 +179,13 @@
 
       const handleDateChange = (e) => {
           const newDate = e.target.value;
-          const [year, month, day] = newDate.split('-').map(Number);
-const dateObj = new Date(year, month - 1, day); 
-          const dayIndex = dateObj.getDay(); 
-          const newDay = daysOfWeek[dayIndex]; // Se usa directamente el índice
-    setNewEntry(prev => ({
-        ...prev,
-        date: newDate,
-        day: newDay,
-    }));
-};
+const dateObj = new Date(newDate + 'T00:00:00'); // Añade la hora para evitar desfase UTC
+const newDay = daysOfWeek[dateObj.getDay()];
+setNewEntry(prev => ({
+  ...prev,
+  date: newDate,
+  day: newDay,
+}));
 
       useEffect(() => {
         setNewEntry(prev => ({
@@ -202,16 +199,15 @@ const dateObj = new Date(year, month - 1, day);
       }, []);
 
       useEffect(() => {
-          if (newEntry.date) {
-              const [year, month, day] = newEntry.date.split('-').map(Number);
-const dateObj = new Date(year, month - 1, day);
-              const dayIndex = dateObj.getDay();
-              const newDay = daysOfWeek[dayIndex]; // Se usa directamente el índice
-        setNewEntry(prev => ({
-            ...prev,
-            day: newDay
-        }));
-    }
+  if (newEntry.date) {
+    const dateObj = new Date(newEntry.date + 'T00:00:00');
+    const dayIndex = dateObj.getDay();
+    const newDay = daysOfWeek[dayIndex];
+    setNewEntry(prev => ({
+      ...prev,
+      day: newDay
+    }));
+  }
 }, [newEntry.date]);
 
       const fetchPrices = async (db, currentUserId) => {
@@ -290,12 +286,14 @@ const dateObj = new Date(year, month - 1, day);
         monthly[monthKey].total += entry.price;
     });
 
-    const monthlyReportsData = Object.keys(monthly).map(monthKey => ({
-        month: new Date(monthKey + '-01').toLocaleString('es-ES', { year: 'numeric', month: 'long' }),
+    const monthlyReportsData = Object.keys(monthly).map(monthKey => {
+  const [year, month] = monthKey.split('-');
+  return {
+        month: new Date(parseInt(year), parseInt(month) - 1).toLocaleString('es-ES', { year: 'numeric', month: 'long' }),
         count: monthly[monthKey].count,
-        total: monthly[monthKey].total,
-    })).sort((a, b) => new Date(b.month) - new Date(a.month));
-    setMonthlyReports(monthlyReportsData);
+    total: monthly[monthKey].total,
+  }).sort((a, b) => new Date(b.month) - new Date(a.month));
+setMonthlyReports(monthlyReportsData);
 };
 
       const handleAddEntry = async () => {
