@@ -60,10 +60,10 @@
     ];
     
     const defaultClassPrices = {
-      1: 5000,
-      2: 3000,
-      3: 2500,
-      4: 2000,
+      1: 12000,
+      2: 19000,
+      3: 24000,
+      4: 26000,
     };
     const peopleOptions = [1, 2, 3, 4];
     
@@ -934,7 +934,12 @@ const dateObj = new Date(year, month - 1, day);
                                           ))}
                                         </ul>
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${entry.price.toLocaleString()}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+{(() => {
+    const [year, month, day] = entry.date.split('-');
+    return new Date(year, parseInt(month) - 1, day).toLocaleDateString();
+  })()}
+</td>
                                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button onClick={() => handleEditEntry(entry)} className="text-blue-600 hover:text-blue-900 mr-2">
                                           <i className="fas fa-edit"></i>
