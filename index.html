@@ -275,7 +275,38 @@
       }, [userId]);
 
       const generateReports = (fetchedClasses) => {
-        const monthly = {};
+  const monthly = {};
+
+  fetchedClasses.forEach(entry => {
+    const [year, month] = entry.date.split('-');
+    const monthKey = `${year}-${month}`;
+    if (!monthly[monthKey]) {
+      monthly[monthKey] = { count: 0, total: 0 };
+    }
+    monthly[monthKey].count++;
+    monthly[monthKey].total += entry.price;
+  });
+
+  const monthNames = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+  ];
+
+  const monthlyReportsData = Object.keys(monthly).map(monthKey => {
+    const [year, month] = monthKey.split('-').map(Number);
+    return {
+      month: `${monthNames[month - 1]} ${year}`,
+      count: monthly[monthKey].count,
+      total: monthly[monthKey].total,
+    };
+  }).sort((a, b) => {
+    const [aMonthName, aYear] = a.month.split(' ');
+    const [bMonthName, bYear] = b.month.split(' ');
+    return new Date(bYear, monthNames.indexOf(bMonthName), 1) - new Date(aYear, monthNames.indexOf(aMonthName), 1);
+  });
+
+  setMonthlyReports(monthlyReportsData);
+};
 
         fetchedClasses.forEach(entry => {
           const [year, month] = entry.date.split('-');
