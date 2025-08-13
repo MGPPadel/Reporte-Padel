@@ -9,1119 +9,954 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
+  <!-- Librerías para exportar a PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div id="root"></div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, deleteDoc, updateDoc, writeBatch, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, deleteDoc, updateDoc, writeBatch, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
     window.firebase = {
       initializeApp,
       getAuth,
-      signInAnonymously,
-      signInWithCustomToken,
       onAuthStateChanged,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      signOut,
       getFirestore,
       doc,
-      getDoc,
       setDoc,
       onSnapshot,
       collection,
       query,
       addDoc,
-      getDocs,
       deleteDoc,
       updateDoc,
       writeBatch,
-      where
+      where,
+      getDocs,
+      orderBy
     };
   </script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
-
-</head>
-<body class="bg-gray-100 font-sans">
-  <div id="root"></div>
-
+  
   <script type="text/babel">
-    const App = () => {
-      const { useState, useEffect, useRef } = React;
-      const defaultValueMap = {
-        1: 12000,
-        2: 19000,
-        3: 24000,
-        4: 26000,
-      };
-      const colorMap = {
-        1: 'bg-orange-100',
+    const { useState, useEffect, useRef } = React;
+
+    const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+    const timesOfDay = [
+      '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
+      '1:00 p. m.', '2:00 p. m.', '3:00 p. m.', '4:00 p. m.', '5:00 p. m.',
+      '6:00 p. m.', '7:00 p. m.', '8:00 p. m.', '9:00 p. m.', '10:00 p. m.'
+    ];
+    
+    // Precios de ejemplo por defecto. Ahora se pueden modificar en la UI.
+    const defaultClassPrices = {
+      1: 5000,
+      2: 3000,
+      3: 2500,
+      4: 2000,
+    };
+    const peopleOptions = [1, 2, 3, 4];
+    
+    // Mapeo de colores para la tabla
+    const colorMap = {
+        1: 'bg-yellow-100',
         2: 'bg-green-100',
         3: 'bg-blue-100',
-        4: 'bg-red-100',
-      };
+        4: 'bg-purple-100',
+    };
+
+    const App = () => {
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [userId, setUserId] = useState(null);
+      const [loading, setLoading] = useState(true);
       const [classes, setClasses] = useState([]);
+      const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
       const [newEntry, setNewEntry] = useState({
         studentName: '',
         day: '',
         time: '8:00 a. m.',
         date: new Date().toISOString().slice(0, 10),
+        studentCount: 1, 
+        price: defaultClassPrices[1], 
       });
-      const [weeklyReports, setWeeklyReports] = useState([]);
       const [monthlyReports, setMonthlyReports] = useState([]);
-      const [loading, setLoading] = useState(true);
-      const [userId, setUserId] = useState(null);
-      const [appId, setAppId] = useState(null);
+      const [isEditing, setIsEditing] = useState(false);
+      const [editedClassId, setEditedClassId] = useState(null);
       const [showConfigModal, setShowConfigModal] = useState(false);
-      const [userFirebaseConfig, setUserFirebaseConfig] = useState('');
+      const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
       const [configError, setConfigError] = useState('');
-      const [editableValues, setEditableValues] = useState(defaultValueMap);
-      const [selectedMonth, setSelectedMonth] = useState('Todos');
-      const [availableMonths, setAvailableMonths] = useState([]);
-      const [searchQuery, setSearchQuery] = useState('');
-      const [startDate, setStartDate] = useState('');
-      const [endDate, setEndDate] = useState('');
-      const [editingClass, setEditingClass] = useState(null);
-      const [groupedClasses, setGroupedClasses] = useState([]);
       const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-      const [modalContent, setModalContent] = useState({ title: '', message: '', onConfirm: () => {} });
-      
-      const firebaseConfigRef = useRef(null);
+      const [actionToConfirm, setActionToConfirm] = useState(null);
+      const [confirmationMessage, setConfirmationMessage] = useState('');
+      const [showNotification, setShowNotification] = useState(false);
+      const [notificationMessage, setNotificationMessage] = useState('');
+      const [notificationType, setNotificationType] = useState('success'); 
+
       const dbRef = useRef(null);
       const authRef = useRef(null);
       const userRef = useRef(null);
-      const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-      const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
-      const formatCurrency = (value) => {
-        return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
-      };
+      const firebaseConfigRef = useRef(null);
+      const appIdRef = useRef(null);
+      // Referencia al elemento de la tabla para exportar a PDF
+      const tableRef = useRef(null);
+      
+      const __app_id = "default-app-id";
+      const __firebase_config = `{
+        "apiKey": "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+        "authDomain": "app-de-padel.firebaseapp.com",
+        "projectId": "app-de-padel",
+        "storageBucket": "app-de-padel.firebasestorage.app",
+        "messagingSenderId": "731771747398",
+        "appId": "1:731771747398:web:ebc8b723fe220869fade47"
+      }`;
 
-      const formatDate = (dateString) => {
-        if (!dateString) return '';
-        const [year, month, day] = dateString.split('-');
-        return `${day}/${month}/${year}`;
-      };
-
-      const handleConfigSubmit = async (e) => {
-        e.preventDefault();
-        try {
-          const config = JSON.parse(userFirebaseConfig);
-          if (config.apiKey && config.projectId) {
-            firebaseConfigRef.current = config;
-            setShowConfigModal(false);
-            setConfigError('');
-            await initFirebase();
-          } else {
-            setConfigError('Configuración de Firebase inválida. Asegúrate de que sea un objeto JSON con apiKey y projectId.');
-          }
-        } catch (error) {
-          setConfigError('Error al parsear el JSON. Asegúrate de que el formato sea correcto.');
-          console.error("Error parsing config JSON:", error);
-        }
-      };
-
-      const calculateReports = (processedClasses) => {
-        const weeklyReportMap = new Map();
-        const monthlyReportMap = new Map();
-
-        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-        const processedClassKeys = new Set();
-        processedClasses.forEach(cls => {
-          const classKey = `${cls.date}-${cls.day}-${cls.time}`;
-          if (!processedClassKeys.has(classKey)) {
-            processedClassKeys.add(classKey);
-
-            const date = new Date(cls.date + 'T00:00:00');
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            const monthName = monthNames[month];
-
-            const firstDayOfYear = new Date(year, 0, 1);
-            const pastDays = (date - firstDayOfYear) / 86400000;
-            const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
-
-            const weekKey = `${year}-Semana ${weekNumber}`;
-            const monthKey = `${monthName} ${year}`;
-
-            if (!weeklyReportMap.has(weekKey)) {
-              weeklyReportMap.set(weekKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
-            }
-            const weeklyReport = weeklyReportMap.get(weekKey);
-            weeklyReport.totalClasses++;
-            weeklyReport.totalEarnings += cls.value;
-            if (cls.studentCount >= 1 && cls.studentCount <= 4) {
-              weeklyReport.countsByStudent[cls.studentCount]++;
-            }
-
-            if (!monthlyReportMap.has(monthKey)) {
-              monthlyReportMap.set(monthKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
-            }
-            const monthlyReport = monthlyReportMap.get(monthKey);
-            monthlyReport.totalClasses++;
-            monthlyReport.totalEarnings += cls.value;
-            if (cls.studentCount >= 1 && cls.studentCount <= 4) {
-              monthlyReport.countsByStudent[cls.studentCount]++;
-            }
-          }
-        });
-        const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
-        const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
-
-        setWeeklyReports(weeklyReportsArray);
-        setMonthlyReports(monthlyReportsArray);
+      // Función para mostrar notificaciones
+      const showNotificationMessage = (message, type = 'success') => {
+        setNotificationMessage(message);
+        setNotificationType(type);
+        setShowNotification(true);
+        setTimeout(() => setShowNotification(false), 3000);
       };
 
       const initFirebase = async () => {
         setLoading(true);
         try {
-          const appId = 'default-padel-app';
-          setAppId(appId);
-          // Reemplaza con tu configuración de Firebase
-          const myFirebaseConfig = {
-            apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
-            authDomain: "app-de-padel.firebaseapp.com",
-            projectId: "app-de-padel",
-            storageBucket: "app-de-padel.firebasestorage.app",
-            messagingSenderId: "731771747398",
-            appId: "1:731771747398:web:ebc8b723fe220869fade47"
-          };
+          const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+          appIdRef.current = appId;
 
-          if (!firebaseConfigRef.current) {
-            firebaseConfigRef.current = myFirebaseConfig;
+          let config = null;
+          if (typeof __firebase_config !== 'undefined') {
+              config = JSON.parse(__firebase_config);
           }
-          if (!firebaseConfigRef.current) {
-              setShowConfigModal(true);
-              setLoading(false);
-              return;
+          
+          if (!config) {
+            console.log("Firebase config not found. Showing modal.");
+            setShowConfigModal(true);
+            setLoading(false);
+            return;
           }
 
+          firebaseConfigRef.current = config;
           const app = firebase.initializeApp(firebaseConfigRef.current);
           const auth = firebase.getAuth(app);
           const db = firebase.getFirestore(app);
 
           dbRef.current = db;
           authRef.current = auth;
-          await firebase.signInAnonymously(auth);
-          const currentUserId = auth.currentUser?.uid;
-          setUserId(currentUserId);
-          userRef.current = currentUserId;
 
+          firebase.onAuthStateChanged(auth, (user) => {
+            if (user) {
+              setUserId(user.uid);
+              userRef.current = user.uid;
+            } else {
+              setUserId(null);
+              userRef.current = null;
+            }
+            setLoading(false);
+          });
         } catch (error) {
           console.error("Error initializing Firebase:", error);
-          setShowConfigModal(true);
           setConfigError('Error al conectar a Firebase. Revisa tu configuración e inténtalo de nuevo.');
           setLoading(false);
+          setShowConfigModal(true);
         }
       };
 
-      // Nuevo useEffect para manejar la suscripción a Firestore
+      // Función para manejar el cambio de fecha y actualizar el día de la semana
+      const handleDateChange = (e) => {
+          const newDate = e.target.value;
+          const dateObj = new Date(newDate + 'T00:00:00'); // Añadir 'T00:00:00' para evitar problemas de zona horaria
+          const dayIndex = dateObj.getDay(); // 0 = Domingo, 1 = Lunes, etc.
+          const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; // Ajustar para que 'Lunes' sea el índice 0
+          setNewEntry(prev => ({
+              ...prev,
+              date: newDate,
+              day: newDay,
+          }));
+      };
+
+      useEffect(() => {
+        setNewEntry(prev => ({
+          ...prev,
+          price: customPrices[prev.studentCount]
+        }));
+      }, [newEntry.studentCount, customPrices]);
+
       useEffect(() => {
         initFirebase();
       }, []);
 
+      // Al cargar, establece el día de la semana para la fecha inicial
       useEffect(() => {
-        if (!dbRef.current || !userId) {
+          if (newEntry.date) {
+              const dateObj = new Date(newEntry.date + 'T00:00:00');
+              const dayIndex = dateObj.getDay();
+              const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1];
+              setNewEntry(prev => ({ ...prev, day: newDay }));
+          }
+      }, [newEntry.date]);
+
+      const fetchPrices = async (db, currentUserId) => {
+        if (!currentUserId) {
+            setCustomPrices(defaultClassPrices);
+            return;
+        }
+        try {
+            const docRef = firebase.doc(db, `artifacts/${appIdRef.current}/users/${currentUserId}/settings/prices`);
+            const unsubscribe = firebase.onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    setCustomPrices(docSnap.data());
+                } else {
+                    setCustomPrices(defaultClassPrices);
+                }
+            }, (error) => {
+                console.error("Error fetching prices:", error);
+                showNotificationMessage('Error al cargar precios desde la base de datos.', 'error');
+            });
+            return unsubscribe;
+        } catch (error) {
+            console.error("Error setting up prices listener:", error);
+        }
+      };
+
+      const fetchClasses = (db, currentUserId) => {
+        if (!currentUserId) {
+          setClasses([]);
+          setMonthlyReports([]);
           return;
         }
 
-        const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-        const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
-
-        const unsubscribeClasses = firebase.onSnapshot(userClassesRef, (snapshot) => {
+        const classesCollectionRef = firebase.collection(db, `artifacts/${appIdRef.current}/users/${currentUserId}/classes`);
+        
+        // Consulta ordenada por fecha en orden descendente (más reciente primero)
+        const q = firebase.query(classesCollectionRef, firebase.orderBy("date", "desc"));
+        
+        const unsubscribe = firebase.onSnapshot(q, (snapshot) => {
           const fetchedClasses = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
           }));
-          
-          // Reagrupamos y calculamos todo desde cero para evitar errores de sincronización
-          const classesByDayTime = fetchedClasses.reduce((acc, curr) => {
-            const key = `${curr.date}-${curr.day}-${curr.time}`;
-            if (!acc[key]) {
-              acc[key] = [];
-            }
-            acc[key].push(curr);
-            return acc;
-          }, {});
-
-          const processedClasses = fetchedClasses.map(cls => {
-            const key = `${cls.date}-${cls.day}-${cls.time}`;
-            const studentCount = (classesByDayTime[key] || []).length;
-            const classValue = editableValues[studentCount] || 0;
-            return {
-              ...cls,
-              studentCount,
-              value: classValue,
-              color: colorMap[studentCount] || '',
-            };
-          });
-
-          processedClasses.sort((a, b) => {
-            const dateA = new Date(a.date);
-            const dateB = new Date(b.date);
-            if (dateA.getTime() !== dateB.getTime()) {
-              return dateB.getTime() - dateA.getTime();
-            }
-            const dayIndexA = dayOptions.indexOf(a.day);
-            const dayIndexB = dayOptions.indexOf(b.day);
-            if (dayIndexA !== dayIndexB) {
-              return dayIndexA - dayIndexB;
-            }
-            const timeIndexA = timeOptions.indexOf(a.time);
-            const timeIndexB = timeOptions.indexOf(b.time);
-            return timeIndexA - timeIndexB;
-          });
-
-          setClasses(processedClasses);
-          calculateReports(processedClasses);
-          const months = [...new Set(processedClasses.map(cls => cls.date.substring(0, 7)))].sort();
-          setAvailableMonths(months);
-
-          const groupedMap = new Map();
-          processedClasses.forEach(cls => {
-            const key = `${cls.date}-${cls.day}-${cls.time}`;
-            if (!groupedMap.has(key)) {
-              groupedMap.set(key, {
-                date: cls.date,
-                day: cls.day,
-                time: cls.time,
-                studentCount: cls.studentCount,
-                value: cls.value,
-                color: cls.color,
-                students: [],
-                ids: []
-              });
-            }
-            const groupedClass = groupedMap.get(key);
-            groupedClass.students.push(cls.studentName);
-            groupedClass.ids.push(cls.id);
-          });
-          setGroupedClasses(Array.from(groupedMap.values()));
-          setLoading(false);
+          setClasses(fetchedClasses);
+          generateReports(fetchedClasses);
+        }, (error) => {
+          console.error("Error fetching classes:", error);
         });
 
-        const unsubscribeValues = firebase.onSnapshot(userValuesDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            const newValues = {
-              1: data['1'] || defaultValueMap[1],
-              2: data['2'] || defaultValueMap[2],
-              3: data['3'] || defaultValueMap[3],
-              4: data['4'] || defaultValueMap[4],
-            };
-            setEditableValues(newValues);
-          } else {
-            setEditableValues(defaultValueMap);
-            firebase.setDoc(userValuesDocRef, defaultValueMap);
-          }
-        });
+        return unsubscribe;
+      };
 
+      useEffect(() => {
+        let unsubscribePrices;
+        let unsubscribeClasses;
+        if (dbRef.current && userId) {
+          unsubscribePrices = fetchPrices(dbRef.current, userId);
+          unsubscribeClasses = fetchClasses(dbRef.current, userId);
+        } else if (!userId) {
+          setClasses([]);
+          setMonthlyReports([]);
+        }
         return () => {
-          unsubscribeClasses();
-          unsubscribeValues();
+          if (unsubscribePrices) unsubscribePrices();
+          if (unsubscribeClasses) unsubscribeClasses();
         };
+      }, [userId]);
 
-      }, [dbRef.current, userId, editableValues]);
-      
-      const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-        if (name === 'date') {
-            const dateObj = new Date(value + 'T00:00:00');
-            const dayOfWeek = dateObj.getDay();
-            const newDayName = dayNames[dayOfWeek];
+      const generateReports = (fetchedClasses) => {
+        const monthly = {};
 
-            setNewEntry(prev => ({
-              ...prev,
-              [name]: value,
-              day: newDayName
-            }));
-        } else {
-            setNewEntry(prev => ({ ...prev, [name]: value }));
+        fetchedClasses.forEach(entry => {
+          const [year, month] = entry.date.split('-');
+          const monthKey = `${year}-${month}`;
+
+          if (!monthly[monthKey]) {
+            monthly[monthKey] = { count: 0, total: 0 };
+          }
+          monthly[monthKey].count++;
+          monthly[monthKey].total += entry.price; 
+        });
+
+        const monthlyReportsData = Object.keys(monthly).map(monthKey => ({
+          month: new Date(monthKey + '-01').toLocaleString('es-ES', { year: 'numeric', month: 'long' }),
+          count: monthly[monthKey].count,
+          total: monthly[monthKey].total,
+        })).sort((a, b) => new Date(b.month) - new Date(a.month));
+        setMonthlyReports(monthlyReportsData);
+      };
+
+      const handleAddEntry = async () => {
+        if (!newEntry.studentName || !newEntry.day || !newEntry.date || !newEntry.studentCount) {
+          showNotificationMessage('Por favor, completa todos los campos.', 'error');
+          return;
         }
-      };
-      
-      const handleValueChange = async (e) => {
-        const { name, value } = e.target;
-        const newValues = { ...editableValues, [name]: Number(value) };
-        setEditableValues(newValues);
-        try {
-          const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
-          await firebase.setDoc(userValuesDocRef, newValues);
-        } catch (error) {
-          console.error("Error updating values in Firestore:", error);
-        }
-      };
-      
-      const handleAddClass = async (e) => {
-        e.preventDefault();
-        if (newEntry.studentName.trim() === '') return;
 
-        try {
-          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-          const existingClassesQuery = firebase.query(
-            userClassesRef,
-            firebase.where("date", "==", newEntry.date),
-            firebase.where("time", "==", newEntry.time)
-          );
-          const existingClassesSnapshot = await firebase.getDocs(existingClassesQuery);
-          const studentCount = existingClassesSnapshot.size + 1;
-          const classValue = editableValues[studentCount] || 0;
-          const classToSave = {
-              ...newEntry,
-              value: classValue,
-          };
-          await firebase.addDoc(userClassesRef, classToSave);
-          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
-        } catch (error) {
-          console.error("Error adding class to Firestore:", error);
-        }
-      };
-      
-      const handleEditClass = (classToEdit) => {
-        setEditingClass(classToEdit);
-      };
-
-      const handleUpdateClass = async (e) => {
-        e.preventDefault();
-        if (!editingClass || editingClass.students.some(s => s.trim() === '')) {
-          const messageBox = document.createElement('div');
-          messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
-          messageBox.innerHTML = `
-            <div class="bg-white p-6 rounded-lg shadow-xl">
-              <p>El nombre de los alumnos no puede estar vacío.</p>
-              <div class="flex justify-end mt-4">
-                <button class="bg-blue-500 text-white px-4 py-2 rounded-md" onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)">Aceptar</button>
-              </div>
-            </div>
-          `;
-          document.body.appendChild(messageBox);
+        if (!userId) {
+          showNotificationMessage('Debes iniciar sesión para registrar clases.', 'error');
           return;
         }
         
-        setModalContent({
-            title: 'Confirmar Actualización',
-            message: '¿Estás seguro de que quieres guardar los cambios? Esto eliminará los datos anteriores y creará clases nuevas.',
-            onConfirm: async () => {
-                try {
-                    const batch = firebase.writeBatch(dbRef.current);
-                    
-                    editingClass.ids.forEach(id => {
-                        const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
-                        batch.delete(docRef);
-                    });
-            
-                    const newStudentCount = editingClass.students.length;
-                    const newValue = editableValues[newStudentCount] || 0;
-            
-                    for (const studentName of editingClass.students) {
-                        const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-                        const newDocRef = firebase.doc(userClassesRef);
-                        batch.set(newDocRef, {
-                            studentName: studentName,
-                            day: editingClass.day,
-                            time: editingClass.time,
-                            date: editingClass.date,
-                            value: newValue,
-                        });
-                    }
-            
-                    await batch.commit();
-                    setEditingClass(null);
-                } catch (error) {
-                    console.error("Error updating classes in Firestore:", error);
-                } finally {
-                    setShowConfirmationModal(false);
-                }
-            }
-        });
-        setShowConfirmationModal(true);
-      };
+        try {
+          const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
+          const q = firebase.query(
+            classesCollectionRef,
+            firebase.where("date", "==", newEntry.date),
+            firebase.where("day", "==", newEntry.day),
+            firebase.where("time", "==", newEntry.time)
+          );
 
-      const handleCancelEdit = () => {
-        setEditingClass(null);
-      };
-      
-      const handleDeleteStudentFromClass = (studentId) => {
-        setModalContent({
-            title: 'Confirmar Eliminación',
-            message: '¿Estás seguro de que quieres eliminar a este alumno de la clase?',
-            onConfirm: async () => {
-                try {
-                    console.log(`Intentando eliminar al alumno con ID: ${studentId}`);
-                    const db = dbRef.current;
-                    const idToDelete = studentId;
-                    
-                    if (!db || !idToDelete) {
-                        console.error("Referencia a la base de datos o ID no disponible.");
-                        return;
-                    }
+          if (isEditing) {
+            // Lógica de edición
+            const classDocRef = firebase.doc(classesCollectionRef, editedClassId);
+            const updatedData = {
+              studentNames: newEntry.studentName.split(',').map(s => s.trim()), // Actualiza el array de nombres
+              day: newEntry.day,
+              time: newEntry.time,
+              date: newEntry.date,
+              studentCount: newEntry.studentCount,
+              price: newEntry.price,
+            };
+            await firebase.updateDoc(classDocRef, updatedData);
+            showNotificationMessage('Clase actualizada con éxito.', 'success');
+          } else {
+            // Lógica de creación/unión de clase
+            const querySnapshot = await firebase.getDocs(q);
 
-                    const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${idToDelete}`);
-                    await firebase.deleteDoc(docRef);
-                    console.log(`Alumno con ID: ${studentId} eliminado correctamente.`);
-                    
-                } catch (error) {
-                    console.error("Error deleting student from class:", error);
-                } finally {
-                    setShowConfirmationModal(false);
-                }
-            }
-        });
-        setShowConfirmationModal(true);
-      };
-      
-      const handleDeleteGroupedClass = (ids) => {
-        setEditingClass(null); 
-        setModalContent({
-            title: 'Confirmar Eliminación',
-            message: '¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.',
-            onConfirm: async () => {
-                try {
-                    console.log(`Intentando eliminar la clase con los siguientes IDs: ${ids.join(', ')}`);
-                    const db = dbRef.current;
-                    const idsToProcess = ids;
-                    if (!db || !idsToProcess || idsToProcess.length === 0) {
-                        console.error("Referencia a la base de datos o IDs no disponibles para la eliminación.");
-                        return;
-                    }
-                    
-                    const batch = firebase.writeBatch(db);
-                    idsToProcess.forEach(id => {
-                        const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
-                        batch.delete(docRef);
-                    });
-                    
-                    await batch.commit();
-                    console.log("Clase eliminada correctamente mediante batch commit.");
+            if (!querySnapshot.empty) {
+              // Si ya existe una clase en ese horario, la actualizamos
+              const existingClassDoc = querySnapshot.docs[0];
+              const existingData = existingClassDoc.data();
+              const existingStudents = existingData.studentNames || [];
+              const newStudentName = newEntry.studentName;
 
-                } catch (error) {
-                    console.error("Error al eliminar la clase completa:", error);
-                } finally {
-                    setShowConfirmationModal(false);
-                }
-            }
-        });
-        setShowConfirmationModal(true);
-      };
-      
-      const exportWeeklyPDF = () => {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.setFontSize(16);
-        doc.text("Informe Semanal - Clases de Pádel", 14, 15);
-        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-        const tableData = weeklyReports.map(r => {
-          const [year, weekText] = r.week.split('-');
-          const weekNumber = weekText.replace('Semana ', '');
-          
-          const firstDayOfYear = new Date(year, 0, 1);
-          const dateInWeek = new Date(firstDayOfYear.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
-          const monthName = monthNames[dateInWeek.getMonth()];
-
-          const formattedWeek = `SEMANA Nº ${weekNumber} DEL MES DE ${monthName.toUpperCase()} DE ${year}`;
-          
-          return [
-            formattedWeek,
-            r.totalClasses,
-            formatCurrency(r.totalEarnings),
-            r.countsByStudent[1] || 0,
-            r.countsByStudent[2] || 0,
-            r.countsByStudent[3] || 0,
-            r.countsByStudent[4] || 0
-          ];
-        });
-        doc.autoTable({
-          head: [["Semana", "Total Clases", "Ganancia Total", "1 Persona", "2 Personas", "3 Personas", "4 Personas"]],
-          body: tableData,
-          startY: 25,
-          styles: { fontSize: 8, halign: 'center' },
-          headStyles: { fillColor: '#ef4444' },
-          theme: 'grid'
-        });
-        doc.save("informe_semanal.pdf");
-      };
-
-      const exportMonthlyPDF = () => {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-
-        monthlyReports.forEach((report, index) => {
-          if (index > 0) {
-            doc.addPage();
-          }
-          
-          let finalY = 15;
-          doc.setFontSize(16);
-          doc.text(`Informe Mensual - Clases de Pádel - ${report.month}`, 14, finalY);
-          finalY += 10;
-          
-          doc.autoTable({
-            head: [["Mes", "Total Clases", "Ganancia Total"]],
-            body: [[
-              report.month,
-              report.totalClasses,
-              formatCurrency(report.totalEarnings)
-            ]],
-            startY: finalY,
-            theme: 'grid',
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: '#ef4444' }
-          });
-          finalY = doc.autoTable.previous.finalY + 10;
-
-          doc.setFontSize(12);
-          doc.text(`Desglose de Clases por Alumno:`, 14, finalY);
-          finalY += 5;
-          
-          const detailedCountData = [
-            ["1 Persona", "2 Personas", "3 Personas", "4 Personas"],
-            [
-              report.countsByStudent[1] || 0,
-              report.countsByStudent[2] || 0,
-              report.countsByStudent[3] || 0,
-              report.countsByStudent[4] || 0
-            ]
-          ];
-          doc.autoTable({
-            head: [detailedCountData[0]],
-            body: [detailedCountData[1]],
-            startY: finalY,
-            theme: 'grid',
-            styles: { fontSize: 8, halign: 'center' },
-            headStyles: { fillColor: '#fca5a5' }
-          });
-          finalY = doc.autoTable.previous.finalY + 10;
-
-          const classesForMonth = classes.filter(cls => {
-            const date = new Date(cls.date + 'T00:00:00');
-            const monthName = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][date.getMonth()];
-            const monthKey = `${monthName} ${date.getFullYear()}`;
-            return monthKey === report.month;
-          });
-          if (classesForMonth.length > 0) {
-            const processedClasses = new Set();
-            const detailedTableData = classesForMonth.map(cls => {
-              const classKey = `${cls.date}-${cls.day}-${cls.time}`;
-              const isFirstStudentInClass = !processedClasses.has(classKey);
-              
-              if (isFirstStudentInClass) {
-                processedClasses.add(classKey);
+              // Evitar duplicados
+              if (existingStudents.includes(newStudentName)) {
+                showNotificationMessage('Este alumno ya está registrado en esta clase.', 'error');
+                return;
               }
 
-              return [
-                formatDate(cls.date),
-                cls.day,
-                cls.time,
-                cls.studentName,
-                isFirstStudentInClass ? cls.studentCount : '',
-                isFirstStudentInClass ? formatCurrency(cls.value) : ''
-              ];
-            });
-            doc.setFontSize(12);
-            doc.text(`Detalle de Clases:`, 14, finalY);
-            finalY += 5;
-            
-            doc.autoTable({
-              head: [["Fecha", "Día", "Horario", "Nombre de Alumno", "Alumnos", "Valor"]],
-              body: detailedTableData,
-              startY: finalY,
-              theme: 'striped',
-              styles: { fontSize: 8 },
-              headStyles: { fillColor: '#ef4444' }
-            });
-          }
+              const updatedStudentNames = [...existingStudents, newStudentName];
+              
+              if (updatedStudentNames.length > existingData.studentCount) {
+                  showNotificationMessage(`Esta clase solo es para ${existingData.studentCount} personas.`, 'error');
+                  return;
+              }
 
-        });
-        
-        doc.save("informe_mensual_detallado.pdf");
+              const docRef = existingClassDoc.ref;
+              await firebase.updateDoc(docRef, {
+                studentNames: updatedStudentNames,
+              });
+              showNotificationMessage(`Alumno "${newStudentName}" añadido a la clase existente.`, 'success');
+            } else {
+              // Si no existe, creamos una nueva clase
+              const classData = {
+                studentNames: [newEntry.studentName],
+                day: newEntry.day,
+                time: newEntry.time,
+                date: newEntry.date,
+                studentCount: newEntry.studentCount,
+                price: newEntry.price,
+              };
+              await firebase.addDoc(classesCollectionRef, classData);
+              showNotificationMessage('Clase registrada con éxito.', 'success');
+            }
+          }
+          
+          // Resetear formulario
+          setNewEntry({
+            studentName: '',
+            day: '',
+            time: '8:00 a. m.',
+            date: new Date().toISOString().slice(0, 10),
+            studentCount: 1,
+            price: customPrices[1],
+          });
+          setIsEditing(false);
+          setEditedClassId(null);
+        } catch (error) {
+          console.error("Error saving document: ", error);
+          showNotificationMessage('Error al registrar/actualizar la clase.', 'error');
+        }
+      };
+
+      const confirmDeletion = (entry) => {
+        setActionToConfirm(() => () => handleDeleteEntry(entry.id));
+        setConfirmationMessage(`¿Estás seguro de que quieres eliminar la clase completa de ${entry.studentNames.join(', ')} del día ${entry.day} a las ${entry.time}?`);
+        setShowConfirmationModal(true);
+      };
+
+      const handleDeleteEntry = async (id) => {
+        try {
+          const docRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`, id);
+          await firebase.deleteDoc(docRef);
+          showNotificationMessage('Clase eliminada con éxito.', 'success');
+        } catch (error) {
+          console.error("Error deleting document: ", error);
+          showNotificationMessage('Error al eliminar la clase.', 'error');
+        } finally {
+          setShowConfirmationModal(false);
+          setActionToConfirm(null);
+          setConfirmationMessage('');
+        }
       };
       
-      const exportDatabase = () => {
-        const data = {
-          precios: editableValues,
-          clases: classes
-        };
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const handleEditEntry = (entry) => {
+        setIsEditing(true);
+        setEditedClassId(entry.id);
+        setNewEntry({
+          studentName: entry.studentNames.join(', '), // Muestra los nombres separados por coma para editar
+          day: entry.day,
+          time: entry.time,
+          date: entry.date,
+          studentCount: entry.studentCount,
+          price: entry.price,
+        });
+      };
+      
+      const handleCancelEdit = () => {
+          setIsEditing(false);
+          setEditedClassId(null);
+          setNewEntry({
+              studentName: '',
+              day: '',
+              time: '8:00 a. m.',
+              date: new Date().toISOString().slice(0, 10),
+              studentCount: 1,
+              price: customPrices[1],
+          });
+      };
+
+      const handleExportData = () => {
+        const data = JSON.stringify(classes);
+        const blob = new Blob([data], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
+        const a = document.createElement('a');
         a.href = url;
-        a.download = "base_de_datos_padel.json";
+        a.download = `reporte-padel-${new Date().toISOString().slice(0, 10)}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotificationMessage('Datos exportados con éxito.', 'success');
+      };
+
+      const handleImportData = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/json';
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (!file) {
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+            try {
+              const data = JSON.parse(event.target.result);
+              if (!Array.isArray(data)) {
+                throw new Error('El archivo no contiene un array válido.');
+              }
+              const batch = firebase.writeBatch(dbRef.current);
+              data.forEach(entry => {
+                const newDocRef = firebase.doc(firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`));
+                batch.set(newDocRef, entry);
+              });
+              await batch.commit();
+              showNotificationMessage('Datos importados con éxito.', 'success');
+            } catch (error) {
+              console.error("Error importing data: ", error);
+              showNotificationMessage('Error al importar los datos: ' + error.message, 'error');
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
       };
       
-      const importDatabase = (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const data = JSON.parse(e.target.result);
-            if (!data.precios && !data.clases) {
-              throw new Error("El archivo JSON no tiene el formato esperado.");
-            }
-            
-            const batch = firebase.writeBatch(dbRef.current);
-            const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-            
-            const snapshot = await firebase.getDocs(userClassesRef);
-            snapshot.forEach(docSnap => batch.delete(docSnap.ref));
-            
-            if (data.clases) {
-              for (const cls of data.clases) {
-                const newDocRef = firebase.doc(userClassesRef);
-                batch.set(newDocRef, cls);
-              }
-            }
-            
-            if (data.precios) {
-              const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
-              batch.set(userValuesDocRef, data.precios);
-            }
-            
-            await batch.commit();
-
-            const messageBox = document.createElement('div');
-            messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
-            messageBox.innerHTML = `
-              <div class="bg-white p-6 rounded-lg shadow-xl">
-                <p>Base de datos importada correctamente. Se han borrado los datos anteriores.</p>
-                <div class="flex justify-end mt-4">
-                  <button class="bg-blue-500 text-white px-4 py-2 rounded-md" onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)">Aceptar</button>
-                </div>
-              </div>
-            `;
-            document.body.appendChild(messageBox);
-          } catch (err) {
-            const messageBox = document.createElement('div');
-            messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
-            messageBox.innerHTML = `
-              <div class="bg-white p-6 rounded-lg shadow-xl">
-                <p>Error al importar el archivo JSON. Asegúrate de que el formato sea correcto.</p>
-                <div class="flex justify-end mt-4">
-                  <button class="bg-blue-500 text-white px-4 py-2 rounded-md" onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)">Aceptar</button>
-                </div>
-              </div>
-            `;
-            document.body.appendChild(messageBox);
-            console.error("Error importing database:", err);
+      // Función para exportar la tabla a PDF con resumen
+      const handleExportPdf = () => {
+          const input = tableRef.current;
+          if (!input || classes.length === 0) {
+              showNotificationMessage('No hay datos para exportar.', 'error');
+              return;
           }
-        };
-        reader.readAsText(file);
+
+          // Clonar la tabla para manipularla sin afectar la UI original
+          const tableClone = input.cloneNode(true);
+          // Modificar los meses para que estén en mayúsculas en el clon
+          tableClone.querySelectorAll('h3').forEach(h3 => {
+              h3.textContent = h3.textContent.toUpperCase();
+          });
+          
+          // Crear un contenedor temporal para el contenido del PDF
+          const pdfContent = document.createElement('div');
+          pdfContent.style.width = '100%';
+          pdfContent.style.padding = '20px';
+          pdfContent.style.boxSizing = 'border-box';
+          pdfContent.style.fontFamily = 'Inter, sans-serif';
+
+          // Agregar el título, la tabla y la firma
+          pdfContent.innerHTML = `
+              <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Informe de Clases de Padel</h1>
+              ${tableClone.outerHTML}
+              <div style="margin-top: 50px; text-align: right;">
+                <p style="border-bottom: 1px solid #000; width: 250px; display: inline-block;"></p>
+                <p style="margin-top: 5px; font-size: 14px; font-weight: bold;">Mariana Garcia Pinto</p>
+              </div>
+          `;
+
+          document.body.appendChild(pdfContent);
+
+          html2canvas(pdfContent, {
+            scale: 2 // Aumenta la escala para una mejor calidad
+          }).then((canvas) => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jspdf.jsPDF('p', 'mm', 'a4'); // 'p' para vertical, 'mm' para milímetros, 'a4' para el tamaño
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`reporte-padel-${new Date().toISOString().slice(0, 10)}.pdf`);
+            showNotificationMessage('Reporte PDF exportado con éxito.', 'success');
+          }).catch(error => {
+            console.error("Error generating PDF:", error);
+            showNotificationMessage('Error al generar el PDF.', 'error');
+          }).finally(() => {
+              // Limpiar el contenedor temporal después de la exportación
+              document.body.removeChild(pdfContent);
+          });
+      };
+      
+      // Funciones de autenticación
+      const handleSignIn = async () => {
+          if (!email || !password) {
+              showNotificationMessage('Por favor, ingresa un email y una contraseña.', 'error');
+              return;
+          }
+          try {
+              await firebase.signInWithEmailAndPassword(authRef.current, email, password);
+              showNotificationMessage('Inicio de sesión exitoso.', 'success');
+          } catch (error) {
+              console.error("Error al iniciar sesión:", error.message);
+              showNotificationMessage('Error al iniciar sesión. Verifica tus credenciales.', 'error');
+          }
       };
 
-      const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
+      const handleSignUp = async () => {
+          if (!email || !password) {
+              showNotificationMessage('Por favor, ingresa un email y una contraseña.', 'error');
+              return;
+          }
+          try {
+              await firebase.createUserWithEmailAndPassword(authRef.current, email, password);
+              showNotificationMessage('Registro exitoso. ¡Bienvenido!', 'success');
+          } catch (error) {
+              console.error("Error al registrar:", error.message);
+              showNotificationMessage('Error al registrar. Intenta con otro email.', 'error');
+          }
+      };
+      
+      const handleSignOut = async () => {
+          try {
+              await firebase.signOut(authRef.current);
+              showNotificationMessage('Cierre de sesión exitoso.', 'success');
+          } catch (error) {
+              console.error("Error al cerrar sesión:", error.message);
+              showNotificationMessage('Error al cerrar sesión.', 'error');
+          }
+      };
 
-      const filteredClasses = groupedClasses.filter(cls => {
-        const isMonthMatch = selectedMonth === 'Todos' || cls.date.substring(0, 7) === selectedMonth;
-        const isSearchMatch = searchQuery === '' || cls.students.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
-        const isDateRangeMatch = (startDate === '' || new Date(cls.date) >= new Date(startDate)) &&
-                                 (endDate === '' || new Date(cls.date) <= new Date(endDate));
-        return isMonthMatch && isSearchMatch && isDateRangeMatch;
-      });
+      const handleSaveConfig = () => {
+        try {
+          const config = JSON.parse(firebaseConfigInput);
+          firebaseConfigRef.current = config;
+          setShowConfigModal(false);
+          initFirebase();
+        } catch (e) {
+          setConfigError('Formato JSON inválido. Por favor, revisa tu configuración.');
+        }
+      };
+
+      const handleSavePrices = async () => {
+        if (!userId) {
+            showNotificationMessage('Debes iniciar sesión para guardar los precios.', 'error');
+            return;
+        }
+        try {
+            const pricesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/settings/prices`);
+            await firebase.setDoc(pricesDocRef, customPrices);
+            showNotificationMessage('Precios guardados con éxito.', 'success');
+        } catch (error) {
+            console.error("Error al guardar los precios:", error);
+            showNotificationMessage('Error al guardar los precios.', 'error');
+        }
+      };
+
+      const cancelAction = () => {
+        setShowConfirmationModal(false);
+        setActionToConfirm(null);
+        setConfirmationMessage('');
+      };
+      
+      const confirmAction = () => {
+        if (actionToConfirm) {
+            actionToConfirm();
+        }
+      };
+      
+      const groupClassesByMonth = (classes) => {
+        const grouped = classes.reduce((acc, cls) => {
+          const [year, month] = cls.date.split('-');
+          const monthKey = `${year}-${month}`;
+          if (!acc[monthKey]) {
+            acc[monthKey] = [];
+          }
+          acc[monthKey].push(cls);
+          return acc;
+        }, {});
+        
+        // Ordenar los meses de forma descendente (más reciente primero)
+        const sortedMonthKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+        
+        const sortedGroups = {};
+        for (const key of sortedMonthKeys) {
+            sortedGroups[key] = grouped[key];
+        }
+        
+        return sortedGroups;
+      };
+      
+      const groupedClasses = groupClassesByMonth(classes);
+
       return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
-          <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
-            
-            <div className="flex items-center justify-center gap-4 mb-4">
-              <img src="https://i.postimg.cc/L4PWVYFx/REPORTE-PADEL-LOGO.png" alt="Logo" className="h-12 w-12 object-contain" />
-              <h1 className="text-3xl font-bold text-center text-gray-900">
-                Informe de Clases de Padel
-              </h1>
+          {showNotification && (
+            <div className={`fixed bottom-4 right-4 z-50 p-4 rounded-xl shadow-xl text-white ${notificationType === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+              {notificationMessage}
             </div>
-            
-            <div className="flex gap-4 mb-6 justify-center">
-              <button onClick={exportDatabase} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                Exportar BD
-              </button>
-              <label className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600">
-                Importar BD
-                <input type="file" accept=".json" onChange={importDatabase} className="hidden" />
-              </label>
+          )}
+          {showConfigModal && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+              <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4">Configurar Firebase</h2>
+                {configError && <p className="text-red-500 text-sm mb-4">{configError}</p>}
+                <textarea
+                  className="w-full h-32 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Pega tu objeto de configuración de Firebase aquí..."
+                  value={firebaseConfigInput}
+                  onChange={(e) => setFirebaseConfigInput(e.target.value)}
+                ></textarea>
+                <button
+                  onClick={() => handleSaveConfig()}
+                  className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                >
+                  Guardar Configuración
+                </button>
+              </div>
             </div>
-            
-            <div className="flex gap-4 mb-6 justify-center">
-              <button onClick={exportWeeklyPDF} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-                Exportar Informe Semanal (PDF)
-              </button>
-              <button onClick={exportMonthlyPDF} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-                Exportar Informe Mensual (PDF)
-              </button>
+          )}
+
+          {showConfirmationModal && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm text-center">
+                <h3 className="text-lg font-bold mb-4">¿Estás seguro?</h3>
+                <p className="mb-6">{confirmationMessage}</p>
+                <div className="flex justify-around">
+                  <button
+                    onClick={cancelAction}
+                    className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmAction}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </div>
             </div>
-            
-            <p className="text-center text-sm mb-6 text-gray-500 italic">
-              {userIdDisplay}
-            </p>
-            
-            {showConfigModal && (
-              <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-                  <h2 className="text-2xl font-bold mb-4 text-gray-900">
-                    Introduce tu Configuración de Firebase
-                  </h2>
-                  <p className="text-gray-600 mb-6">
-                    Para que la aplicación funcione en la web, necesitas tu propia configuración de Firebase. Puedes encontrarla en la consola de Firebase.
-                  </p>
-                  <form onSubmit={handleConfigSubmit}>
-                    <textarea
-                      value={userFirebaseConfig}
-                      onChange={(e) => {
-                          setUserFirebaseConfig(e.target.value);
-                          setConfigError('');
-                      }}
-                      className="w-full h-40 p-3 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                      placeholder='Pega tu objeto JSON aquí: { "apiKey": "...", "authDomain": "...", ... }'
+          )}
+
+          {loading ? (
+            <div className="flex justify-center items-center h-48">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+              <p className="ml-4 text-gray-600">Conectando a la nube y cargando datos...</p>
+            </div>
+          ) : userId ? (
+            // Contenido principal de la aplicación
+            <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-6h-2v6zm0-8h2V7h-2v2z" />
+                  </svg>
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Reporte Padel</h1>
+                    <p className="text-sm text-gray-500">Versión 12.8</p>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button onClick={handleExportData} className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18h14v2H5v-2z" />
+                    </svg>
+                    <span>Exportar BD</span>
+                  </button>
+                  <button onClick={handleImportData} className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-600 transition-colors flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 15v-3h-4V5h-2v7H9v3H5l7 7 7-7z" />
+                    </svg>
+                    <span>Importar BD</span>
+                  </button>
+                  <button onClick={handleExportPdf} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-colors flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 4h-3V2H8v2H5c-1.1 0-1.99.9-1.99 2L3 20c0 1.1.89 2 1.99 2H19c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V6h14v14zM9 10h6v2H9v-2zm0 4h6v2H9v-2z" />
+                    </svg>
+                    <span>Exportar PDF</span>
+                  </button>
+                  <button onClick={handleSignOut} className="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-600 transition-colors flex items-center space-x-1">
+                    <i className="fas fa-sign-out-alt"></i>
+                    <span>Cerrar Sesión</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border-l-4 border-blue-400 text-blue-800 p-4 mb-6 rounded-lg">
+                <p className="font-bold">¡Bienvenido de nuevo!</p>
+                <p>Has iniciado sesión con el ID de usuario: <span className="font-mono bg-blue-200 px-1 rounded">{userId}</span></p>
+              </div>
+
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-chart-bar text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">Informes Mensuales</h2>
+              </div>
+              <div className="overflow-x-auto mb-6">
+                <div className="flex space-x-4 pb-4">
+                  {monthlyReports.map((report, index) => (
+                    <div key={index} className="flex-none w-64 bg-gray-50 p-4 rounded-xl shadow-md">
+                      <h3 className="font-semibold text-gray-700">{report.month.toUpperCase()}</h3>
+                      <p className="text-sm text-gray-600">Clases: {report.count}</p>
+                      <p className="text-lg font-bold text-gray-900 mt-1">Total: ${report.total.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-cogs text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">Configuración de Precios</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
+                {peopleOptions.map(count => (
+                  <div key={count}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Precio para {count} {count === 1 ? 'persona' : 'personas'}
+                    </label>
+                    <input
+                      type="number"
+                      value={customPrices[count] || ''}
+                      onChange={(e) => setCustomPrices({ ...customPrices, [count]: parseInt(e.target.value) || 0 })}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
-                    {configError && (
-                      <div className="text-red-500 text-sm mb-4">
-                        {configError}
-                      </div>
-                    )}
-                    <button
-                      type="submit"
-                      className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                    >
-                      Guardar y Conectar
+                  </div>
+                ))}
+                <div className="md:col-span-2 lg:col-span-1 flex items-end">
+                  <button onClick={handleSavePrices} className="w-full bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-indigo-700 transition-colors">
+                    Guardar Precios
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-plus-circle text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
+                <input
+                  type="text"
+                  placeholder="Nombre del Alumno"
+                  value={newEntry.studentName}
+                  onChange={(e) => setNewEntry({ ...newEntry, studentName: e.target.value })}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <input
+                  type="date"
+                  value={newEntry.date}
+                  onChange={handleDateChange}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <select
+                  value={newEntry.day}
+                  disabled={true}
+                  className="p-3 border border-gray-300 rounded-lg bg-gray-200 cursor-not-allowed text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {daysOfWeek.map(day => <option key={day} value={day}>{day}</option>)}
+                </select>
+                <select
+                  value={newEntry.time}
+                  onChange={(e) => setNewEntry({ ...newEntry, time: e.target.value })}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {timesOfDay.map(time => <option key={time} value={time}>{time}</option>)}
+                </select>
+                <select
+                  value={newEntry.studentCount}
+                  onChange={(e) => setNewEntry({ ...newEntry, studentCount: parseInt(e.target.value) })}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {peopleOptions.map(count => <option key={count} value={count}>{count} {count === 1 ? 'persona' : 'personas'}</option>)}
+                </select>
+                <div className="p-3 border border-gray-300 rounded-lg bg-white flex items-center justify-between col-span-1">
+                  <span className="text-gray-500">Valor de la Clase:</span>
+                  <span className="font-bold text-gray-900">${newEntry.price.toLocaleString()}</span>
+                </div>
+                {isEditing ? (
+                  <div className="md:col-span-2 lg:col-span-2 flex space-x-2">
+                    <button onClick={handleAddEntry} className="w-1/2 bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                      Guardar Cambios
                     </button>
-                  </form>
-                </div>
+                    <button onClick={handleCancelEdit} className="w-1/2 bg-gray-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-600 transition-colors">
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={handleAddEntry} className="md:col-span-2 lg:col-span-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                    Registrar Clase
+                  </button>
+                )}
               </div>
-            )}
-            
-            {showConfirmationModal && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm">
-                        <h2 className="text-xl font-bold mb-4">{modalContent.title}</h2>
-                        <p className="text-gray-700 mb-6">{modalContent.message}</p>
-                        <div className="flex justify-end gap-4">
-                            <button
-                                onClick={() => setShowConfirmationModal(false)}
-                                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={() => modalContent.onConfirm()}
-                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                            >
-                                Confirmar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
-            
-            {loading ? (
-              <div className="flex justify-center items-center h-48">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                <p className="ml-4 text-gray-600">Conectando a la nube y cargando datos...</p>
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-list-ul text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">Listado de Clases Registradas</h2>
               </div>
-            ) : (
-              <>
-                <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
-                  <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
-                    <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
-                  </h2>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Edita el valor de las clases según la cantidad de alumnos. Los cambios se guardarán automáticamente en la nube.
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {Object.entries(editableValues).map(([count, value]) => (
-                      <div key={count} className="p-4 bg-white rounded-lg shadow-md flex flex-col items-center">
-                        <label htmlFor={`value-${count}`} className="block text-sm font-medium text-gray-700 mb-1">
-                          Clase con {count} Alumno{count > 1 ? 's' : ''}
-                        </label>
-                        <input
-                          id={`value-${count}`}
-                          name={count}
-                          type="number"
-                          value={value}
-                          onChange={handleValueChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2 text-center text-lg font-bold"
-                          min="0"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
-                      <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
-                    </h2>
-                    {weeklyReports.length > 0 ? (
-                      weeklyReports.map(report => (
-                        <div key={report.week} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">{report.week}</h3>
-                          <div className="grid grid-cols-2 gap-4 text-center">
-                            <div>
-                              <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
-                              <p className="text-xs font-medium text-gray-600">Total Clases</p>
-                            </div>
-                            <div>
-                              <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
-                              <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
-                            </div>
-                            <div className="col-span-2 mt-2 pt-2 border-t border-gray-200">
-                              <p className="text-xs font-semibold text-gray-700 mb-1">Clases por Alumno:</p>
-                                <p className="text-xs text-gray-600">1: {report.countsByStudent[1] || 0}, 2: {report.countsByStudent[2] || 0}, 3: {report.countsByStudent[3] || 0}, 4: {report.countsByStudent[4] || 0}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">No hay informes semanales disponibles.</p>
-                    )}
-                  </div>
-            
-                  <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                      <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
-                    </h2>
-                    {monthlyReports.length > 0 ? (
-                      monthlyReports.map(report => (
-                        <div key={report.month} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">{report.month}</h3>
-                          <div className="grid grid-cols-2 gap-4 text-center">
-                            <div>
-                              <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
-                              <p className="text-xs font-medium text-gray-600">Total Clases</p>
-                            </div>
-                            <div>
-                              <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
-                              <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">No hay informes mensuales disponibles.</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h2 className="text-2xl font-bold mb-4 text-gray-900 flex items-center gap-2">
-                    <i className="fas fa-clipboard-list text-lg"></i> Ingresar nueva clase
-                  </h2>
-                  <form onSubmit={handleAddClass} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 items-end">
-                    <div className="md:col-span-1">
-                      <label htmlFor="studentName" className="block text-sm font-medium text-gray-700">
-                        Nombre del Alumno
-                      </label>
-                      <input
-                        type="text"
-                        id="studentName"
-                        name="studentName"
-                        value={newEntry.studentName}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                        placeholder="Escribe un nombre..."
-                        required
-                      />
-                    </div>
-                    <div className="md:col-span-1">
-                      <label htmlFor="date" className="block text-sm font-medium text-gray-700">
-                        Fecha
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="date"
-                          id="date"
-                          name="date"
-                          value={newEntry.date}
-                          onChange={handleInputChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                          required
-                        />
-                        {newEntry.day && (
-                          <span className="mt-1 text-sm font-medium text-gray-700">
-                            ({newEntry.day})
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="md:col-span-1">
-                      <label htmlFor="time" className="block text-sm font-medium text-gray-700">
-                        Horario
-                      </label>
-                      <select
-                        id="time"
-                        name="time"
-                        value={newEntry.time}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                      >
-                        {timeOptions.map(time => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="md:col-span-1">
-                      <button
-                        type="submit"
-                        className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                      >
-                        <i className="fas fa-plus"></i> Añadir Clase
-                      </button>
-                    </div>
-                  </form>
-                </div>
-            
-                <div className="mt-8 p-6 bg-white rounded-xl shadow-lg">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                      <i className="fas fa-list-ul text-lg"></i> Clases Registradas
-                    </h2>
-                    <div className="flex gap-2 items-center">
-                      <label htmlFor="filterMonth" className="text-sm font-medium text-gray-700">
-                        Filtrar por Mes:
-                      </label>
-                      <select
-                        id="filterMonth"
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-1 text-sm"
-                      >
-                        <option value="Todos">Todos</option>
-                        {availableMonths.map(month => (
-                          <option key={month} value={month}>{month}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="flex flex-col md:flex-row gap-4 mb-4">
-                      <div className="w-full">
-                          <label htmlFor="search" className="block text-sm font-medium text-gray-700">Buscar por Alumno</label>
-                          <input
-                              type="text"
-                              id="search"
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              placeholder="Escribe el nombre de un alumno..."
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                          />
-                      </div>
-                      <div className="w-full md:w-1/2">
-                          <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Fecha de Inicio</label>
-                          <input
-                              type="date"
-                              id="startDate"
-                              value={startDate}
-                              onChange={(e) => setStartDate(e.target.value)}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                          />
-                      </div>
-                      <div className="w-full md:w-1/2">
-                          <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">Fecha de Fin</label>
-                          <input
-                              type="date"
-                              id="endDate"
-                              value={endDate}
-                              onChange={(e) => setEndDate(e.target.value)}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                          />
-                      </div>
-                  </div>
-                  {editingClass ? (
-                      <div className="p-4 bg-gray-50 rounded-lg shadow-inner mt-4">
-                          <h3 className="text-xl font-bold mb-2">Editar Clase</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                  <label className="block text-sm font-medium text-gray-700">Fecha</label>
-                                  <input type="date" value={editingClass.date} readOnly className="mt-1 block w-full rounded-md border-gray-300 bg-gray-200 p-2" />
-                              </div>
-                              <div>
-                                  <label className="block text-sm font-medium text-gray-700">Horario</label>
-                                  <input type="text" value={editingClass.time} readOnly className="mt-1 block w-full rounded-md border-gray-300 bg-gray-200 p-2" />
-                              </div>
-                          </div>
-                          <div className="mt-4">
-                              <label className="block text-sm font-medium text-gray-700">Alumnos</label>
-                              {editingClass.students.map((student, index) => (
-                                  <div key={editingClass.ids[index]} className="flex items-center gap-2 mt-2">
-                                      <input
-                                          type="text"
-                                          value={student}
-                                          onChange={(e) => {
-                                              const newStudents = [...editingClass.students];
-                                              newStudents[index] = e.target.value;
-                                              setEditingClass({ ...editingClass, students: newStudents });
-                                          }}
-                                          className="flex-grow rounded-md border-gray-300 p-2"
-                                      />
-                                      <button
-                                          onClick={() => handleDeleteStudentFromClass(editingClass.ids[index])}
-                                          className="text-red-500 hover:text-red-700"
-                                      >
-                                          <i className="fas fa-trash-alt"></i>
-                                      </button>
-                                  </div>
-                              ))}
-                              <div className="flex gap-2 mt-4">
-                                  <button onClick={handleUpdateClass} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                                      Guardar Cambios
-                                  </button>
-                                  <button onClick={handleCancelEdit} className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">
-                                      Cancelar
-                                  </button>
-                              </div>
-                          </div>
-                      </div>
-                  ) : (
-                      <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                              <thead className="bg-red-500">
-                                  <tr>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Fecha</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Día</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Horario</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Alumnos</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Valor</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Acciones</th>
-                                  </tr>
+              <div className="flex flex-wrap gap-4 mb-4">
+                <span className="flex items-center text-sm text-gray-600">
+                  <div className="w-4 h-4 rounded-full bg-yellow-100 border border-yellow-200 mr-2"></div>1 Persona
+                </span>
+                <span className="flex items-center text-sm text-gray-600">
+                  <div className="w-4 h-4 rounded-full bg-green-100 border border-green-200 mr-2"></div>2 Personas
+                </span>
+                <span className="flex items-center text-sm text-gray-600">
+                  <div className="w-4 h-4 rounded-full bg-blue-100 border border-blue-200 mr-2"></div>3 Personas
+                </span>
+                <span className="flex items-center text-sm text-gray-600">
+                  <div className="w-4 h-4 rounded-full bg-purple-100 border border-purple-200 mr-2"></div>4 Personas
+                </span>
+              </div>
+              <div ref={tableRef} className="bg-white rounded-xl shadow-md mb-6">
+                {Object.keys(groupedClasses).length > 0 ? (
+                  Object.keys(groupedClasses).map(monthKey => {
+                    const [year, month] = monthKey.split('-');
+                    const displayDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+                    return (
+                        <div key={monthKey} className="pb-4">
+                          <h3 className="bg-gray-100 font-bold text-lg p-4 sticky top-0 border-b border-gray-200">
+                            {displayDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
+                          </h3>
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Día</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Horario</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alumnos</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                </tr>
                               </thead>
                               <tbody className="bg-white divide-y divide-gray-200">
-                                  {filteredClasses.length > 0 ? (
-                                      filteredClasses.map((cls, index) => (
-                                          <tr key={index} className={cls.color}>
-                                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(cls.date)}</td>
-                                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cls.day}</td>
-                                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cls.time}</td>
-                                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                  <ul className="list-disc list-inside">
-                                                  {cls.students.map((student, i) => (
-                                                      <li key={i}>{student}</li>
-                                                  ))}
-                                                  </ul>
-                                              </td>
-                                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(cls.value)}</td>
-                                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                  <button onClick={() => handleEditClass(cls)} className="text-blue-600 hover:text-blue-900 mr-2">
-                                                      <i className="fas fa-edit"></i>
-                                                  </button>
-                                                  <button onClick={() => handleDeleteGroupedClass(cls.ids)} className="text-red-600 hover:text-red-900">
-                                                      <i className="fas fa-trash-alt"></i>
-                                                  </button>
-                                              </td>
-                                          </tr>
-                                      ))
-                                  ) : (
-                                      <tr>
-                                          <td colSpan="6" className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center italic">
-                                              No hay clases registradas.
-                                          </td>
-                                      </tr>
-                                  )}
+                                {groupedClasses[monthKey].map((entry) => (
+                                  <tr key={entry.id} className={`${colorMap[entry.studentCount]} hover:bg-gray-200 transition-colors`}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(entry.date).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.day}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.time}</td>
+                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                      <ul className="list-disc list-inside">
+                                        {entry.studentNames.map((name, index) => (
+                                          <li key={index}>{name}</li>
+                                        ))}
+                                      </ul>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${entry.price.toLocaleString()}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                      <button onClick={() => handleEditEntry(entry)} className="text-blue-600 hover:text-blue-900 mr-2">
+                                        <i className="fas fa-edit"></i>
+                                      </button>
+                                      <button onClick={() => confirmDeletion(entry)} className="text-red-600 hover:text-red-900">
+                                        <i className="fas fa-trash-alt"></i>
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
                               </tbody>
-                          </table>
-                      </div>
-                  )}
+                            </table>
+                          </div>
+                        </div>
+                    );
+                  })
+                ) : (
+                  <div className="p-6 text-center italic text-gray-500">
+                    No hay clases registradas.
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            // Formulario de inicio de sesión
+            <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+              <div className="w-full max-w-sm p-6 bg-white rounded-xl shadow-lg text-center">
+                <h2 className="text-2xl font-bold mb-4 text-gray-900">Iniciar Sesión</h2>
+                <p className="text-sm text-gray-600 mb-6">Inicia sesión para ver y gestionar tus clases de pádel.</p>
+                <div className="mb-4">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Correo electrónico"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
-              </>
-            )}
-          </div>
+                <div className="mb-6">
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Contraseña"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <button 
+                  onClick={handleSignIn} 
+                  className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                >
+                  Iniciar Sesión
+                </button>
+                <button 
+                  onClick={handleSignUp} 
+                  className="w-full mt-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition-colors"
+                >
+                  Registrarse
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       );
     };
