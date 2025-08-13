@@ -90,7 +90,9 @@
   names: [""]
 });
 
-      const dbRef = useRef(null);
+      
+const [filterText, setFilterText] = useState(\"\");
+const dbRef = useRef(null);
       const authRef = useRef(null);
       const userRef = useRef(null);
       const firebaseConfigRef = useRef(null);
