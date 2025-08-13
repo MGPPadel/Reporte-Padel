@@ -296,14 +296,13 @@ const dateObj = new Date(year, month - 1, day);
         })).sort((a, b) => new Date(b.month) - new Date(a.month));
         setMonthlyReports(monthlyReportsData);
       };
+// Asegúrate de que tu función se vea exactamente como esta
+const handleAddEntry = async () => {
+    if (!newEntry.studentName || !newEntry.time || !newEntry.date) {
+        showMessageBox('Error', 'Por favor, completa todos los campos para registrar la clase.', 'error');
+        return;
+    }
 
-      const handleAddEntry = async () => {
-    // ...
-    // Ahora 'await' es válido
-    await firebase.updateDoc(docRef, { ... });
-    // ...
-};
-    
     if (!userId) {
         showMessageBox('Error', 'Debes iniciar sesión para registrar clases.', 'error');
         return;
@@ -312,33 +311,62 @@ const dateObj = new Date(year, month - 1, day);
     try {
         const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
 
-        // Si el usuario ingresa varios nombres, se registran como clases separadas
-        const studentNames = newEntry.studentName.split(',').map(s => s.trim());
-        const batch = firebase.writeBatch(dbRef.current);
+        // Normalizamos el nombre del alumno para la búsqueda
+        const newStudentName = newEntry.studentName.trim();
 
-        studentNames.forEach(name => {
+        // Buscar una clase que coincida en fecha y hora, y que contenga al menos un alumno
+        const q = firebase.query(
+            classesCollectionRef,
+            firebase.where('date', '==', newEntry.date),
+            firebase.where('time', '==', newEntry.time)
+        );
+
+        const querySnapshot = await firebase.getDocs(q);
+        const existingClassDoc = querySnapshot.docs.find(doc => {
+            const data = doc.data();
+            return data.studentNames && data.studentNames.length > 0;
+        });
+
+        if (existingClassDoc) {
+            // Si la clase existe, actualiza la lista de alumnos
+            const existingData = existingClassDoc.data();
+            const updatedStudentNames = [...existingData.studentNames, newStudentName];
+
+            const docRef = existingClassDoc.ref;
+            await firebase.updateDoc(docRef, {
+                studentNames: updatedStudentNames,
+            });
+            showMessageBox('Éxito', `Alumno "${newStudentName}" añadido a la clase existente.`, 'success');
+        } else {
+            // Si la clase no existe, crea una nueva
             const classData = {
-                studentName: name, // Ahora es una cadena, no un array
+                studentNames: [newStudentName], // Ahora es un array
                 day: newEntry.day,
                 time: newEntry.time,
                 date: newEntry.date,
                 studentCount: newEntry.studentCount,
                 price: newEntry.price,
             };
-            const newDocRef = firebase.doc(classesCollectionRef);
-            batch.set(newDocRef, classData);
-        });
+            await firebase.addDoc(classesCollectionRef, classData);
+            showMessageBox('Éxito', 'Clase registrada con éxito.', 'success');
+        }
 
-        await batch.commit();
-        showMessageBox('Éxito', 'Clase(s) registrada(s) con éxito.', 'success');
-        
-        // ... limpiar el formulario ...
+        // Limpiar el formulario y resetear el estado
+        setNewEntry({
+            studentName: '',
+            day: '',
+            time: '',
+            date: '',
+            studentCount: '',
+            price: '',
+        });
+        setStudentNameInput('');
+        setAddingMode(false);
     } catch (error) {
         console.error("Error saving document: ", error);
         showMessageBox('Error', 'Error al registrar la clase.', 'error');
     }
 };
-
               const updatedStudentNames = [...existingStudents, newStudentName];
               
               if (updatedStudentNames.length > existingData.studentCount) {
