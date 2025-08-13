@@ -82,13 +82,13 @@
       const [classes, setClasses] = useState([]);
       const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
       const [newEntry, setNewEntry] = useState({
-        studentName: '',
-        day: '',
-        time: '8:00 a. m.',
-        date: new Date().toISOString().slice(0, 10),
-        studentCount: 1, 
-        price: defaultClassPrices[1], 
-      });
+    studentCount: 1,
+    studentNames: [''], // <-- ¡Importante! Inicializar como un array de strings.
+    date: new Date().toISOString().split('T')[0],
+    day: '',
+    time: timesOfDay[0],
+    price: 0,
+});
       const [monthlyReports, setMonthlyReports] = useState([]);
       const [isEditing, setIsEditing] = useState(false);
       const [editedClassId, setEditedClassId] = useState(null);
@@ -792,8 +792,8 @@ const dateObj = new Date(year, month - 1, day);
     <h2 className="text-2xl font-bold text-gray-900">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
 </div>
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
-    {/* Este bloque generará los campos de nombre dinámicamente */}
-    {Array.from({ length: newEntry.studentCount }, (_, i) => (
+    {/* Este bloque genera los campos de nombre dinámicamente */}
+    {Array.from({ length: newEntry.studentCount }).map((_, i) => (
         <input
             key={i}
             type="text"
@@ -1152,6 +1152,7 @@ const dateObj = new Date(year, month - 1, day);
   </script>
 </body>
 </html>
+
 
 
 
