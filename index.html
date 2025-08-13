@@ -178,17 +178,17 @@
       };
 
       const handleDateChange = (e) => {
-          const newDate = e.target.value;
-          const [year, month, day] = newDate.split('-').map(Number);
-const dateObj = new Date(year, month - 1, day); 
-          const dayIndex = dateObj.getDay(); 
-          const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; 
-          setNewEntry(prev => ({
-              ...prev,
-              date: newDate,
-              day: newDay,
-          }));
-      };
+  const newDate = e.target.value;
+  const [year, month, day] = newDate.split('-').map(Number);
+  const dateObj = new Date(Date.UTC(year, month - 1, day)); 
+  const dayIndex = dateObj.getUTCDay(); 
+  const newDay = daysOfWeek[dayIndex];
+  setNewEntry(prev => ({
+    ...prev,
+    date: newDate,
+    day: newDay,
+  }));
+};
 
       useEffect(() => {
         setNewEntry(prev => ({
