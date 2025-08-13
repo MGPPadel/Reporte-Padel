@@ -1,1060 +1,702 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Informe de Clases de Padel</title>
-  <!-- React, ReactDOM, Babel -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Font Awesome para los íconos -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
-  <!-- Librerías para exportar a PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, deleteDoc, updateDoc, writeBatch, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    window.firebase = {
-      initializeApp,
-      getAuth,
-      onAuthStateChanged,
-      signInWithEmailAndPassword,
-      createUserWithEmailAndPassword,
-      signOut,
-      getFirestore,
-      doc,
-      setDoc,
-      onSnapshot,
-      collection,
-      query,
-      addDoc,
-      deleteDoc,
-      updateDoc,
-      writeBatch,
-      where,
-      getDocs
-    };
-  </script>
-  
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-  </style>
-</head>
-<body class="bg-gray-100">
-  <div id="root"></div>
-
-  <script type="text/babel">
-    const { useState, useEffect, useRef, useMemo } = React;
-
-    const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    const timesOfDay = [
-      '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
-    ];
-    
-    const defaultClassPrices = {
-      1: 5000,
-      2: 3000,
-      3: 2500,
-      4: 2000,
-    };
-    const peopleOptions = [1, 2, 3, 4];
-    
-    // Color map for classes based on student count
-    const colorMap = {
-        1: 'bg-yellow-100',
-        2: 'bg-green-100',
-        3: 'bg-blue-100',
-        4: 'bg-purple-100',
-    };
-
-    const App = () => {
-      const [email, setEmail] = useState('');
-      const [password, setPassword] = useState('');
-      const [userId, setUserId] = useState(null);
-      const [loading, setLoading] = useState(true);
-      const [classes, setClasses] = useState([]);
-      const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
-      const [newEntry, setNewEntry] = useState({
-        studentName: '',
-        day: '',
-        time: '8:00 a. m.',
-        date: new Date().toISOString().slice(0, 10),
-        studentCount: 1, 
-        price: defaultClassPrices[1], 
-      });
-      const [monthlyReports, setMonthlyReports] = useState([]);
-      const [isEditing, setIsEditing] = useState(false);
-      const [editedClassId, setEditedClassId] = useState(null);
-      const [showConfigModal, setShowConfigModal] = useState(false);
-      const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
-      const [configError, setConfigError] = useState('');
-
-      const [view, setView] = useState('list');
-      const [selectedDate, setSelectedDate] = useState(new Date());
-      const [filterText, setFilterText] = useState('');
-      
-      const [messageBox, setMessageBox] = useState({
-        show: false,
-        title: '',
-        content: '',
-        type: 'confirm', // 'confirm', 'success', 'error'
-        onConfirm: null,
-      });
-
-      const dbRef = useRef(null);
-      const authRef = useRef(null);
-      const userRef = useRef(null);
-      const firebaseConfigRef = useRef(null);
-      const appIdRef = useRef(null);
-      const tableRef = useRef(null);
-      
-      const __app_id = "default-app-id";
-      const __firebase_config = `{
-        "apiKey": "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
-        "authDomain": "app-de-padel.firebaseapp.com",
-        "projectId": "app-de-padel",
-        "storageBucket": "app-de-padel.firebasestorage.app",
-        "messagingSenderId": "731771747398",
-        "appId": "1:731771747398:web:ebc8b723fe220869fade47"
-      }`;
-
-      const showMessageBox = (title, content, type, onConfirm = null) => {
-        setMessageBox({ show: true, title, content, type, onConfirm });
-      };
-      
-      const closeMessageBox = () => {
-        setMessageBox({ show: false, title: '', content: '', type: 'confirm', onConfirm: null });
-      };
-
-      const initFirebase = async () => {
-        setLoading(true);
-        try {
-          const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-          appIdRef.current = appId;
-
-          let config = null;
-          if (typeof __firebase_config !== 'undefined') {
-              config = JSON.parse(__firebase_config);
-          }
-          
-          if (!config) {
-            console.log("Firebase config not found. Showing modal.");
-            setShowConfigModal(true);
-            setLoading(false);
-            return;
-          }
-
-          firebaseConfigRef.current = config;
-          const app = firebase.initializeApp(firebaseConfigRef.current);
-          const auth = firebase.getAuth(app);
-          const db = firebase.getFirestore(app);
-
-          dbRef.current = db;
-          authRef.current = auth;
-
-          firebase.onAuthStateChanged(auth, (user) => {
-            if (user) {
-              setUserId(user.uid);
-              userRef.current = user.uid;
-            } else {
-              setUserId(null);
-              userRef.current = null;
-            }
-            setLoading(false);
-          });
-        } catch (error) {
-          console.error("Error initializing Firebase:", error);
-          setConfigError('Error al conectar a Firebase. Revisa tu configuración e inténtalo de nuevo.');
-          setLoading(false);
-          setShowConfigModal(true);
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>informe de clases de padel</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
         }
-      };
+    </style>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    </script>
+    <script type="module">
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    </script>
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
 
-      const handleDateChange = (e) => {
-          const newDate = e.target.value;
-          const [year, month, day] = newDate.split('-').map(Number);
-          const dateObj = new Date(year, month - 1, day); 
-          const dayIndex = dateObj.getDay(); 
-          const newDay = daysOfWeek[dayIndex]; 
-          setNewEntry(prev => ({
-              ...prev,
-              date: newDate,
-              day: newDay,
-          }));
-      };
+        const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+        const timesOfDay = [
+            '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.', '13:00 p. m.', '14:00 p. m.',
+            '15:00 p. m.', '16:00 p. m.', '17:00 p. m.', '18:00 p. m.', '19:00 p. m.', '20:00 p. m.', '21:00 p. m.'
+        ];
 
-      useEffect(() => {
-        setNewEntry(prev => ({
-          ...prev,
-          price: customPrices[prev.studentCount]
-        }));
-      }, [newEntry.studentCount, customPrices]);
+        const defaultClassPrices = {
+            1: 5500,
+            2: 3200,
+            3: 2700,
+            4: 2200,
+        };
+        const peopleOptions = [1, 2, 3, 4];
 
-      useEffect(() => {
-        initFirebase();
-      }, []);
+        const colorMap = {
+            1: 'bg-yellow-100',
+            2: 'bg-green-100',
+            3: 'bg-blue-100',
+            4: 'bg-purple-100',
+        };
 
-      useEffect(() => {
-          if (newEntry.date) {
-              const [year, month, day] = newEntry.date.split('-').map(Number);
-              const dateObj = new Date(year, month - 1, day);
-              const dayIndex = dateObj.getDay();
-              const newDay = daysOfWeek[dayIndex];
-              setNewEntry(prev => ({ ...prev, day: newDay }));
-          }
-      }, [newEntry.date]);
-
-      const fetchPrices = async (db, currentUserId) => {
-        if (!currentUserId) {
-            setCustomPrices(defaultClassPrices);
-            return null;
-        }
-        try {
-            const docRef = firebase.doc(db, `artifacts/${appIdRef.current}/users/${currentUserId}/settings/prices`);
-            const unsubscribe = firebase.onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    setCustomPrices(docSnap.data());
-                } else {
-                    setCustomPrices(defaultClassPrices);
-                }
-            }, (error) => {
-                console.error("Error fetching prices:", error);
-                showMessageBox('Error', 'Error al cargar precios desde la base de datos.', 'error');
+        const App = () => {
+            const [messageBox, setMessageBox] = useState({
+                show: false,
+                title: '',
+                content: '',
+                type: 'confirm', // 'confirm', 'success', 'error'
+                onConfirm: null,
             });
-            return unsubscribe;
-        } catch (error) {
-            console.error("Error setting up prices listener:", error);
-            return null;
-        }
-      };
 
-      const fetchClasses = (db, currentUserId) => {
-        if (!currentUserId) {
-          setClasses([]);
-          setMonthlyReports([]);
-          return null;
-        }
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [userId, setUserId] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [classes, setClasses] = useState([]);
+            const [customPrices, setCustomPrices] = useState(defaultClassPrices);
+            const [newEntry, setNewEntry] = useState({
+                studentNames: [''], // Se ha cambiado a un array de nombres
+                day: '',
+                time: '8:00 a. m.',
+                date: new Date().toISOString().slice(0, 10),
+                studentCount: 1,
+                price: defaultClassPrices[1],
+            });
+            const monthlyReportsInfo = useMemo(() => {
+                const monthly = {};
+                classes.forEach(cls => {
+                    const [month, year] = cls.date.slice(0, 7).split('-').reverse();
+                    const key = `${month}/${year}`;
+                    if (!monthly[key]) {
+                        monthly[key] = { total: 0, classes: 0 };
+                    }
+                    monthly[key].total += cls.price * cls.studentCount;
+                    monthly[key].classes++;
+                });
+                return monthly;
+            }, [classes]);
 
-        const classesCollectionRef = firebase.collection(db, `artifacts/${appIdRef.current}/users/${currentUserId}/classes`);
-        const q = firebase.query(classesCollectionRef);
-        
-        const unsubscribe = firebase.onSnapshot(q, (snapshot) => {
-          const fetchedClasses = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          const sortedClasses = fetchedClasses.sort((a, b) => new Date(b.date) - new Date(a.date));
-          setClasses(sortedClasses);
-          generateReports(sortedClasses);
-        }, (error) => {
-          console.error("Error fetching classes:", error);
-        });
+            const [view, setView] = useState('login');
+            const [isEditing, setIsEditing] = useState(false);
+            const [editedClassId, setEditedClassId] = useState(null);
+            const firebaseAppRef = useRef(null);
+            const dbRef = useRef(null);
+            const authRef = useRef(null);
+            const appIdRef = useRef(null);
 
-        return unsubscribe;
-      };
-
-      useEffect(() => {
-        let unsubscribePrices = null;
-        let unsubscribeClasses = null;
-
-        if (dbRef.current && userId) {
-          unsubscribePrices = fetchPrices(dbRef.current, userId);
-          unsubscribeClasses = fetchClasses(dbRef.current, userId);
-        } else if (!userId) {
-          setClasses([]);
-          setMonthlyReports([]);
-        }
-        return () => {
-          if (unsubscribePrices) unsubscribePrices();
-          if (unsubscribeClasses) unsubscribeClasses();
-        };
-      }, [userId]);
-
-      const generateReports = (fetchedClasses) => {
-        const monthly = {};
-
-        // Group classes by month and year
-        fetchedClasses.forEach(entry => {
-          const [year, month] = entry.date.split('-');
-          const monthKey = `${year}-${month}`; // e.g., '2025-08'
-          
-          if (!monthly[monthKey]) {
-            monthly[monthKey] = { count: 0, total: 0 };
-          }
-          monthly[monthKey].count++;
-          monthly[monthKey].total += entry.price; 
-        });
-
-        // Convert the object to an array and format the month names
-        const monthlyReportsData = Object.keys(monthly).map(monthKey => ({
-          monthKey, // e.g., '2025-08'
-          month: new Date(monthKey + '-01').toLocaleString('es-ES', { year: 'numeric', month: 'long' }),
-          count: monthly[monthKey].count,
-          total: monthly[monthKey].total,
-        }));
-        
-        // Sort the reports by month key (most recent first)
-        monthlyReportsData.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
-        
-        setMonthlyReports(monthlyReportsData);
-      };
-
-      const handleAddEntry = async () => {
-        if (!newEntry.studentName || !newEntry.day || !newEntry.date || !newEntry.studentCount) {
-          showMessageBox('Error', 'Por favor, completa todos los campos.', 'error');
-          return;
-        }
-
-        if (!userId) {
-          showMessageBox('Error', 'Debes iniciar sesión para registrar clases.', 'error');
-          return;
-        }
-        
-        try {
-          const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
-          
-          const classData = {
-              studentNames: newEntry.studentName.split(',').map(s => s.trim()),
-              day: newEntry.day,
-              time: newEntry.time,
-              date: newEntry.date,
-              studentCount: newEntry.studentCount,
-              price: newEntry.price,
-          };
-          
-          if (isEditing) {
-            const classDocRef = firebase.doc(classesCollectionRef, editedClassId);
-            await firebase.updateDoc(classDocRef, classData);
-            showMessageBox('Éxito', 'Clase actualizada con éxito.', 'success');
-          } else {
-            const q = firebase.query(
-              classesCollectionRef,
-              firebase.where("date", "==", newEntry.date),
-              firebase.where("time", "==", newEntry.time)
-            );
-            const querySnapshot = await firebase.getDocs(q);
-
-            if (!querySnapshot.empty) {
-              showMessageBox('Error', 'Ya existe una clase en la misma fecha y hora. Usa la función de editar si quieres modificarla.', 'error');
-              return;
-            }
-            await firebase.addDoc(classesCollectionRef, classData);
-            showMessageBox('Éxito', 'Clase registrada con éxito.', 'success');
-          }
-          
-          setNewEntry({
-            studentName: '',
-            day: '',
-            time: '8:00 a. m.',
-            date: new Date().toISOString().slice(0, 10),
-            studentCount: 1,
-            price: customPrices[1],
-          });
-          setIsEditing(false);
-          setEditedClassId(null);
-        } catch (error) {
-          console.error("Error saving document: ", error);
-          showMessageBox('Error', 'Error al registrar/actualizar la clase.', 'error');
-        }
-      };
-
-      const confirmDeletion = (entry) => {
-        showMessageBox(
-          '¿Estás seguro?', 
-          `¿Estás seguro de que quieres eliminar la clase completa de ${entry.studentNames.join(', ')} del día ${entry.day} a las ${entry.time}?`,
-          'confirm',
-          () => handleDeleteEntry(entry.id)
-        );
-      };
-
-      const handleDeleteEntry = async (id) => {
-        try {
-          const docRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`, id);
-          await firebase.deleteDoc(docRef);
-          showMessageBox('Éxito', 'Clase eliminada con éxito.', 'success');
-        } catch (error) {
-          console.error("Error deleting document: ", error);
-          showMessageBox('Error', 'Error al eliminar la clase.', 'error');
-        } finally {
-          closeMessageBox();
-        }
-      };
-      
-      const handleEditEntry = (entry) => {
-        setIsEditing(true);
-        setEditedClassId(entry.id);
-        setNewEntry({
-          studentName: entry.studentNames.join(', '), 
-          day: entry.day,
-          time: entry.time,
-          date: entry.date,
-          studentCount: entry.studentCount,
-          price: entry.price,
-        });
-        setView('add');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      };
-      
-      const handleCancelEdit = () => {
-          setIsEditing(false);
-          setEditedClassId(null);
-          setNewEntry({
-              studentName: '',
-              day: '',
-              time: '8:00 a. m.',
-              date: new Date().toISOString().slice(0, 10),
-              studentCount: 1,
-              price: customPrices[1],
-          });
-      };
-
-      const handleExportData = () => {
-        const data = JSON.stringify(classes);
-        const blob = new Blob([data], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `reporte-padel-${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showMessageBox('Éxito', 'Datos exportados con éxito.', 'success');
-      };
-
-      const handleImportData = () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'application/json';
-        input.onchange = async (e) => {
-          const file = e.target.files[0];
-          if (!file) {
-            return;
-          }
-          const reader = new FileReader();
-          reader.onload = async (event) => {
-            try {
-              const data = JSON.parse(event.target.result);
-              if (!Array.isArray(data)) {
-                throw new Error('El archivo no contiene un array válido.');
-              }
-              const batch = firebase.writeBatch(dbRef.current);
-              data.forEach(entry => {
-                const newDocRef = firebase.doc(firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`));
-                batch.set(newDocRef, entry);
-              });
-              await batch.commit();
-              showMessageBox('Éxito', 'Datos importados con éxito.', 'success');
-            } catch (error) {
-              console.error("Error importing data: ", error);
-              showMessageBox('Error', 'Error al importar los datos: ' + error.message, 'error');
-            }
-          };
-          reader.readAsText(file);
-        };
-        input.click();
-      };
-
-      const handleExportPdf = () => {
-        const input = tableRef.current;
-        if (!input || classes.length === 0) {
-          showMessageBox('Advertencia', 'No hay datos para exportar.', 'error');
-          return;
-        }
-
-        const tableClone = input.cloneNode(true);
-        const pdfContent = document.createElement('div');
-        pdfContent.style.width = '100%';
-        pdfContent.style.padding = '20px';
-        pdfContent.style.boxSizing = 'border-box';
-        pdfContent.style.fontFamily = 'Inter, sans-serif';
-        pdfContent.innerHTML = `
-          <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Informe de Clases de Padel</h1>
-          ${tableClone.outerHTML}
-          <div style="margin-top: 50px; text-align: right;">
-            <p style="border-bottom: 1px solid #000; width: 250px; display: inline-block;"></p>
-            <p style="margin-top: 5px; font-size: 14px; font-weight: bold;">Mariana Garcia Pinto</p>
-          </div>
-        `;
-        document.body.appendChild(pdfContent);
-
-        window.html2canvas(pdfContent, { scale: 2 }).then((canvas) => {
-          const imgData = canvas.toDataURL('image/png');
-          const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
-          const imgProps = pdf.getImageProperties(imgData);
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-          pdf.save(`reporte-padel-${new Date().toISOString().slice(0, 10)}.pdf`);
-          showMessageBox('Éxito', 'Reporte PDF exportado con éxito.', 'success');
-        }).catch(error => {
-          console.error("Error generating PDF:", error);
-          showMessageBox('Error', 'Error al generar el PDF.', 'error');
-        }).finally(() => {
-          document.body.removeChild(pdfContent);
-        });
-      };
-
-      const handleSignIn = async () => {
-        if (!email || !password) {
-          showMessageBox('Error', 'Por favor, ingresa un email y una contraseña.', 'error');
-          return;
-        }
-        try {
-          await firebase.signInWithEmailAndPassword(authRef.current, email, password);
-          showMessageBox('Éxito', 'Inicio de sesión exitoso.', 'success');
-        } catch (error) {
-          console.error("Error al iniciar sesión:", error.message);
-          showMessageBox('Error', 'Error al iniciar sesión. Verifica tus credenciales.', 'error');
-        }
-      };
-
-      const handleSignUp = async () => {
-        if (!email || !password) {
-          showMessageBox('Error', 'Por favor, ingresa un email y una contraseña.', 'error');
-          return;
-        }
-        try {
-          await firebase.createUserWithEmailAndPassword(authRef.current, email, password);
-          showMessageBox('Éxito', 'Registro exitoso. ¡Bienvenido!', 'success');
-        } catch (error) {
-          console.error("Error al registrar:", error.message);
-          showMessageBox('Error', 'Error al registrar. Intenta con otro email.', 'error');
-        }
-      };
-
-      const handleSignOut = async () => {
-        try {
-          await firebase.signOut(authRef.current);
-          showMessageBox('Éxito', 'Cierre de sesión exitoso.', 'success');
-        } catch (error) {
-          console.error("Error al cerrar sesión:", error.message);
-          showMessageBox('Error', 'Error al cerrar sesión.', 'error');
-        }
-      };
-
-      const handleSaveConfig = () => {
-        try {
-          const config = JSON.parse(firebaseConfigInput);
-          firebaseConfigRef.current = config;
-          setShowConfigModal(false);
-          initFirebase();
-        } catch (e) {
-          setConfigError('Formato JSON inválido. Por favor, revisa tu configuración.');
-        }
-      };
-
-      const handleSavePrices = async () => {
-        if (!userId) {
-          showMessageBox('Error', 'Debes iniciar sesión para guardar los precios.', 'error');
-          return;
-        }
-        try {
-          const pricesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/settings/prices`);
-          await firebase.setDoc(pricesDocRef, customPrices);
-          showMessageBox('Éxito', 'Precios guardados con éxito.', 'success');
-        } catch (error) {
-          console.error("Error al guardar los precios:", error);
-          showMessageBox('Error', 'Error al guardar los precios.', 'error');
-        }
-      };
-      
-      const getFilteredAndGroupedClasses = (classes, filterText) => {
-        const filteredClasses = classes.filter(cls =>
-          cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()))
-        );
-        
-        // Group classes by month and year
-        const grouped = filteredClasses.reduce((acc, cls) => {
-          const date = new Date(cls.date);
-          const year = date.getFullYear();
-          const month = date.getMonth();
-          const monthKey = `${year}-${month}`; // e.g., '2025-7' for August 2025
-          
-          if (!acc[monthKey]) {
-            acc[monthKey] = {
-              monthName: date.toLocaleString('es-ES', { month: 'long', year: 'numeric' }),
-              classes: []
+            const showMessageBox = (title, content, type = 'confirm', onConfirm = null) => {
+                setMessageBox({
+                    show: true,
+                    title,
+                    content,
+                    type,
+                    onConfirm,
+                });
             };
-          }
-          acc[monthKey].classes.push(cls);
-          return acc;
-        }, {});
-        
-        // Convert the object to an array and sort by date
-        return Object.values(grouped).sort((a, b) => new Date(b.classes[0].date) - new Date(a.classes[0].date));
-      };
 
+            const initializeFirebase = async () => {
+                try {
+                    const firebaseConfig = {
+                        apiKey: "AzaSyA_G7P_S_m74_j_c8d_D2_v_l_E_a_u_t_b_y_e_B_l_X_O_p_s",
+                        authDomain: "informe-de-clases-de-padel.firebaseapp.com",
+                        projectId: "informe-de-clases-de-padel",
+                        storageBucket: "informe-de-clases-de-padel.appspot.com",
+                        messagingSenderId: "770425985854",
+                        appId: "1:770425985854:web:8c5b62b08a9c7d4e5f7a2d"
+                    };
 
-      const daysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-      const firstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay(); // 0 = Domingo
-      
-      const classesForDay = useMemo(() => {
-        const formattedDate = selectedDate.toISOString().slice(0, 10);
-        return classes.filter(cls => cls.date === formattedDate);
-      }, [classes, selectedDate]);
+                    firebaseAppRef.current = firebase.initializeApp(firebaseConfig);
+                    dbRef.current = firebase.getFirestore(firebaseAppRef.current);
+                    authRef.current = firebase.getAuth(firebaseAppRef.current);
+                    appIdRef.current = "8c5b62b08a9c7d4e5f7a2d";
+                } catch (error) {
+                    console.error("Error al inicializar Firebase:", error);
+                }
+            };
 
-      const hasClassesOnDate = (date) => {
-        const formattedDate = date.toISOString().slice(0, 10);
-        return classes.some(cls => cls.date === formattedDate);
-      };
+            const handleLogin = async () => {
+                setLoading(true);
+                try {
+                    const userCredential = await firebase.signInWithEmailAndPassword(authRef.current, email, password);
+                    setUserId(userCredential.user.uid);
+                    setView('list');
+                } catch (error) {
+                    showMessageBox('Error de autenticación', 'Usuario o contraseña incorrectos.', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
 
-      const MessageBox = ({ title, content, type, onConfirm, onClose }) => {
-        const bgColor = type === 'success' ? 'bg-green-100' : type === 'error' ? 'bg-red-100' : 'bg-white';
-        const borderColor = type === 'success' ? 'border-green-500' : type === 'error' ? 'border-red-500' : 'border-gray-400';
-        const titleColor = type === 'success' ? 'text-green-800' : type === 'error' ? 'text-red-800' : 'text-gray-900';
-        const buttonColor = type === 'success' ? 'bg-green-500 hover:bg-green-600' : type === 'error' ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600';
+            const fetchClasses = async () => {
+                if (!userId) return;
+                setLoading(true);
+                try {
+                    const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
+                    const classSnapshot = await firebase.getDocs(classesCollectionRef);
+                    const classList = classSnapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    setClasses(classList);
+                } catch (error) {
+                    console.error("Error al obtener clases:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
 
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50">
-            <div className={`p-6 rounded-lg shadow-xl border-l-4 ${bgColor} ${borderColor} w-11/12 max-w-sm`}>
-              <h3 className={`text-xl font-bold mb-4 ${titleColor}`}>{title}</h3>
-              <p className="text-gray-700 mb-6">{content}</p>
-              <div className="flex justify-end space-x-4">
-                {type === 'confirm' && (
-                  <button onClick={onClose} className="py-2 px-4 rounded-lg bg-gray-300 text-gray-800 hover:bg-gray-400">Cancelar</button>
-                )}
-                <button onClick={() => { onConfirm && onConfirm(); onClose(); }} className={`py-2 px-4 rounded-lg text-white font-bold ${buttonColor}`}>
-                  {type === 'confirm' ? 'Aceptar' : 'Cerrar'}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      };
+            const fetchPrices = async () => {
+                if (!userId) return;
+                try {
+                    const pricesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/prices`);
+                    const pricesSnapshot = await firebase.getDocs(pricesCollectionRef);
+                    const pricesData = pricesSnapshot.docs.reduce((acc, doc) => {
+                        const data = doc.data();
+                        acc[data.studentCount] = data.price;
+                        return acc;
+                    }, {});
+                    setCustomPrices({ ...defaultClassPrices, ...pricesData });
+                } catch (error) {
+                    console.error("Error al obtener precios personalizados:", error);
+                    setCustomPrices(defaultClassPrices); // Usa los precios por defecto en caso de error
+                }
+            };
 
-      if (loading) {
-        return (
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-blue-500 text-xl font-bold animate-pulse">Cargando...</div>
-          </div>
-        );
-      }
+            useEffect(() => {
+                initializeFirebase();
+                const unsubscribe = firebase.onAuthStateChanged(authRef.current, (user) => {
+                    if (user) {
+                        setUserId(user.uid);
+                        setView('list');
+                    } else {
+                        setUserId(null);
+                        setView('login');
+                    }
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+            }, []);
 
-      return (
-        <div className="container mx-auto px-4 py-8 bg-white rounded-lg shadow-xl">
-          {messageBox.show && (
-            <MessageBox
-              title={messageBox.title}
-              content={messageBox.content}
-              type={messageBox.type}
-              onConfirm={messageBox.onConfirm}
-              onClose={closeMessageBox}
-            />
-          )}
+            useEffect(() => {
+                if (userId) {
+                    fetchClasses();
+                    fetchPrices();
+                }
+            }, [userId]);
 
-          {showConfigModal && (
-            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
-              <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
-                <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">Configuración de Firebase</h2>
-                <p className="text-gray-600 mb-6 text-center">
-                  Por favor, pega tu objeto de configuración de Firebase aquí.
-                </p>
-                {configError && <p className="text-red-500 text-center mb-4">{configError}</p>}
-                <textarea
-                  className="w-full h-40 p-4 mb-4 border border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="E.g., { 'apiKey': '...', 'projectId': '...' }"
-                  value={firebaseConfigInput}
-                  onChange={(e) => setFirebaseConfigInput(e.target.value)}
-                ></textarea>
-                <button
-                  onClick={handleSaveConfig}
-                  className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-                >
-                  Guardar y Conectar
-                </button>
-              </div>
-            </div>
-          )}
+            useEffect(() => {
+                // Cuando studentCount cambie, actualiza el precio y el número de campos de nombre.
+                setNewEntry(prev => ({
+                    ...prev,
+                    price: customPrices[prev.studentCount],
+                    studentNames: Array(prev.studentCount).fill(''), // Crea un array con el número correcto de cadenas vacías
+                }));
+            }, [newEntry.studentCount, customPrices]);
 
-          {!userId ? (
-            <div className="max-w-md mx-auto p-8 bg-white rounded-lg shadow-2xl mt-10">
-              <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-6">Acceso a la App de Padel</h2>
-              <p className="text-center text-gray-500 mb-8">
-                Inicia sesión o regístrate para empezar a gestionar tus clases.
-              </p>
-              <div className="space-y-4">
-                <input
-                  type="email"
-                  placeholder="Correo electrónico"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <input
-                  type="password"
-                  placeholder="Contraseña"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button
-                  onClick={handleSignIn}
-                  className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg hover:bg-blue-700 transition-colors"
-                >
-                  <i className="fas fa-sign-in-alt mr-2"></i> Iniciar Sesión
-                </button>
-                <button
-                  onClick={handleSignUp}
-                  className="w-full bg-green-600 text-white font-bold py-3 rounded-lg shadow-lg hover:bg-green-700 transition-colors"
-                >
-                  <i className="fas fa-user-plus mr-2"></i> Registrarse
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-col md:flex-row justify-between items-center mb-8 pb-4 border-b-2 border-gray-200">
-                <div className="flex items-center space-x-4 mb-4 md:mb-0">
-                  <h1 className="text-4xl font-extrabold text-gray-800">
-                    <i className="fas fa-tennis-ball text-blue-500 mr-2"></i> Informe de Clases
-                  </h1>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <button onClick={handleSignOut} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">
-                    <i className="fas fa-sign-out-alt mr-2"></i> Salir
-                  </button>
-                </div>
-              </div>
+            const handleAddEntry = async () => {
+                if (!newEntry.date || newEntry.studentCount === 0 || !newEntry.studentNames.every(name => name.trim() !== '')) {
+                    showMessageBox('Error', 'Por favor, completa todos los campos de la clase.', 'error');
+                    return;
+                }
 
-              <div className="flex space-x-1 mb-6 border-b border-gray-200">
-                <button
-                  onClick={() => setView('list')}
-                  className={`flex-1 py-3 px-4 text-center text-sm font-bold transition-colors ${view === 'list' ? 'bg-blue-600 text-white rounded-t-lg' : 'bg-gray-200 text-gray-700 rounded-t-lg hover:bg-gray-300'}`}
-                >
-                  <i className="fas fa-list mr-2"></i> Listado
-                </button>
-                <button
-                  onClick={() => setView('add')}
-                  className={`flex-1 py-3 px-4 text-center text-sm font-bold transition-colors ${view === 'add' ? 'bg-blue-600 text-white rounded-t-lg' : 'bg-gray-200 text-gray-700 rounded-t-lg hover:bg-gray-300'}`}
-                >
-                  <i className="fas fa-plus-circle mr-2"></i> Añadir Clase
-                </button>
-                <button
-                  onClick={() => setView('reports')}
-                  className={`flex-1 py-3 px-4 text-center text-sm font-bold transition-colors ${view === 'reports' ? 'bg-blue-600 text-white rounded-t-lg' : 'bg-gray-200 text-gray-700 rounded-t-lg hover:bg-gray-300'}`}
-                >
-                  <i className="fas fa-chart-bar mr-2"></i> Reportes
-                </button>
-                <button
-                  onClick={() => { setView('calendar'); setSelectedDate(new Date()); }}
-                  className={`flex-1 py-3 px-4 text-center text-sm font-bold transition-colors ${view === 'calendar' ? 'bg-blue-600 text-white rounded-t-lg' : 'bg-gray-200 text-gray-700 rounded-t-lg hover:bg-gray-300'}`}
-                >
-                  <i className="fas fa-calendar-alt mr-2"></i> Calendario
-                </button>
-                <button
-                  onClick={() => setView('settings')}
-                  className={`flex-1 py-3 px-4 text-center text-sm font-bold transition-colors ${view === 'settings' ? 'bg-blue-600 text-white rounded-t-lg' : 'bg-gray-200 text-gray-700 rounded-t-lg hover:bg-gray-300'}`}
-                >
-                  <i className="fas fa-cog mr-2"></i> Configuración
-                </button>
-              </div>
+                setLoading(true);
+                try {
+                    const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
 
-{view === 'add' && (
-  <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
-    <h2 className="text-2xl font-bold text-gray-800 mb-6">
-      {isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}
-    </h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-      {/* ➡️ Mover el select de alumnos al inicio */}
-      <select
-        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={newEntry.studentCount}
-        onChange={(e) => setNewEntry(prev => ({...prev, studentCount: parseInt(e.target.value), price: customPrices[parseInt(e.target.value)]}))}
-      >
-        <option value="" disabled>Selecciona la cantidad de alumnos</option>
-        {peopleOptions.map(num => (
-          <option key={num} value={num}>
-            {num} {num === 1 ? 'Alumno' : 'Alumnos'}
-          </option>
-        ))}
-      </select>
-      
-      {/* ➡️ Mover el input de nombres aquí */}
-      <input
-        type="text"
-        placeholder="Nombre del Alumno(s)"
-        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={newEntry.studentName}
-        onChange={(e) => setNewEntry({...newEntry, studentName: e.target.value})}
-      />
+                    const classData = {
+                        studentNames: newEntry.studentNames, // Pasa el array directamente
+                        day: daysOfWeek[new Date(newEntry.date).getDay()],
+                        time: newEntry.time,
+                        date: newEntry.date,
+                        studentCount: newEntry.studentCount,
+                        price: newEntry.price,
+                    };
 
-      <input
-        type="date"
-        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={newEntry.date}
-        onChange={handleDateChange}
-      />
-      <select
-        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={newEntry.time}
-        onChange={(e) => setNewEntry({...newEntry, time: e.target.value})}
-      >
-        <option value="" disabled>Selecciona la hora</option>
-        {timesOfDay.map(time => (
-          <option key={time} value={time}>
-            {time}
-          </option>
-        ))}
-      </select>
-    </div>
-    <div className="flex space-x-4">
-      <p className="text-lg font-semibold text-gray-700">Día de la semana: <span className="text-blue-600">{newEntry.day || 'N/A'}</span></p>
-      <p className="text-lg font-semibold text-gray-700">Precio de la clase: <span className="text-green-600">${newEntry.price}</span></p>
-    </div>
-    <div className="mt-6 flex space-x-4">
-      <button
-        onClick={handleAddEntry}
-        className="flex-1 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-      >
-        <i className="fas fa-save mr-2"></i> {isEditing ? 'Guardar Cambios' : 'Registrar Clase'}
-      </button>
-      {isEditing && (
-        <button
-          onClick={handleCancelEdit}
-          className="bg-gray-400 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-500 transition-colors"
-        >
-          <i className="fas fa-times-circle mr-2"></i> Cancelar
-        </button>
-      )}
-    </div>
-  </div>
-)}
+                    if (isEditing) {
+                        const classDocRef = firebase.doc(classesCollectionRef, editedClassId);
+                        await firebase.updateDoc(classDocRef, classData);
+                        showMessageBox('Éxito', 'Clase actualizada correctamente.', 'success');
+                    } else {
+                        await firebase.addDoc(classesCollectionRef, classData);
+                        showMessageBox('Éxito', 'Clase agregada correctamente.', 'success');
+                    }
+                    fetchClasses();
+                    setNewEntry({
+                        studentNames: [''],
+                        day: '',
+                        time: '8:00 a. m.',
+                        date: new Date().toISOString().slice(0, 10),
+                        studentCount: 1,
+                        price: customPrices[1],
+                    });
+                    setIsEditing(false);
+                    setEditedClassId(null);
+                    setView('list');
+                } catch (error) {
+                    console.error("Error al guardar la clase:", error);
+                    showMessageBox('Error', 'Hubo un error al guardar la clase.', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
 
-              {view === 'list' && (
-                <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">Listado de Clases</h2>
-                  <div className="flex justify-between items-center mb-6">
-                    <input
-                      type="text"
-                      placeholder="Filtrar por nombre de alumno..."
-                      value={filterText}
-                      onChange={(e) => setFilterText(e.target.value)}
-                      className="p-3 border border-gray-300 rounded-lg flex-1 mr-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex space-x-2">
-                        <button onClick={handleExportData} className="p-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                            <i className="fas fa-download"></i>
-                        </button>
-                        <button onClick={handleImportData} className="p-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                            <i className="fas fa-upload"></i>
-                        </button>
-                        <button onClick={handleExportPdf} className="p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                            <i className="fas fa-file-pdf"></i>
+            const handleDeleteEntry = (id) => {
+                const onConfirm = async () => {
+                    setMessageBox({ ...messageBox, show: false });
+                    setLoading(true);
+                    try {
+                        const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
+                        await firebase.deleteDoc(firebase.doc(classesCollectionRef, id));
+                        fetchClasses();
+                        showMessageBox('Éxito', 'Clase eliminada correctamente.', 'success');
+                    } catch (error) {
+                        console.error("Error al eliminar la clase:", error);
+                        showMessageBox('Error', 'Hubo un error al eliminar la clase.', 'error');
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                showMessageBox('Confirmar', '¿Estás seguro de que quieres eliminar esta clase?', 'confirm', onConfirm);
+            };
+
+            const handleEditEntry = (entry) => {
+                setIsEditing(true);
+                setEditedClassId(entry.id);
+                setNewEntry({
+                    studentNames: entry.studentNames,
+                    day: entry.day,
+                    time: entry.time,
+                    date: entry.date,
+                    studentCount: entry.studentCount,
+                    price: entry.price,
+                });
+                setView('add');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            const handleGeneratePDF = async () => {
+                setLoading(true);
+                const content = document.getElementById('report-content');
+                if (!content) {
+                    setLoading(false);
+                    showMessageBox('Error', 'No se encontró el contenido del reporte.', 'error');
+                    return;
+                }
+
+                try {
+                    const canvas = await html2canvas(content, {
+                        scale: 2,
+                        useCORS: true,
+                    });
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jspdf.jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: 'a4',
+                    });
+                    const imgWidth = 210;
+                    const pageHeight = 295;
+                    const imgHeight = canvas.height * imgWidth / canvas.width;
+                    let heightLeft = imgHeight;
+                    let position = 0;
+
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+
+                    while (heightLeft >= 0) {
+                        position = heightLeft - imgHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+
+                    const today = new Date().toISOString().slice(0, 10);
+                    pdf.save(`informe_clases_padel_${today}.pdf`);
+                } catch (error) {
+                    console.error("Error al generar el PDF:", error);
+                    showMessageBox('Error', 'Hubo un error al generar el PDF.', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleLogout = async () => {
+                await firebase.getAuth(firebaseAppRef.current).signOut();
+                setUserId(null);
+                setClasses([]);
+                setView('login');
+            };
+
+            const updatePrice = (studentCount) => {
+                const newPrice = customPrices[studentCount];
+                setNewEntry(prev => ({ ...prev, price: newPrice, studentCount: studentCount }));
+            };
+
+            const handlePriceChange = (studentCount, price) => {
+                setCustomPrices(prev => ({
+                    ...prev,
+                    [studentCount]: price
+                }));
+            };
+
+            const handleSavePrices = async () => {
+                if (!userId) return;
+                setLoading(true);
+                try {
+                    const pricesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/prices`);
+                    for (const studentCount in customPrices) {
+                        const price = customPrices[studentCount];
+                        const priceDocRef = firebase.doc(pricesCollectionRef, studentCount.toString());
+                        await firebase.updateDoc(priceDocRef, { studentCount: Number(studentCount), price });
+                    }
+                    showMessageBox('Éxito', 'Precios actualizados correctamente.', 'success');
+                    fetchPrices();
+                } catch (error) {
+                    console.error("Error al guardar los precios:", error);
+                    showMessageBox('Error', 'Hubo un error al guardar los precios.', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const renderMessageBox = () => {
+                if (!messageBox.show) return null;
+
+                const buttonText = messageBox.type === 'confirm' ? 'Confirmar' : 'Aceptar';
+                const buttonColor = messageBox.type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+
+                return (
+                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+                            <h3 className="text-xl font-bold mb-4">{messageBox.title}</h3>
+                            <p className="text-gray-700 mb-6">{messageBox.content}</p>
+                            <div className="flex justify-end space-x-4">
+                                {messageBox.type === 'confirm' && (
+                                    <button
+                                        onClick={() => setMessageBox({ ...messageBox, show: false })}
+                                        className="py-2 px-4 bg-gray-300 text-gray-800 rounded-lg font-semibold hover:bg-gray-400 transition"
+                                    >
+                                        Cancelar
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        if (messageBox.onConfirm) {
+                                            messageBox.onConfirm();
+                                        } else {
+                                            setMessageBox({ ...messageBox, show: false });
+                                        }
+                                    }}
+                                    className={`py-2 px-4 text-white rounded-lg font-semibold ${buttonColor} hover:opacity-80 transition`}
+                                >
+                                    {buttonText}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderLogin = () => (
+                <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                    <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+                        <h2 className="text-2xl font-bold mb-6 text-center">Iniciar Sesión</h2>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">Correo Electrónico</label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="tuemail@ejemplo.com"
+                            />
+                        </div>
+                        <div className="mb-6">
+                            <label className="block text-gray-700 mb-2">Contraseña</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Contraseña"
+                                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                            />
+                        </div>
+                        <button
+                            onClick={handleLogin}
+                            className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition"
+                        >
+                            Iniciar Sesión
                         </button>
                     </div>
-                  </div>
-                  <div ref={tableRef} className="overflow-x-auto rounded-lg shadow">
-                    <table className="min-w-full bg-white">
-                      <thead className="bg-blue-600 text-white">
-                        <tr>
-                          <th className="py-3 px-4 text-left">Fecha</th>
-                          <th className="py-3 px-4 text-left">Día</th>
-                          <th className="py-3 px-4 text-left">Hora</th>
-                          <th className="py-3 px-4 text-left">Alumnos</th>
-                          <th className="py-3 px-4 text-left">Alumnos Totales</th>
-                          <th className="py-3 px-4 text-left">Precio por Clase</th>
-                          <th className="py-3 px-4 text-left">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getFilteredAndGroupedClasses(classes, filterText).length > 0 ? (
-                          getFilteredAndGroupedClasses(classes, filterText).map(monthGroup => (
-                            <React.Fragment key={monthGroup.monthName}>
-                              <tr className="bg-gray-200">
-                                <th colSpan="7" className="py-2 px-4 text-left text-sm font-bold text-gray-700">
-                                  {monthGroup.monthName}
-                                </th>
-                              </tr>
-                              {monthGroup.classes.map(entry => (
-                                <tr key={entry.id} className={`${colorMap[entry.studentCount] || 'bg-white'} border-b border-gray-200 hover:bg-opacity-75 transition-colors`}>
-                                  <td className="py-3 px-4">{entry.date}</td>
-                                  <td className="py-3 px-4">{entry.day}</td>
-                                  <td className="py-3 px-4">{entry.time}</td>
-                                  <td className="py-3 px-4">
-                                    <ul className="list-none m-0 p-0">
-                                      {entry.studentNames.map((name, index) => (
-                                        <li key={index} className="flex items-center space-x-2">
-                                          <i className="fas fa-user-circle text-sm text-gray-500"></i>
-                                          <span>{name}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </td>
-                                  <td className="py-3 px-4">{entry.studentCount}</td>
-                                  <td className="py-3 px-4">${entry.price}</td>
-                                  <td className="py-3 px-4 flex space-x-2">
-                                    <button onClick={() => handleEditEntry(entry)} className="text-blue-500 hover:text-blue-700 transition-colors">
-                                      <i className="fas fa-edit"></i>
-                                    </button>
-                                    <button onClick={() => confirmDeletion(entry)} className="text-red-500 hover:text-red-700 transition-colors">
-                                      <i className="fas fa-trash"></i>
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </React.Fragment>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="7" className="py-4 text-center text-gray-500">
-                              No hay clases registradas.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
                 </div>
-              )}
-              
-              {view === 'reports' && (
-                <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">Reportes Mensuales</h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    <i className="fas fa-info-circle mr-1"></i> Se muestran solo los meses con clases registradas, ordenados del más reciente al más antiguo.
-                  </p>
-                  <div className="overflow-x-auto rounded-lg shadow">
-                    <table className="min-w-full bg-white">
-                      <thead className="bg-blue-600 text-white">
-                        <tr>
-                          <th className="py-3 px-4 text-left">Mes</th>
-                          <th className="py-3 px-4 text-left">Clases Totales</th>
-                          <th className="py-3 px-4 text-left">Ingreso Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {monthlyReports.length > 0 ? (
-                          monthlyReports.map((report, index) => (
-                            <tr key={index} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                              <td className="py-3 px-4">{report.month}</td>
-                              <td className="py-3 px-4">{report.count}</td>
-                              <td className="py-3 px-4">${report.total}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="3" className="py-4 text-center text-gray-500">
-                              No hay datos de reportes.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-              
-              {view === 'calendar' && (
-                <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">Calendario de Clases</h2>
-                  <div className="flex justify-between items-center mb-4">
-                    <button
-                      onClick={() => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-                      className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors"
-                    >
-                      <i className="fas fa-chevron-left"></i>
-                    </button>
-                    <span className="text-lg font-bold">
-                      {selectedDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
-                    </span>
-                    <button
-                      onClick={() => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-                      className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors"
-                    >
-                      <i className="fas fa-chevron-right"></i>
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-7 text-center font-bold bg-blue-600 text-white rounded-t-lg">
-                    {daysOfWeek.map(day => (
-                      <div key={day} className="p-3">
-                        {day.substring(0, 3)}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 border border-gray-300 rounded-b-lg">
-                    {(() => {
-                        const firstDay = firstDayOfMonth(selectedDate);
-                        const startDay = firstDay; // First day of week is Sunday (0)
-                        const emptyCells = [...Array(startDay)].map((_, i) => (
-                          <div key={`empty-${i}`} className="p-4 border border-gray-200"></div>
-                        ));
-                        return emptyCells;
-                    })()}
-                    {[...Array(daysInMonth(selectedDate))].map((_, i) => {
-                      const day = i + 1;
-                      const date = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
-                      const hasClasses = hasClassesOnDate(date);
-                      return (
-                        <div
-                          key={day}
-                          className={`relative p-4 border border-gray-200 cursor-pointer transition-colors ${hasClasses ? 'bg-blue-100 hover:bg-blue-200' : 'hover:bg-gray-100'}`}
-                        >
-                          <span className="font-bold">{day}</span>
-                          {hasClasses && (
-                            <div className="absolute top-1 right-1 h-2 w-2 bg-blue-500 rounded-full"></div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              
-              {view === 'settings' && (
-                <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">Configuración de Precios</h2>
-                  <p className="text-gray-600 mb-4">
-                    Establece el precio por clase según la cantidad de alumnos. Estos precios se aplicarán por defecto al registrar nuevas clases.
-                  </p>
-                  <div className="space-y-4 mb-6">
-                    {peopleOptions.map(num => (
-                      <div key={num} className="flex items-center space-x-4">
-                        <label className="text-lg font-semibold text-gray-700 w-32">
-                          {num} {num === 1 ? 'Alumno' : 'Alumnos'}:
-                        </label>
-                        <div className="flex flex-1 items-center rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500">
-                          <span className="bg-gray-200 text-gray-700 py-3 px-4 rounded-l-lg border-r border-gray-300">
-                            $
-                          </span>
-                          <input
-                            type="number"
-                            className="flex-1 p-3 rounded-r-lg focus:outline-none"
-                            value={customPrices[num] || ''}
-                            onChange={(e) => setCustomPrices({...customPrices, [num]: parseFloat(e.target.value) || 0})}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={handleSavePrices}
-                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <i className="fas fa-save mr-2"></i> Guardar Precios
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      );
-    };
+            );
 
-    ReactDOM.render(
-      <App />,
-      document.getElementById('root')
-    );
-  </script>
+            const renderLoader = () => (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-white"></div>
+                </div>
+            );
+
+            const renderAddClass = () => (
+                <div className="container mx-auto p-4">
+                    <button
+                        onClick={() => {
+                            setView('list');
+                            setIsEditing(false);
+                            setNewEntry({
+                                studentNames: [''],
+                                day: '',
+                                time: '8:00 a. m.',
+                                date: new Date().toISOString().slice(0, 10),
+                                studentCount: 1,
+                                price: customPrices[1],
+                            });
+                        }}
+                        className="mb-4 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition"
+                    >
+                        &larr; Volver
+                    </button>
+                    <h2 className="text-3xl font-bold mb-6 text-center">{isEditing ? 'Editar Clase' : 'Añadir Clase'}</h2>
+                    <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label className="block text-gray-700 font-semibold mb-2">Fecha</label>
+                                <input
+                                    type="date"
+                                    value={newEntry.date}
+                                    onChange={(e) => {
+                                        const newDate = e.target.value;
+                                        setNewEntry(prev => ({
+                                            ...prev,
+                                            date: newDate,
+                                            day: daysOfWeek[new Date(newDate).getDay()],
+                                        }));
+                                    }}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-gray-700 font-semibold mb-2">Día de la Semana</label>
+                                <input
+                                    type="text"
+                                    value={daysOfWeek[new Date(newEntry.date).getDay()]}
+                                    readOnly
+                                    className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-gray-700 font-semibold mb-2">Hora</label>
+                                <select
+                                    value={newEntry.time}
+                                    onChange={(e) => setNewEntry({ ...newEntry, time: e.target.value })}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    {timesOfDay.map(time => (
+                                        <option key={time} value={time}>{time}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-gray-700 font-semibold mb-2">Cantidad de Alumnos</label>
+                                <select
+                                    value={newEntry.studentCount}
+                                    onChange={(e) => updatePrice(Number(e.target.value))}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    {peopleOptions.map(option => (
+                                        <option key={option} value={option}>{option}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="mb-6">
+                            <label className="block text-gray-700 font-semibold mb-2">Nombres de Alumnos</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {Array.from({ length: newEntry.studentCount }).map((_, index) => (
+                                    <input
+                                        key={index}
+                                        type="text"
+                                        placeholder={`Nombre del Alumno ${index + 1}`}
+                                        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={newEntry.studentNames[index] || ''}
+                                        onChange={(e) => {
+                                            const newNames = [...newEntry.studentNames];
+                                            newNames[index] = e.target.value;
+                                            setNewEntry(prev => ({ ...prev, studentNames: newNames }));
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                        <div className="mb-6">
+                            <label className="block text-gray-700 font-semibold mb-2">Precio Total</label>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    value={newEntry.price}
+                                    onChange={(e) => setNewEntry({ ...newEntry, price: Number(e.target.value) })}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">$</span>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleAddEntry}
+                            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition"
+                        >
+                            {isEditing ? 'Guardar Cambios' : 'Añadir Clase'}
+                        </button>
+                    </div>
+                </div>
+            );
+
+
+            const renderPriceSettings = () => (
+                <div className="container mx-auto p-4">
+                    <button
+                        onClick={() => setView('list')}
+                        className="mb-4 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition"
+                    >
+                        &larr; Volver
+                    </button>
+                    <h2 className="text-3xl font-bold mb-6 text-center">Configurar Precios</h2>
+                    <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto">
+                        <p className="text-gray-700 mb-4">Ajusta los precios por cantidad de alumnos. Estos precios se usarán por defecto al añadir nuevas clases.</p>
+                        <div className="space-y-4 mb-6">
+                            {peopleOptions.map(count => (
+                                <div key={count} className="flex items-center space-x-4">
+                                    <label className="text-gray-700 font-semibold flex-1">
+                                        Precio para {count} alumno(s):
+                                    </label>
+                                    <div className="relative flex-2">
+                                        <input
+                                            type="number"
+                                            value={customPrices[count] || ''}
+                                            onChange={(e) => handlePriceChange(count, Number(e.target.value))}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">$</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <button
+                            onClick={handleSavePrices}
+                            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition"
+                        >
+                            Guardar Precios
+                        </button>
+                    </div>
+                </div>
+            );
+
+            const renderListClasses = () => (
+                <div className="container mx-auto p-4">
+                    <header className="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0">
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={() => setView('add')}
+                                className="bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition"
+                            >
+                                + Añadir Clase
+                            </button>
+                            <button
+                                onClick={() => setView('prices')}
+                                className="bg-gray-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-gray-700 transition"
+                            >
+                                Configurar Precios
+                            </button>
+                        </div>
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={handleGeneratePDF}
+                                className="bg-red-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-700 transition"
+                            >
+                                Exportar a PDF
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="bg-gray-400 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-500 transition"
+                            >
+                                Salir
+                            </button>
+                        </div>
+                    </header>
+                    <div id="report-content" className="bg-white p-6 rounded-lg shadow-lg">
+                        <h2 className="text-3xl font-bold text-center mb-6">Clases de Padel</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                            {Object.entries(monthlyReportsInfo).map(([monthYear, info]) => (
+                                <div key={monthYear} className="p-4 bg-gray-100 rounded-lg shadow">
+                                    <h3 className="text-xl font-bold mb-2 text-center text-gray-800">{monthYear}</h3>
+                                    <p className="text-center text-gray-700">Total de clases: <span className="font-semibold">{info.classes}</span></p>
+                                    <p className="text-center text-gray-700">Ingreso total: <span className="font-semibold">${info.total.toLocaleString()}</span></p>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-8">
+                            <h3 className="text-2xl font-bold mb-4">Clases Detalladas</h3>
+                            <ul className="space-y-4">
+                                {classes.sort((a, b) => new Date(b.date) - new Date(a.date)).map(cls => (
+                                    <li
+                                        key={cls.id}
+                                        className={`p-4 rounded-lg shadow-md flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 ${colorMap[cls.studentCount]}`}
+                                    >
+                                        <div className="flex-1 text-gray-800 text-center md:text-left">
+                                            <p className="font-semibold text-lg">
+                                                {new Date(cls.date).toLocaleDateString('es-ES', {
+                                                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                                                })}
+                                            </p>
+                                            <p>{cls.time}</p>
+                                            <p>Alumnos: {cls.studentNames.join(', ')}</p>
+                                            <p>Cantidad: {cls.studentCount}</p>
+                                            <p>Precio: ${cls.price.toLocaleString()}</p>
+                                        </div>
+                                        <div className="flex space-x-2 mt-4 md:mt-0">
+                                            <button
+                                                onClick={() => handleEditEntry(cls)}
+                                                className="bg-yellow-500 text-white p-2 rounded-lg hover:bg-yellow-600 transition"
+                                            >
+                                                Editar
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteEntry(cls.id)}
+                                                className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 transition"
+                                            >
+                                                Eliminar
+                                            </button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            if (loading) return renderLoader();
+            if (view === 'login') return renderLogin();
+
+            return (
+                <div className="container mx-auto p-4">
+                    {renderMessageBox()}
+                    {view === 'add' && renderAddClass()}
+                    {view === 'prices' && renderPriceSettings()}
+                    {view === 'list' && renderListClasses()}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>
