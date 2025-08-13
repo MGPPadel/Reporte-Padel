@@ -13,1129 +13,1070 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    window.firebase = {
-      initializeApp,
-      getAuth,
-      signInWithCustomToken,
-      signInAnonymously,
-      onAuthStateChanged,
-      createUserWithEmailAndPassword,
-      signInWithEmailAndPassword,
-      signOut,
-      getFirestore,
-      collection,
-      addDoc,
-      getDocs,
-      doc,
-      setDoc,
-      updateDoc,
-      deleteDoc,
-      onSnapshot,
-      query,
-      where,
-      writeBatch,
-    };
-  </script>
-
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body {
       font-family: 'Inter', sans-serif;
-      background-color: #f0f2f5; /* Fondo más suave */
-    }
-    @keyframes fade-in {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fade-in {
-      animation: fade-in 0.5s ease-out;
-    }
-    @keyframes scale-up {
-      from { transform: scale(0.8); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
-    .animate-scale-up {
-      animation: scale-up 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
   </style>
 </head>
-<body>
+<body class="bg-gray-100">
   <div id="root"></div>
 
-  <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
-    const { jsPDF } = window.jspdf;
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, deleteDoc, updateDoc, writeBatch, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Firebase configuration
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-      apiKey: "AIzaSy...z8W4", // Reemplaza con tu propia clave
-      authDomain: "padel-report-app.firebaseapp.com",
-      projectId: "padel-report-app",
-      storageBucket: "padel-report-app.appspot.com",
-      messagingSenderId: "365445...",
-      appId: "1:365445...:web:..."
+    window.firebase = {
+      initializeApp,
+      getAuth,
+      onAuthStateChanged,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      signOut,
+      getFirestore,
+      doc,
+      setDoc,
+      onSnapshot,
+      collection,
+      query,
+      addDoc,
+      deleteDoc,
+      updateDoc,
+      writeBatch,
+      where,
+      getDocs,
+      orderBy
+    };
+  </script>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const timesOfDay = [
+      '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
+    ];
+    
+    const defaultClassPrices = {
+      1: 5000,
+      2: 3000,
+      3: 2500,
+      4: 2000,
+    };
+    const peopleOptions = [1, 2, 3, 4];
+    
+    const colorMap = {
+        1: 'bg-yellow-100',
+        2: 'bg-green-100',
+        3: 'bg-blue-100',
+        4: 'bg-purple-100',
     };
 
     const App = () => {
-      const [user, setUser] = useState(null);
       const [email, setEmail] = useState('');
       const [password, setPassword] = useState('');
-      const [loginError, setLoginError] = useState('');
+      const [userId, setUserId] = useState(null);
+      const [loading, setLoading] = useState(true);
       const [classes, setClasses] = useState([]);
-      const [filterText, setFilterText] = useState('');
+      const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
       const [newEntry, setNewEntry] = useState({
-        studentNames: [], 
+        studentName: '',
         day: '',
-        time: '',
-        date: '',
-        price: 0,
+        time: '8:00 a. m.',
+        date: new Date().toISOString().slice(0, 10),
+        studentCount: 1, 
+        price: defaultClassPrices[1], 
       });
-      const [editingEntry, setEditingEntry] = useState(null);
-      const [messageBox, setMessageBox] = useState(null);
-      const [mode, setMode] = useState('list'); // 'list', 'adding', 'editing', 'price_config', 'monthly_report'
-      const [appIdRef, setAppIdRef] = useState(null);
+      const [monthlyReports, setMonthlyReports] = useState([]);
+      const [isEditing, setIsEditing] = useState(false);
+      const [editedClassId, setEditedClassId] = useState(null);
+      const [showConfigModal, setShowConfigModal] = useState(false);
+      const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
+      const [configError, setConfigError] = useState('');
+
+      const [view, setView] = useState('list');
+      const [selectedDate, setSelectedDate] = useState(new Date());
+      const [filterText, setFilterText] = useState('');
+      
+      const [messageBox, setMessageBox] = useState({
+        show: false,
+        title: '',
+        content: '',
+        type: 'confirm', // 'confirm', 'success', 'error'
+        onConfirm: null,
+      });
+
       const dbRef = useRef(null);
       const authRef = useRef(null);
-      const fileInputRef = useRef(null);
-      const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-      const [entryToDelete, setEntryToDelete] = useState(null);
-      const [showImportConfirm, setShowImportConfirm] = useState(false);
-      const [fileToImport, setFileToImport] = useState(null);
-      const [studentCountToAdd, setStudentCountToAdd] = useState(1);
-      const [monthlyReport, setMonthlyReport] = useState({});
+      const userRef = useRef(null);
+      const firebaseConfigRef = useRef(null);
+      const appIdRef = useRef(null);
+      const tableRef = useRef(null);
+      
+      const __app_id = "default-app-id";
+      const __firebase_config = `{
+        "apiKey": "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+        "authDomain": "app-de-padel.firebaseapp.com",
+        "projectId": "app-de-padel",
+        "storageBucket": "app-de-padel.firebasestorage.app",
+        "messagingSenderId": "731771747398",
+        "appId": "1:731771747398:web:ebc8b723fe220869fade47"
+      }`;
 
-      // Precios por número de estudiantes, inicializados con valores predeterminados
-      const [classPrices, setClassPrices] = useState({
-        '1_students': 10,
-        '2_students': 18,
-        '3_students': 25,
-        '4_students': 30,
-      });
-      const studentCounts = [1, 2, 3, 4];
-
-      const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
-      // Función para mostrar mensajes de éxito o error
-      const showMessageBox = (title, message, type) => {
-        setMessageBox({ title, message, type });
-        setTimeout(() => setMessageBox(null), 3000); // El mensaje desaparece después de 3 segundos
+      const showMessageBox = (title, content, type, onConfirm = null) => {
+        setMessageBox({ show: true, title, content, type, onConfirm });
       };
       
-      const initializeFirebase = async () => {
-        const app = firebase.initializeApp(firebaseConfig);
-        const auth = firebase.getAuth(app);
-        const db = firebase.getFirestore(app);
-        
-        dbRef.current = db;
-        authRef.current = auth;
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
-        setAppIdRef(appId);
-
-        try {
-          if (typeof __initial_auth_token !== 'undefined') {
-            await firebase.signInWithCustomToken(auth, __initial_auth_token);
-          } else {
-            await firebase.signInAnonymously(auth);
-          }
-        } catch (error) {
-          console.error("Firebase Auth Error:", error);
-        }
-
-        firebase.onAuthStateChanged(auth, (currentUser) => {
-          setUser(currentUser);
-          if (currentUser) {
-            console.log("Authenticated as:", currentUser.uid);
-          } else {
-            console.log("Not authenticated.");
-          }
-        });
+      const closeMessageBox = () => {
+        setMessageBox({ show: false, title: '', content: '', type: 'confirm', onConfirm: null });
       };
 
-      useEffect(() => {
-        initializeFirebase();
-      }, []);
+      const initFirebase = async () => {
+        setLoading(true);
+        try {
+          const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+          appIdRef.current = appId;
 
-      // Suscripción a los cambios en Firestore
-      useEffect(() => {
-        if (!user || !dbRef.current || !appIdRef) return;
-        const userId = user.uid;
-        const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef}/users/${userId}/classes`);
-        const pricesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef}/users/${userId}/prices/classPrices`);
-        
-        // Suscripción a las clases
-        const unsubscribeClasses = firebase.onSnapshot(classesCollectionRef, (snapshot) => {
-          const fetchedClasses = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setClasses(fetchedClasses);
-        });
+          let config = null;
+          if (typeof __firebase_config !== 'undefined') {
+              config = JSON.parse(__firebase_config);
+          }
+          
+          if (!config) {
+            console.log("Firebase config not found. Showing modal.");
+            setShowConfigModal(true);
+            setLoading(false);
+            return;
+          }
 
-        // Suscripción a los precios
-        const unsubscribePrices = firebase.onSnapshot(pricesDocRef, (docSnapshot) => {
-            if (docSnapshot.exists()) {
-                setClassPrices(docSnapshot.data());
+          firebaseConfigRef.current = config;
+          const app = firebase.initializeApp(firebaseConfigRef.current);
+          const auth = firebase.getAuth(app);
+          const db = firebase.getFirestore(app);
+
+          dbRef.current = db;
+          authRef.current = auth;
+
+          firebase.onAuthStateChanged(auth, (user) => {
+            if (user) {
+              setUserId(user.uid);
+              userRef.current = user.uid;
             } else {
-                console.log("No price configuration found. Using default prices.");
-                firebase.setDoc(pricesDocRef, classPrices, { merge: true });
+              setUserId(null);
+              userRef.current = null;
             }
-        }, (error) => {
-            console.error("Error fetching prices:", error);
-        });
-
-        return () => {
-            unsubscribeClasses();
-            unsubscribePrices();
-        };
-      }, [user, dbRef.current, appIdRef]);
-
-      // Generar el informe mensual cada vez que las clases cambien
-      useEffect(() => {
-          const report = classes.reduce((acc, currentClass) => {
-              if (currentClass.date) {
-                  const [year, month] = currentClass.date.split('-');
-                  const monthKey = `${year}-${month}`;
-                  const monthName = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(new Date(currentClass.date + 'T00:00:00'));
-                  
-                  if (!acc[monthKey]) {
-                      acc[monthKey] = {
-                          monthName: monthName.charAt(0).toUpperCase() + monthName.slice(1),
-                          totalRevenue: 0,
-                          classesByStudentCount: { '1': 0, '2': 0, '3': 0, '4': 0 }
-                      };
-                  }
-                  
-                  acc[monthKey].totalRevenue += currentClass.price;
-                  if (currentClass.studentCount > 0 && currentClass.studentCount <= 4) {
-                      acc[monthKey].classesByStudentCount[currentClass.studentCount] += 1;
-                  }
-              }
-              return acc;
-          }, {});
-
-          setMonthlyReport(report);
-      }, [classes]);
-
-      const handleSignIn = async () => {
-        setLoginError('');
-        try {
-          await firebase.signInWithEmailAndPassword(authRef.current, email, password);
-          showMessageBox('Éxito', 'Inicio de sesión exitoso.', 'success');
+            setLoading(false);
+          });
         } catch (error) {
-          setLoginError('Error al iniciar sesión. Verifica tus credenciales.');
-          console.error("Error signing in: ", error);
-        }
-      };
-
-      const handleSignUp = async () => {
-        setLoginError('');
-        try {
-          await firebase.createUserWithEmailAndPassword(authRef.current, email, password);
-          showMessageBox('Éxito', 'Registro exitoso.', 'success');
-        } catch (error) {
-          setLoginError('Error al registrarse. El email puede ya estar en uso.');
-          console.error("Error signing up: ", error);
-        }
-      };
-
-      const handleSignOut = async () => {
-        try {
-          await firebase.signOut(authRef.current);
-          setClasses([]);
-          showMessageBox('Éxito', 'Sesión cerrada.', 'success');
-        } catch (error) {
-          console.error("Error signing out: ", error);
+          console.error("Error initializing Firebase:", error);
+          setConfigError('Error al conectar a Firebase. Revisa tu configuración e inténtalo de nuevo.');
+          setLoading(false);
+          setShowConfigModal(true);
         }
       };
 
       const handleDateChange = (e) => {
-        const newDate = e.target.value;
-        const dateObj = new Date(newDate + 'T00:00:00'); // Añadimos 'T00:00:00' para evitar problemas con la zona horaria
-        const dayIndex = dateObj.getDay();
-        const newDay = daysOfWeek[dayIndex];
-        
+          const newDate = e.target.value;
+          const [year, month, day] = newDate.split('-').map(Number);
+const dateObj = new Date(year, month - 1, day); 
+          const dayIndex = dateObj.getDay(); 
+          const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; 
+          setNewEntry(prev => ({
+              ...prev,
+              date: newDate,
+              day: newDay,
+          }));
+      };
+
+      useEffect(() => {
         setNewEntry(prev => ({
           ...prev,
-          date: newDate,
-          day: newDay,
+          price: customPrices[prev.studentCount]
         }));
+      }, [newEntry.studentCount, customPrices]);
+
+      useEffect(() => {
+        initFirebase();
+      }, []);
+
+      useEffect(() => {
+          if (newEntry.date) {
+              const [year, month, day] = newEntry.date.split('-').map(Number);
+const dateObj = new Date(year, month - 1, day);
+              const dayIndex = dateObj.getDay();
+              const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1];
+              setNewEntry(prev => ({ ...prev, day: newDay }));
+          }
+      }, [newEntry.date]);
+
+      const fetchPrices = async (db, currentUserId) => {
+        if (!currentUserId) {
+            setCustomPrices(defaultClassPrices);
+            return;
+        }
+        try {
+            const docRef = firebase.doc(db, `artifacts/${appIdRef.current}/users/${currentUserId}/settings/prices`);
+            const unsubscribe = firebase.onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    setCustomPrices(docSnap.data());
+                } else {
+                    setCustomPrices(defaultClassPrices);
+                }
+            }, (error) => {
+                console.error("Error fetching prices:", error);
+                showMessageBox('Error', 'Error al cargar precios desde la base de datos.', 'error');
+            });
+            return unsubscribe;
+        } catch (error) {
+            console.error("Error setting up prices listener:", error);
+        }
       };
 
-      const handleEditDateChange = (e) => {
-        const newDate = e.target.value;
-        const dateObj = new Date(newDate + 'T00:00:00');
-        const dayIndex = dateObj.getDay();
-        const newDay = daysOfWeek[dayIndex];
-        setEditingEntry(prev => ({ ...prev, date: newDate, day: newDay }));
-      };
-
-      const handleStudentNameChange = (index, value) => {
-        const newStudentNames = [...newEntry.studentNames];
-        newStudentNames[index] = value;
-        const studentCount = newStudentNames.filter(name => name.trim() !== '').length;
-        const price = classPrices[`${studentCount}_students`] || 0;
-
-        setNewEntry(prev => ({ 
-          ...prev, 
-          studentNames: newStudentNames,
-          price: price,
-        }));
-      };
-      
-      const handleEditStudentNameChange = (index, value) => {
-        const newStudents = [...editingEntry.students];
-        newStudents[index] = value;
-        const studentCount = newStudents.filter(name => name.trim() !== '').length;
-        const price = classPrices[`${studentCount}_students`] || 0;
-        setEditingEntry(prev => ({ 
-          ...prev, 
-          students: newStudents, 
-          studentCount: studentCount,
-          price: price,
-        }));
-      };
-      
-      const handleAddEntry = async () => {
-        const validStudentNames = newEntry.studentNames.filter(name => name && name.trim() !== '');
-        if (validStudentNames.length === 0 || !newEntry.time || !newEntry.date) {
-          showMessageBox('Error', 'Por favor, completa todos los campos para registrar la clase.', 'error');
+      const fetchClasses = (db, currentUserId) => {
+        if (!currentUserId) {
+          setClasses([]);
+          setMonthlyReports([]);
           return;
         }
 
-        if (!user) {
+        const classesCollectionRef = firebase.collection(db, `artifacts/${appIdRef.current}/users/${currentUserId}/classes`);
+        const q = firebase.query(classesCollectionRef, firebase.orderBy("date", "desc"));
+        
+        const unsubscribe = firebase.onSnapshot(q, (snapshot) => {
+          const fetchedClasses = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setClasses(fetchedClasses);
+          generateReports(fetchedClasses);
+        }, (error) => {
+          console.error("Error fetching classes:", error);
+        });
+
+        return unsubscribe;
+      };
+
+      useEffect(() => {
+        let unsubscribePrices;
+        let unsubscribeClasses;
+        if (dbRef.current && userId) {
+          unsubscribePrices = fetchPrices(dbRef.current, userId);
+          unsubscribeClasses = fetchClasses(dbRef.current, userId);
+        } else if (!userId) {
+          setClasses([]);
+          setMonthlyReports([]);
+        }
+        return () => {
+          if (unsubscribePrices) unsubscribePrices();
+          if (unsubscribeClasses) unsubscribeClasses();
+        };
+      }, [userId]);
+
+      const generateReports = (fetchedClasses) => {
+        const monthly = {};
+
+        fetchedClasses.forEach(entry => {
+          const [year, month] = entry.date.split('-');
+          const monthKey = `${year}-${month}`;
+
+          if (!monthly[monthKey]) {
+            monthly[monthKey] = { count: 0, total: 0 };
+          }
+          monthly[monthKey].count++;
+          monthly[monthKey].total += entry.price; 
+        });
+
+        const monthlyReportsData = Object.keys(monthly).map(monthKey => ({
+          month: new Date(monthKey + '-01').toLocaleString('es-ES', { year: 'numeric', month: 'long' }),
+          count: monthly[monthKey].count,
+          total: monthly[monthKey].total,
+        })).sort((a, b) => new Date(b.month) - new Date(a.month));
+        setMonthlyReports(monthlyReportsData);
+      };
+
+      const handleAddEntry = async () => {
+        if (!newEntry.studentName || !newEntry.day || !newEntry.date || !newEntry.studentCount) {
+          showMessageBox('Error', 'Por favor, completa todos los campos.', 'error');
+          return;
+        }
+
+        if (!userId) {
           showMessageBox('Error', 'Debes iniciar sesión para registrar clases.', 'error');
           return;
         }
-
+        
         try {
-          const userId = user.uid;
-          const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef}/users/${userId}/classes`);
-
-          const newStudentCount = validStudentNames.length;
-          const newPrice = classPrices[`${newStudentCount}_students`] || 0;
-
+          const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
           const q = firebase.query(
             classesCollectionRef,
-            firebase.where('date', '==', newEntry.date),
-            firebase.where('time', '==', newEntry.time)
+            firebase.where("date", "==", newEntry.date),
+            firebase.where("day", "==", newEntry.day),
+            firebase.where("time", "==", newEntry.time)
           );
 
-          const querySnapshot = await firebase.getDocs(q);
-          const existingClassDoc = querySnapshot.docs.find(doc => {
-            const data = doc.data();
-            return data.studentNames && data.studentNames.length > 0;
-          });
-
-          if (existingClassDoc) {
-            const existingData = existingClassDoc.data();
-            const updatedStudentNames = [...existingData.studentNames, ...validStudentNames];
-
-            const docRef = existingClassDoc.ref;
-            const updatedStudentCount = existingData.studentCount + newStudentCount;
-            const updatedPrice = existingData.price + newPrice;
-            await firebase.updateDoc(docRef, {
-              studentNames: updatedStudentNames,
-              studentCount: updatedStudentCount,
-              price: updatedPrice,
-            });
-            showMessageBox('Éxito', `Alumnos añadidos a la clase existente.`, 'success');
-          } else {
-            const classData = {
-              studentNames: validStudentNames,
+          if (isEditing) {
+            const classDocRef = firebase.doc(classesCollectionRef, editedClassId);
+            const updatedData = {
+              studentNames: newEntry.studentName.split(',').map(s => s.trim()), 
               day: newEntry.day,
               time: newEntry.time,
               date: newEntry.date,
-              studentCount: newStudentCount,
-              price: newPrice,
+              studentCount: newEntry.studentCount,
+              price: newEntry.price,
             };
-            await firebase.addDoc(classesCollectionRef, classData);
-            showMessageBox('Éxito', 'Clase registrada con éxito.', 'success');
+            await firebase.updateDoc(classDocRef, updatedData);
+            showMessageBox('Éxito', 'Clase actualizada con éxito.', 'success');
+          } else {
+            const querySnapshot = await firebase.getDocs(q);
+
+            if (!querySnapshot.empty) {
+              const existingClassDoc = querySnapshot.docs[0];
+              const existingData = existingClassDoc.data();
+              const existingStudents = existingData.studentNames || [];
+              const newStudentName = newEntry.studentName;
+
+              if (existingStudents.includes(newStudentName)) {
+                showMessageBox('Error', 'Este alumno ya está registrado en esta clase.', 'error');
+                return;
+              }
+
+              const updatedStudentNames = [...existingStudents, newStudentName];
+              
+              if (updatedStudentNames.length > existingData.studentCount) {
+                  showMessageBox('Error', `Esta clase solo es para ${existingData.studentCount} personas.`, 'error');
+                  return;
+              }
+
+              const docRef = existingClassDoc.ref;
+              await firebase.updateDoc(docRef, {
+                studentNames: updatedStudentNames,
+              });
+              showMessageBox('Éxito', `Alumno "${newStudentName}" añadido a la clase existente.`, 'success');
+            } else {
+              const classData = {
+                studentNames: [newEntry.studentName],
+                day: newEntry.day,
+                time: newEntry.time,
+                date: newEntry.date,
+                studentCount: newEntry.studentCount,
+                price: newEntry.price,
+              };
+              await firebase.addDoc(classesCollectionRef, classData);
+              showMessageBox('Éxito', 'Clase registrada con éxito.', 'success');
+            }
           }
-
-          // Resetear el formulario
+          
           setNewEntry({
-            studentNames: [],
+            studentName: '',
             day: '',
-            time: '',
-            date: '',
-            price: 0,
+            time: '8:00 a. m.',
+            date: new Date().toISOString().slice(0, 10),
+            studentCount: 1,
+            price: customPrices[1],
           });
-          setStudentCountToAdd(1);
-          setMode('list');
-
+          setIsEditing(false);
+          setEditedClassId(null);
         } catch (error) {
           console.error("Error saving document: ", error);
-          showMessageBox('Error', 'Error al registrar la clase.', 'error');
+          showMessageBox('Error', 'Error al registrar/actualizar la clase.', 'error');
         }
       };
 
-      const handleEditEntry = (entry) => {
-        setEditingEntry({ ...entry, students: entry.studentNames }); // Mantenemos students como el array de nombres
-        setMode('editing');
+      const confirmDeletion = (entry) => {
+        showMessageBox(
+          '¿Estás seguro?', 
+          `¿Estás seguro de que quieres eliminar la clase completa de ${entry.studentNames.join(', ')} del día ${entry.day} a las ${entry.time}?`,
+          'confirm',
+          () => handleDeleteEntry(entry.id)
+        );
       };
 
-      const handleUpdateEntry = async () => {
-        const validStudentNames = editingEntry.students.filter(name => name && name.trim() !== '');
-        if (validStudentNames.length === 0 || !editingEntry.time || !editingEntry.date) {
-          showMessageBox('Error', 'Por favor, completa todos los campos para actualizar la clase.', 'error');
-          return;
-        }
+      const handleDeleteEntry = async (id) => {
         try {
-          const userId = user.uid;
-          const docRef = firebase.doc(dbRef.current, `artifacts/${appIdRef}/users/${userId}/classes`, editingEntry.id);
-          const newStudentCount = validStudentNames.length;
-          const newPrice = classPrices[`${newStudentCount}_students`] || 0;
-          
-          await firebase.updateDoc(docRef, { 
-            ...editingEntry, 
-            studentNames: validStudentNames,
-            studentCount: newStudentCount,
-            price: newPrice,
-          });
-          setEditingEntry(null);
-          setMode('list');
-          showMessageBox('Éxito', 'Clase actualizada con éxito.', 'success');
+          const docRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`, id);
+          await firebase.deleteDoc(docRef);
+          showMessageBox('Éxito', 'Clase eliminada con éxito.', 'success');
         } catch (error) {
-          console.error("Error updating document: ", error);
-          showMessageBox('Error', 'Error al actualizar la clase.', 'error');
+          console.error("Error deleting document: ", error);
+          showMessageBox('Error', 'Error al eliminar la clase.', 'error');
+        } finally {
+          closeMessageBox();
         }
       };
-
-      const confirmDelete = (id) => {
-        setEntryToDelete(id);
-        setShowDeleteConfirm(true);
+      
+      const handleEditEntry = (entry) => {
+        setIsEditing(true);
+        setEditedClassId(entry.id);
+        setNewEntry({
+          studentName: entry.studentNames.join(', '), 
+          day: entry.day,
+          time: entry.time,
+          date: entry.date,
+          studentCount: entry.studentCount,
+          price: entry.price,
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+      
+      const handleCancelEdit = () => {
+          setIsEditing(false);
+          setEditedClassId(null);
+          setNewEntry({
+              studentName: '',
+              day: '',
+              time: '8:00 a. m.',
+              date: new Date().toISOString().slice(0, 10),
+              studentCount: 1,
+              price: customPrices[1],
+          });
       };
 
-      const handleDeleteEntry = async () => {
-        if (entryToDelete) {
-          try {
-            const userId = user.uid;
-            const docRef = firebase.doc(dbRef.current, `artifacts/${appIdRef}/users/${userId}/classes`, entryToDelete);
-            await firebase.deleteDoc(docRef);
-            showMessageBox('Éxito', 'Clase eliminada con éxito.', 'success');
-          } catch (error) {
-            console.error("Error deleting document: ", error);
-            showMessageBox('Error', 'Error al eliminar la clase.', 'error');
-          } finally {
-            setEntryToDelete(null);
-            setShowDeleteConfirm(false);
+      const handleExportData = () => {
+        const data = JSON.stringify(classes);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reporte-padel-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showMessageBox('Éxito', 'Datos exportados con éxito.', 'success');
+      };
+
+      const handleImportData = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/json';
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (!file) {
+            return;
           }
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+            try {
+              const data = JSON.parse(event.target.result);
+              if (!Array.isArray(data)) {
+                throw new Error('El archivo no contiene un array válido.');
+              }
+              const batch = firebase.writeBatch(dbRef.current);
+              data.forEach(entry => {
+                const newDocRef = firebase.doc(firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`));
+                batch.set(newDocRef, entry);
+              });
+              await batch.commit();
+              showMessageBox('Éxito', 'Datos importados con éxito.', 'success');
+            } catch (error) {
+              console.error("Error importing data: ", error);
+              showMessageBox('Error', 'Error al importar los datos: ' + error.message, 'error');
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      };
+      
+      const handleExportPdf = () => {
+          const input = tableRef.current;
+          if (!input || classes.length === 0) {
+              showMessageBox('Advertencia', 'No hay datos para exportar.', 'error');
+              return;
+          }
+
+          const tableClone = input.cloneNode(true);
+          tableClone.querySelectorAll('h3').forEach(h3 => {
+              h3.textContent = h3.textContent.toUpperCase();
+          });
+          
+          const pdfContent = document.createElement('div');
+          pdfContent.style.width = '100%';
+          pdfContent.style.padding = '20px';
+          pdfContent.style.boxSizing = 'border-box';
+          pdfContent.style.fontFamily = 'Inter, sans-serif';
+
+          pdfContent.innerHTML = `
+              <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Informe de Clases de Padel</h1>
+              ${tableClone.outerHTML}
+              <div style="margin-top: 50px; text-align: right;">
+                <p style="border-bottom: 1px solid #000; width: 250px; display: inline-block;"></p>
+                <p style="margin-top: 5px; font-size: 14px; font-weight: bold;">Mariana Garcia Pinto</p>
+              </div>
+          `;
+
+          document.body.appendChild(pdfContent);
+
+          html2canvas(pdfContent, {
+            scale: 2 
+          }).then((canvas) => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jspdf.jsPDF('p', 'mm', 'a4'); 
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`reporte-padel-${new Date().toISOString().slice(0, 10)}.pdf`);
+            showMessageBox('Éxito', 'Reporte PDF exportado con éxito.', 'success');
+          }).catch(error => {
+            console.error("Error generating PDF:", error);
+            showMessageBox('Error', 'Error al generar el PDF.', 'error');
+          }).finally(() => {
+              document.body.removeChild(pdfContent);
+          });
+      };
+      
+      const handleSignIn = async () => {
+          if (!email || !password) {
+              showMessageBox('Error', 'Por favor, ingresa un email y una contraseña.', 'error');
+              return;
+          }
+          try {
+              await firebase.signInWithEmailAndPassword(authRef.current, email, password);
+              showMessageBox('Éxito', 'Inicio de sesión exitoso.', 'success');
+          } catch (error) {
+              console.error("Error al iniciar sesión:", error.message);
+              showMessageBox('Error', 'Error al iniciar sesión. Verifica tus credenciales.', 'error');
+          }
+      };
+
+      const handleSignUp = async () => {
+          if (!email || !password) {
+              showMessageBox('Error', 'Por favor, ingresa un email y una contraseña.', 'error');
+              return;
+          }
+          try {
+              await firebase.createUserWithEmailAndPassword(authRef.current, email, password);
+              showMessageBox('Éxito', 'Registro exitoso. ¡Bienvenido!', 'success');
+          } catch (error) {
+              console.error("Error al registrar:", error.message);
+              showMessageBox('Error', 'Error al registrar. Intenta con otro email.', 'error');
+          }
+      };
+      
+      const handleSignOut = async () => {
+          try {
+              await firebase.signOut(authRef.current);
+              showMessageBox('Éxito', 'Cierre de sesión exitoso.', 'success');
+          } catch (error) {
+              console.error("Error al cerrar sesión:", error.message);
+              showMessageBox('Error', 'Error al cerrar sesión.', 'error');
+          }
+      };
+
+      const handleSaveConfig = () => {
+        try {
+          const config = JSON.parse(firebaseConfigInput);
+          firebaseConfigRef.current = config;
+          setShowConfigModal(false);
+          initFirebase();
+        } catch (e) {
+          setConfigError('Formato JSON inválido. Por favor, revisa tu configuración.');
         }
       };
 
       const handleSavePrices = async () => {
-        if (!user) {
-          showMessageBox('Error', 'Debes iniciar sesión para guardar los precios.', 'error');
-          return;
+        if (!userId) {
+            showMessageBox('Error', 'Debes iniciar sesión para guardar los precios.', 'error');
+            return;
         }
         try {
-          const userId = user.uid;
-          const pricesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef}/users/${userId}/prices/classPrices`);
-          await firebase.setDoc(pricesDocRef, classPrices, { merge: true });
-          showMessageBox('Éxito', 'Precios actualizados con éxito.', 'success');
-          setMode('list');
+            const pricesDocRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/settings/prices`);
+            await firebase.setDoc(pricesDocRef, customPrices);
+            showMessageBox('Éxito', 'Precios guardados con éxito.', 'success');
         } catch (error) {
-          console.error("Error saving prices: ", error);
-          showMessageBox('Error', 'Error al guardar los precios.', 'error');
+            console.error("Error al guardar los precios:", error);
+            showMessageBox('Error', 'Error al guardar los precios.', 'error');
         }
       };
 
-      const getFilteredAndGroupedClasses = React.useMemo(() => {
-        let filteredClasses = classes.filter(entry => {
-          const studentNames = Array.isArray(entry.studentNames) ? entry.studentNames.join(', ') : entry.studentName;
-          return studentNames.toLowerCase().includes(filterText.toLowerCase()) ||
-                 entry.day.toLowerCase().includes(filterText.toLowerCase()) ||
-                 entry.date.toLowerCase().includes(filterText.toLowerCase());
-        });
-
-        const grouped = filteredClasses.reduce((acc, entry) => {
-          const key = `${entry.date}_${entry.time}`;
-          if (!acc[key]) {
-            acc[key] = {
-              id: entry.id,
-              date: entry.date,
-              day: entry.day,
-              time: entry.time,
-              studentNames: [],
-              totalStudentCount: 0,
-              totalPrice: 0,
-            };
-          }
-          acc[key].studentNames = acc[key].studentNames.concat(entry.studentNames);
-          acc[key].totalStudentCount += entry.studentCount;
-          acc[key].totalPrice += entry.price;
-          return acc;
-        }, {});
-
-        const sortedKeys = Object.keys(grouped).sort((a, b) => {
-            const [dateA, timeA] = a.split('_');
-            const [dateB, timeB] = b.split('_');
-            if (dateA !== dateB) {
-                return new Date(dateA) - new Date(dateB);
-            }
-            return timeA.localeCompare(timeB);
-        });
-
-        return sortedKeys.map(key => grouped[key]);
-      }, [classes, filterText]);
-
-
-      const handleExportPdf = () => {
-        const doc = new jsPDF();
-        const content = document.getElementById('report-content');
-
-        const clonedContent = content.cloneNode(true);
-        clonedContent.querySelectorAll('.no-export').forEach(el => el.remove());
-
-        const pdfContentStyles = `
-            font-size: 10px;
-            font-family: 'Inter', sans-serif;
-            color: #333;
-        `;
-        clonedContent.style = pdfContentStyles;
-
-        doc.html(clonedContent, {
-          callback: function (doc) {
-            doc.save('informe-clases-padel.pdf');
-            showMessageBox('Éxito', 'El informe se ha exportado a PDF.', 'success');
-          },
-          margin: [10, 10, 10, 10],
-          html2canvas: {
-            scale: 0.8,
-            windowWidth: clonedContent.scrollWidth
-          }
-        });
+      const getFilteredAndGroupedClasses = (classes, filterText) => {
+          const filteredClasses = classes.filter(cls => 
+              cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()))
+          );
+          
+          return filteredClasses.reduce((acc, cls) => {
+              const [year, month] = cls.date.split('-');
+              const monthKey = `${year}-${month}`;
+              if (!acc[monthKey]) {
+                acc[monthKey] = [];
+              }
+              acc[monthKey].push(cls);
+              return acc;
+          }, {});
       };
       
-      const exportMonthlyReportPdf = () => {
-          const doc = new jsPDF();
-          doc.text("Informe Mensual de Ingresos", 10, 10);
-          
-          let y = 20;
-          doc.setFontSize(10);
-          doc.text('Mes', 10, y);
-          doc.text('1 Alumno', 60, y);
-          doc.text('2 Alumnos', 90, y);
-          doc.text('3 Alumnos', 120, y);
-          doc.text('4 Alumnos', 150, y);
-          doc.text('Ingresos', 180, y);
-          y += 5;
-          doc.line(10, y, 200, y); // Draw a line for the header
-          y += 5;
+      const groupedClasses = getFilteredAndGroupedClasses(classes, filterText);
 
-          Object.keys(monthlyReport).sort().forEach(monthKey => {
-              const data = monthlyReport[monthKey];
-              doc.text(`${data.monthName}`, 10, y);
-              doc.text(`${data.classesByStudentCount['1'] || 0}`, 60, y);
-              doc.text(`${data.classesByStudentCount['2'] || 0}`, 90, y);
-              doc.text(`${data.classesByStudentCount['3'] || 0}`, 120, y);
-              doc.text(`${data.classesByStudentCount['4'] || 0}`, 150, y);
-              doc.text(`$${data.totalRevenue}`, 180, y);
-              y += 10;
-          });
-          
-          doc.save("informe-mensual.pdf");
-          showMessageBox('Éxito', 'Informe mensual exportado a PDF.', 'success');
+      const daysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+      const firstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay(); // 0 = Domingo
+      const classesForDay = useMemo(() => {
+          const formattedDate = selectedDate.toISOString().slice(0, 10);
+          return classes.filter(cls => cls.date === formattedDate);
+      }, [classes, selectedDate]);
+      const hasClassesOnDate = (date) => {
+          const formattedDate = date.toISOString().slice(0, 10);
+          return classes.some(cls => cls.date === formattedDate);
       };
+      
+      const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
+          if (!show) return null;
 
-      const totalStudents = classes.reduce((sum, entry) => sum + entry.studentCount, 0);
-      const totalRevenue = classes.reduce((sum, entry) => sum + entry.price, 0);
-
-      const exportSummary = () => {
-          const doc = new jsPDF();
-          doc.text("Resumen de Clases de Padel", 10, 10);
-          doc.text(`Total de alumnos registrados: ${totalStudents}`, 10, 20);
-          doc.text(`Total de ingresos: $${totalRevenue}`, 10, 30);
-          doc.save("resumen-padel.pdf");
-          showMessageBox('Éxito', 'Resumen exportado a PDF.', 'success');
-      };
-
-      // Exportar todas las clases a un archivo JSON
-      const handleExportJson = () => {
-        if (classes.length === 0) {
-          showMessageBox('Advertencia', 'No hay datos para exportar.', 'error');
-          return;
-        }
-
-        const dataStr = JSON.stringify(classes, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-        
-        const exportFileName = `reporte_padel_${new Date().toISOString().slice(0, 10)}.json`;
-
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileName);
-        linkElement.click();
-        linkElement.remove();
-
-        showMessageBox('Éxito', 'Datos exportados a JSON.', 'success');
-      };
-
-      // Iniciar el proceso de importación JSON (abrir el modal de confirmación)
-      const handleImportJsonClick = () => {
-        setShowImportConfirm(true);
-      };
-
-      // Manejar la selección del archivo y la lectura del contenido
-      const handleFileSelected = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-          setFileToImport(file);
-        }
-      };
-
-      // Lógica de importación real después de la confirmación
-      const importJsonData = async () => {
-        if (!fileToImport || !user) {
-          showMessageBox('Error', 'No hay archivo seleccionado o no has iniciado sesión.', 'error');
-          setShowImportConfirm(false);
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const importedClasses = JSON.parse(e.target.result);
-            if (!Array.isArray(importedClasses)) {
-              throw new Error('El archivo JSON no contiene un array de clases válido.');
-            }
-
-            const userId = user.uid;
-            const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef}/users/${userId}/classes`);
-
-            // Usamos un writeBatch para realizar operaciones atómicas:
-            // 1. Eliminar todos los documentos existentes.
-            // 2. Añadir los nuevos documentos del archivo JSON.
-            const batch = firebase.writeBatch(dbRef.current);
-            
-            // Eliminar todas las clases existentes
-            const existingClasses = await firebase.getDocs(classesCollectionRef);
-            existingClasses.forEach(doc => {
-              batch.delete(doc.ref);
-            });
-            
-            // Añadir las nuevas clases
-            importedClasses.forEach(classData => {
-              const newDocRef = firebase.doc(classesCollectionRef);
-              batch.set(newDocRef, classData);
-            });
-
-            await batch.commit();
-
-            showMessageBox('Éxito', 'Datos importados y actualizados con éxito.', 'success');
-          } catch (error) {
-            console.error('Error al importar o parsear el archivo JSON:', error);
-            showMessageBox('Error', 'Hubo un problema al importar los datos. Asegúrate de que el formato del archivo es correcto.', 'error');
-          } finally {
-            setShowImportConfirm(false);
-            setFileToImport(null);
-            fileInputRef.current.value = '';
+          let icon, bgColor, buttonColor, titleColor;
+          switch (type) {
+              case 'success':
+                  icon = <i className="fas fa-check-circle text-4xl text-green-500"></i>;
+                  bgColor = 'bg-white';
+                  titleColor = 'text-green-600';
+                  break;
+              case 'error':
+                  icon = <i className="fas fa-times-circle text-4xl text-red-500"></i>;
+                  bgColor = 'bg-white';
+                  titleColor = 'text-red-600';
+                  break;
+              case 'confirm':
+                  icon = <i className="fas fa-question-circle text-4xl text-blue-500"></i>;
+                  bgColor = 'bg-white';
+                  titleColor = 'text-blue-600';
+                  break;
+              default:
+                  icon = null;
           }
-        };
-        reader.readAsText(fileToImport);
+
+          return (
+              <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                  <div className={`p-6 rounded-xl shadow-xl w-full max-w-sm text-center ${bgColor} transform transition-all duration-300 ease-in-out scale-100`}>
+                      <div className="mb-4">{icon}</div>
+                      <h3 className={`text-lg font-bold mb-2 ${titleColor}`}>{title}</h3>
+                      <p className="mb-6 text-gray-700">{content}</p>
+                      <div className="flex justify-around">
+                          {type === 'confirm' && (
+                              <button
+                                  onClick={onClose}
+                                  className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors"
+                              >
+                                  Cancelar
+                              </button>
+                          )}
+                          <button
+                              onClick={() => {
+                                  if (onConfirm) onConfirm();
+                                  onClose();
+                              }}
+                              className={`px-4 py-2 text-white rounded-lg transition-colors ${type === 'confirm' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                          >
+                              {type === 'confirm' ? 'Confirmar' : 'Entendido'}
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          );
       };
+      
+      const filteredClassesForSelectedDate = useMemo(() => {
+          return classesForDay.filter(cls => 
+              cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()))
+          );
+      }, [classesForDay, filterText]);
 
       return (
-        <div className="min-h-screen bg-gray-100 p-6 flex flex-col items-center">
-          {/* Componente para mostrar mensajes flotantes */}
-          {messageBox && (
-            <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transition-transform transform ${messageBox.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'} animate-fade-in`}>
-              <h4 className="font-bold">{messageBox.title}</h4>
-              <p>{messageBox.message}</p>
-            </div>
-          )}
-
-          {/* Modal de confirmación para eliminar */}
-          {showDeleteConfirm && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-70 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl p-6 shadow-xl max-w-sm w-full transform transition-transform animate-scale-up">
-                <h3 className="text-xl font-bold text-gray-800 mb-3">Confirmar Eliminación</h3>
-                <p className="text-gray-600 mb-5 text-sm">¿Estás seguro de que quieres eliminar esta clase? Esta acción no se puede deshacer.</p>
-                <div className="flex justify-end gap-2">
-                  <button onClick={() => setShowDeleteConfirm(false)} className="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-full shadow-md hover:bg-gray-300 transition-colors text-sm">
-                    Cancelar
-                  </button>
-                  <button onClick={handleDeleteEntry} className="bg-red-600 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-red-700 transition-colors text-sm">
-                    Eliminar
-                  </button>
-                </div>
+        <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
+          <MessageBox
+            show={messageBox.show}
+            title={messageBox.title}
+            content={messageBox.content}
+            type={messageBox.type}
+            onConfirm={messageBox.onConfirm}
+            onClose={closeMessageBox}
+          />
+          {showConfigModal && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+              <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4">Configurar Firebase</h2>
+                {configError && <p className="text-red-500 text-sm mb-4">{configError}</p>}
+                <textarea
+                  className="w-full h-32 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Pega tu objeto de configuración de Firebase aquí..."
+                  value={firebaseConfigInput}
+                  onChange={(e) => setFirebaseConfigInput(e.target.value)}
+                ></textarea>
+                <button
+                  onClick={() => handleSaveConfig()}
+                  className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                >
+                  Guardar Configuración
+                </button>
               </div>
             </div>
           )}
 
-          {/* Modal de confirmación para importar JSON */}
-          {showImportConfirm && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-70 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl p-6 shadow-xl max-w-lg w-full transform transition-transform animate-scale-up">
-                <h3 className="text-xl font-bold text-gray-800 mb-3">Confirmar Importación de Datos</h3>
-                <p className="text-gray-600 mb-5 text-sm">
-                  Al importar un archivo JSON, **se eliminarán permanentemente todos los datos de clases actuales** y se reemplazarán por los del archivo. ¿Estás seguro de que quieres continuar?
-                </p>
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept=".json"
-                    onChange={handleFileSelected}
-                    className="mb-4 w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-                <div className="flex justify-end gap-2">
-                  <button onClick={() => {
-                    setShowImportConfirm(false);
-                    setFileToImport(null);
-                    if (fileInputRef.current) fileInputRef.current.value = '';
-                  }} className="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-full shadow-md hover:bg-gray-300 transition-colors text-sm">
-                    Cancelar
-                  </button>
-                  <button onClick={importJsonData} disabled={!fileToImport} className={`text-white font-semibold py-2 px-4 rounded-full shadow-md transition-colors text-sm ${!fileToImport ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                    Importar
-                  </button>
-                </div>
-              </div>
+          {loading ? (
+            <div className="flex justify-center items-center h-48">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+              <p className="ml-4 text-gray-600">Conectando a la nube y cargando datos...</p>
             </div>
-          )}
-
-
-          {user ? (
-            <div className="w-full max-w-4xl bg-white rounded-3xl shadow-lg p-8 transform transition-all duration-300">
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                <h1 className="text-3xl font-bold text-gray-800">
-                  <i className="fas fa-table-tennis text-blue-500 mr-2"></i>Informe de Clases de Padel
-                </h1>
+          ) : userId ? (
+            <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-6h-2v6zm0-8h2V7h-2v2z" />
+                  </svg>
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Reporte Padel</h1>
+                    <p className="text-sm text-gray-500">Versión 12.8</p>
+                  </div>
+                </div>
                 <div className="flex space-x-2">
-                  <button
-                    onClick={handleSignOut}
-                    className="flex items-center space-x-1 bg-red-600 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-red-700 transition-colors transform hover:scale-105 text-sm"
-                  >
+                  <button onClick={handleExportData} className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18h14v2H5v-2z" />
+                    </svg>
+                    <span>Exportar BD</span>
+                  </button>
+                  <button onClick={handleImportData} className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-600 transition-colors flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 15v-3h-4V5h-2v7H9v3H5l7 7 7-7z" />
+                    </svg>
+                    <span>Importar BD</span>
+                  </button>
+                  <button onClick={handleExportPdf} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-colors flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 4h-3V2H8v2H5c-1.1 0-1.99.9-1.99 2L3 20c0 1.1.89 2 1.99 2H19c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V6h14v14zM9 10h6v2H9v-2zm0 4h6v2H9v-2z" />
+                    </svg>
+                    <span>Exportar PDF</span>
+                  </button>
+                  <button onClick={handleSignOut} className="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-600 transition-colors flex items-center space-x-1">
                     <i className="fas fa-sign-out-alt"></i>
                     <span>Cerrar Sesión</span>
                   </button>
                 </div>
               </div>
-              
-              {/* Vistas condicionales */}
-              {mode === 'list' && (
-                  <div className="mb-8">
-                      <h2 className="text-2xl font-semibold text-gray-700 mb-4">Clases Registradas</h2>
-                      <div className="flex flex-col md:flex-row justify-between items-center mb-4">
-                          <input
-                              type="text"
-                              value={filterText}
-                              onChange={(e) => setFilterText(e.target.value)}
-                              placeholder="Filtrar por nombre, día o fecha..."
-                              className="p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent w-full md:w-1/2 mb-3 md:mb-0 transition-all"
-                          />
-                          <div className="flex space-x-2 w-full md:w-auto">
-                              <button
-                                  onClick={() => {
-                                      setMode('adding');
-                                      setNewEntry(prev => ({
-                                          ...prev,
-                                          studentNames: Array(studentCountToAdd).fill('')
-                                      }));
-                                  }}
-                                  className="w-full md:w-auto bg-green-600 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:bg-green-700 transition-colors transform hover:scale-105 text-sm"
-                              >
-                                  <i className="fas fa-plus mr-1"></i>Añadir Clase
-                              </button>
-                              <button
-                                  onClick={() => setMode('price_config')}
-                                  className="w-full md:w-auto bg-yellow-500 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:bg-yellow-600 transition-colors transform hover:scale-105 text-sm"
-                              >
-                                  <i className="fas fa-dollar-sign mr-1"></i>Configurar Precios
-                              </button>
-                              <button
-                                  onClick={() => setMode('monthly_report')}
-                                  className="w-full md:w-auto bg-purple-600 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:bg-purple-700 transition-colors transform hover:scale-105 text-sm"
-                              >
-                                  <i className="fas fa-chart-line mr-1"></i>Informe Mensual
-                              </button>
-                          </div>
-                      </div>
 
-                      <div id="report-content" className="overflow-x-auto bg-gray-50 rounded-2xl shadow-inner">
-                          <table className="min-w-full">
-                              <thead>
-                                  <tr className="bg-blue-600 text-white uppercase text-xs leading-normal">
-                                      <th className="py-2 px-4 text-left rounded-tl-2xl">Fecha</th>
-                                      <th className="py-2 px-4 text-left">Día</th>
-                                      <th className="py-2 px-4 text-left">Hora</th>
-                                      <th className="py-2 px-4 text-left">Alumnos</th>
-                                      <th className="py-2 px-4 text-left">Cantidad</th>
-                                      <th className="py-2 px-4 text-left">Precio Total</th>
-                                      <th className="py-2 px-4 text-center no-export rounded-tr-2xl">Acciones</th>
+              <div className="bg-blue-50 border-l-4 border-blue-400 text-blue-800 p-4 mb-6 rounded-lg">
+                <p className="font-bold">¡Bienvenido de nuevo!</p>
+                <p>Has iniciado sesión con el ID de usuario: <span className="font-mono bg-blue-200 px-1 rounded">{userId}</span></p>
+              </div>
+
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-chart-bar text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">Informes Mensuales</h2>
+              </div>
+              <div className="overflow-x-auto mb-6">
+                <div className="flex space-x-4 pb-4">
+                  {monthlyReports.map((report, index) => (
+                    <div key={index} className="flex-none w-64 bg-gray-50 p-4 rounded-xl shadow-md">
+                      <h3 className="font-semibold text-gray-700">{report.month.toUpperCase()}</h3>
+                      <p className="text-sm text-gray-600">Clases: {report.count}</p>
+                      <p className="text-lg font-bold text-gray-900 mt-1">Total: ${report.total.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-cogs text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">Configuración de Precios</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
+                {peopleOptions.map(count => (
+                  <div key={count}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Precio para {count} {count === 1 ? 'persona' : 'personas'}
+                    </label>
+                    <div className="relative mt-1 rounded-md shadow-sm">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <span className="text-gray-500 sm:text-sm">$</span>
+                      </div>
+                      <input
+                        type="number"
+                        value={customPrices[count] || ''}
+                        onChange={(e) => setCustomPrices({ ...customPrices, [count]: parseInt(e.target.value) || 0 })}
+                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                ))}
+                <div className="md:col-span-2 lg:col-span-1 flex items-end">
+                  <button onClick={handleSavePrices} className="w-full bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-indigo-700 transition-colors">
+                    Guardar Precios
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-plus-circle text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
+                <input
+                  type="text"
+                  placeholder="Nombre del Alumno"
+                  value={newEntry.studentName}
+                  onChange={(e) => setNewEntry({ ...newEntry, studentName: e.target.value })}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <input
+                  type="date"
+                  value={newEntry.date}
+                  onChange={handleDateChange}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <select
+                  value={newEntry.day}
+                  disabled={true}
+                  className="p-3 border border-gray-300 rounded-lg bg-gray-200 cursor-not-allowed text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {daysOfWeek.map(day => <option key={day} value={day}>{day}</option>)}
+                </select>
+                <select
+                  value={newEntry.time}
+                  onChange={(e) => setNewEntry({ ...newEntry, time: e.target.value })}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {timesOfDay.map(time => <option key={time} value={time}>{time}</option>)}
+                </select>
+                <select
+                  value={newEntry.studentCount}
+                  onChange={(e) => setNewEntry({ ...newEntry, studentCount: parseInt(e.target.value) })}
+                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {peopleOptions.map(count => <option key={count} value={count}>{count} {count === 1 ? 'persona' : 'personas'}</option>)}
+                </select>
+                <div className="p-3 border border-gray-300 rounded-lg bg-white flex items-center justify-between col-span-1">
+                  <span className="text-gray-500">Valor de la Clase:</span>
+                  <span className="font-bold text-gray-900">${newEntry.price.toLocaleString()}</span>
+                </div>
+                {isEditing ? (
+                  <div className="md:col-span-2 lg:col-span-2 flex space-x-2">
+                    <button onClick={handleAddEntry} className="w-1/2 bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                      Guardar Cambios
+                    </button>
+                    <button onClick={handleCancelEdit} className="w-1/2 bg-gray-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-600 transition-colors">
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={handleAddEntry} className="md:col-span-2 lg:col-span-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                    Registrar Clase
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-2 mb-4">
+                <i className="fas fa-list-ul text-xl text-gray-600"></i>
+                <h2 className="text-2xl font-bold text-gray-900">Listado de Clases Registradas</h2>
+              </div>
+              <div className="flex justify-between items-center mb-4">
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={() => setView('list')}
+                      className={`py-2 px-4 rounded-lg font-bold transition-colors ${view === 'list' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      <i className="fas fa-list mr-2"></i>Vista de Lista
+                    </button>
+                    <button 
+                      onClick={() => setView('calendar')}
+                      className={`py-2 px-4 rounded-lg font-bold transition-colors ${view === 'calendar' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      <i className="fas fa-calendar-alt mr-2"></i>Vista de Calendario
+                    </button>
+                  </div>
+                  {view === 'list' && (
+                      <input
+                          type="text"
+                          placeholder="Filtrar por nombre de alumno..."
+                          value={filterText}
+                          onChange={(e) => setFilterText(e.target.value)}
+                          className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full md:w-1/2 lg:w-1/3"
+                      />
+                  )}
+              </div>
+              
+              {view === 'list' ? (
+                <div ref={tableRef} className="bg-white rounded-xl shadow-md mb-6">
+                  {Object.keys(groupedClasses).length > 0 ? (
+                    Object.keys(groupedClasses).sort((a, b) => b.localeCompare(a)).map(monthKey => {
+                      const [year, month] = monthKey.split('-');
+                      const displayDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+                      return (
+                          <div key={monthKey} className="pb-4">
+                            <h3 className="bg-gray-100 font-bold text-lg p-4 sticky top-0 border-b border-gray-200">
+                              {displayDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
+                            </h3>
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                  <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Día</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Horario</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alumnos</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                   </tr>
-                              </thead>
-                              <tbody className="text-gray-700 text-sm font-light">
-                                  {getFilteredAndGroupedClasses.map((entry, index) => (
-                                      <tr key={index} className="border-b border-gray-200 hover:bg-blue-50 transition-colors">
-                                          <td className="py-2 px-4 text-left whitespace-nowrap">{entry.date}</td>
-                                          <td className="py-2 px-4 text-left">{entry.day}</td>
-                                          <td className="py-2 px-4 text-left">{entry.time}</td>
-                                          <td className="py-2 px-4 text-left">{entry.studentNames.join(', ')}</td>
-                                          <td className="py-2 px-4 text-left">{entry.totalStudentCount}</td>
-                                          <td className="py-2 px-4 text-left">${entry.totalPrice}</td>
-                                          <td className="py-2 px-4 text-center no-export">
-                                              <button onClick={() => handleEditEntry(entry)} className="mr-2 text-blue-500 hover:text-blue-700 transform hover:scale-110 transition-transform">
-                                                  <i className="fas fa-edit"></i>
-                                              </button>
-                                              <button onClick={() => confirmDelete(entry.id)} className="text-red-500 hover:text-red-700 transform hover:scale-110 transition-transform">
-                                                  <i className="fas fa-trash"></i>
-                                              </button>
-                                          </td>
-                                      </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {groupedClasses[monthKey].map((entry) => (
+                                    <tr key={entry.id} className={`${colorMap[entry.studentCount]} hover:bg-gray-200 transition-colors`}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(entry.date).toLocaleDateString()}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.day}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.time}</td>
+                                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                        <ul className="list-disc list-inside">
+                                          {entry.studentNames.map((name, index) => (
+                                            <li key={index}>{name}</li>
+                                          ))}
+                                        </ul>
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${entry.price.toLocaleString()}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button onClick={() => handleEditEntry(entry)} className="text-blue-600 hover:text-blue-900 mr-2">
+                                          <i className="fas fa-edit"></i>
+                                        </button>
+                                        <button onClick={() => confirmDeletion(entry)} className="text-red-600 hover:text-red-900">
+                                          <i className="fas fa-trash-alt"></i>
+                                        </button>
+                                      </td>
+                                    </tr>
                                   ))}
-                              </tbody>
-                          </table>
-                      </div>
-
-                      <div className="mt-6 flex justify-end flex-wrap gap-2 no-export">
-                          <button onClick={handleExportJson} className="bg-gray-600 text-white font-bold py-2 px-4 rounded-full shadow-md hover:bg-gray-700 transition-colors transform hover:scale-105 text-sm">
-                              <i className="fas fa-download mr-1"></i>Exportar JSON
-                          </button>
-                          <button onClick={handleImportJsonClick} className="bg-gray-600 text-white font-bold py-2 px-4 rounded-full shadow-md hover:bg-gray-700 transition-colors transform hover:scale-105 text-sm">
-                              <i className="fas fa-upload mr-1"></i>Importar JSON
-                          </button>
-                          <button onClick={handleExportPdf} className="bg-purple-600 text-white font-bold py-2 px-4 rounded-full shadow-md hover:bg-purple-700 transition-colors transform hover:scale-105 text-sm">
-                              <i className="fas fa-file-pdf mr-1"></i>Exportar Informe PDF
-                          </button>
-                          <button onClick={exportSummary} className="bg-purple-600 text-white font-bold py-2 px-4 rounded-full shadow-md hover:bg-purple-700 transition-colors transform hover:scale-105 text-sm">
-                              <i className="fas fa-chart-bar mr-1"></i>Exportar Resumen PDF
-                          </button>
-                      </div>
-
-                      <div className="mt-6 text-gray-700 text-center text-md p-3 bg-gray-50 rounded-xl shadow-inner">
-                          <p>Total de alumnos registrados: <span className="font-bold text-blue-600">{totalStudents}</span></p>
-                          <p>Ingresos totales: <span className="font-bold text-green-600">${totalRevenue}</span></p>
-                      </div>
-                  </div>
-              )}
-              
-              {mode === 'adding' && (
-                  <div className="mb-8">
-                      <h2 className="text-2xl font-semibold text-gray-700 mb-4">Registrar Nueva Clase</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-2xl shadow-inner">
-                          <input
-                              type="number"
-                              value={studentCountToAdd}
-                              onChange={(e) => {
-                                  const count = Math.max(1, Math.min(4, Number(e.target.value)));
-                                  setStudentCountToAdd(count);
-                                  setNewEntry(prev => ({
-                                      ...prev,
-                                      studentNames: Array(count).fill(''),
-                                  }));
-                              }}
-                              placeholder="Cantidad de alumnos (1-4)"
-                              min="1"
-                              max="4"
-                              className="p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                          />
-                          <input
-                              type="date"
-                              value={newEntry.date}
-                              onChange={handleDateChange}
-                              className="p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                          />
-                          <input
-                              type="text"
-                              value={newEntry.day}
-                              placeholder="Día de la semana"
-                              readOnly
-                              className="p-2 border border-gray-200 rounded-lg bg-gray-200 cursor-not-allowed"
-                          />
-                          <select
-                              value={newEntry.time}
-                              onChange={(e) => setNewEntry(prev => ({ ...prev, time: e.target.value }))}
-                              className="p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                          >
-                              <option value="">Selecciona hora</option>
-                              <option value="09:00">09:00</option>
-                              <option value="10:00">10:00</option>
-                              <option value="11:00">11:00</option>
-                              <option value="12:00">12:00</option>
-                              <option value="13:00">13:00</option>
-                              <option value="14:00">14:00</option>
-                              <option value="15:00">15:00</option>
-                              <option value="16:00">16:00</option>
-                              <option value="17:00">17:00</option>
-                              <option value="18:00">18:00</option>
-                              <option value="19:00">19:00</option>
-                              <option value="20:00">20:00</option>
-                              <option value="21:00">21:00</option>
-                              <option value="22:00">22:00</option>
-                          </select>
-                          {newEntry.studentNames.map((studentName, index) => (
-                              <input
-                                  key={index}
-                                  type="text"
-                                  value={studentName}
-                                  onChange={(e) => handleStudentNameChange(index, e.target.value)}
-                                  placeholder={`Nombre del alumno ${index + 1}`}
-                                  className="p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                              />
-                          ))}
-                          <input
-                              type="text"
-                              value={`$${newEntry.price}`}
-                              placeholder="Precio por clase"
-                              readOnly
-                              className="p-2 border border-gray-200 rounded-lg bg-gray-200 cursor-not-allowed"
-                          />
-                          <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-3">
-                              <button
-                                  onClick={handleAddEntry}
-                                  className="w-full bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:bg-blue-700 transition-colors transform hover:scale-105 text-sm"
-                              >
-                                  <i className="fas fa-plus mr-1"></i>Registrar
-                              </button>
-                              <button
-                                  onClick={() => setMode('list')}
-                                  className="w-full bg-gray-400 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:bg-gray-500 transition-colors transform hover:scale-105 text-sm"
-                              >
-                                  <i className="fas fa-times mr-1"></i>Cancelar
-                              </button>
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
-                      </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-6 text-center italic text-gray-500">
+                      No hay clases registradas.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <button
+                      onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1))}
+                      className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors"
+                    >
+                      <i className="fas fa-chevron-left"></i>
+                    </button>
+                    <h3 className="text-xl font-bold">
+                      {selectedDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
+                    </h3>
+                    <button
+                      onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1))}
+                      className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors"
+                    >
+                      <i className="fas fa-chevron-right"></i>
+                    </button>
                   </div>
-              )}
-              
-              {mode === 'editing' && (
-                  <div className="mb-8">
-                      <h2 className="text-2xl font-semibold text-gray-700 mb-4">Editar Clase</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-2xl shadow-inner">
-                          <input
-                              type="number"
-                              value={editingEntry.studentCount}
-                              onChange={(e) => {
-                                  const newCount = Math.max(1, Math.min(4, Number(e.target.value)));
-                                  const newStudents = Array(newCount).fill('').map((_, i) => editingEntry.students[i] || '');
-                                  const newPrice = classPrices[`${newCount}_students`] || 0;
-                                  setEditingEntry(prev => ({
-                                      ...prev,
-                                      studentCount: newCount,
-                                      students: newStudents,
-                                      price: newPrice,
-                                  }));
-                              }}
-                              min="1"
-                              max="4"
-                              placeholder="Cantidad de alumnos (1-4)"
-                              className="p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                          />
-                          <input
-                              type="date"
-                              value={editingEntry.date}
-                              onChange={handleEditDateChange}
-                              className="p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                          />
-                          <input
-                              type="text"
-                              value={editingEntry.day}
-                              placeholder="Día de la semana"
-                              readOnly
-                              className="p-2 border border-gray-200 rounded-lg bg-gray-200 cursor-not-allowed"
-                          />
-                          <select
-                              value={editingEntry.time}
-                              onChange={(e) => setEditingEntry(prev => ({ ...prev, time: e.target.value }))}
-                              className="p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                          >
-                              <option value="">Selecciona hora</option>
-                              <option value="09:00">09:00</option>
-                              <option value="10:00">10:00</option>
-                              <option value="11:00">11:00</option>
-                              <option value="12:00">12:00</option>
-                              <option value="13:00">13:00</option>
-                              <option value="14:00">14:00</option>
-                              <option value="15:00">15:00</option>
-                              <option value="16:00">16:00</option>
-                              <option value="17:00">17:00</option>
-                              <option value="18:00">18:00</option>
-                              <option value="19:00">19:00</option>
-                              <option value="20:00">20:00</option>
-                              <option value="21:00">21:00</option>
-                              <option value="22:00">22:00</option>
-                          </select>
-                          {Array.from({ length: editingEntry.studentCount || 0 }).map((_, index) => (
-                              <input
-                                  key={index}
-                                  type="text"
-                                  value={editingEntry.students[index] || ''}
-                                  onChange={(e) => handleEditStudentNameChange(index, e.target.value)}
-                                  placeholder={`Nombre del alumno ${index + 1}`}
-                                  className="p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                              />
-                          ))}
-                          <input
-                              type="text"
-                              value={`$${editingEntry.price}`}
-                              placeholder="Precio por clase"
-                              readOnly
-                              className="p-2 border border-gray-200 rounded-lg bg-gray-200 cursor-not-allowed"
-                          />
-                          <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-3">
-                              <button
-                                  onClick={handleUpdateEntry}
-                                  className="w-full bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:bg-blue-700 transition-colors transform hover:scale-105 text-sm"
-                              >
-                                  <i className="fas fa-sync-alt mr-1"></i>Actualizar
-                              </button>
-                              <button
-                                  onClick={() => {
-                                      setEditingEntry(null);
-                                      setMode('list');
-                                  }}
-                                  className="w-full bg-gray-400 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:bg-gray-500 transition-colors transform hover:scale-105 text-sm"
-                              >
-                                  <i className="fas fa-times mr-1"></i>Cancelar
-                              </button>
-                          </div>
-                      </div>
+                  <div className="grid grid-cols-7 gap-1 text-center font-semibold text-sm mb-2">
+                    {daysOfWeek.map(day => <span key={day} className="text-gray-500">{day.substring(0, 3)}</span>)}
                   </div>
-              )}
+                  <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: firstDayOfMonth(selectedDate) === 0 ? 6 : firstDayOfMonth(selectedDate) - 1 }).map((_, i) => (
+                      <span key={`empty-${i}`} className="p-2 text-gray-400"></span>
+                    ))}
+                    {Array.from({ length: daysInMonth(selectedDate) }).map((_, i) => {
+                      const day = i + 1;
+                      const date = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+                      const isToday = date.toDateString() === new Date().toDateString();
+                      const hasClasses = hasClassesOnDate(date);
+                      const isSelected = date.toDateString() === selectedDate.toDateString();
 
-              {mode === 'price_config' && (
-                  <div className="mb-8">
-                      <h2 className="text-2xl font-semibold text-gray-700 mb-4">Configuración de Precios de Clase</h2>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-2xl shadow-inner">
-                          {studentCounts.map(count => (
-                              <div key={count} className="flex flex-col">
-                                  <label htmlFor={`price-${count}`} className="text-sm font-medium text-gray-600 mb-1">
-                                      Precio para {count} alumno(s)
-                                  </label>
-                                  <div className="relative">
-                                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
-                                      <input
-                                          id={`price-${count}`}
-                                          type="number"
-                                          value={classPrices[`${count}_students`] || ''}
-                                          onChange={(e) => setClassPrices(prev => ({
-                                              ...prev,
-                                              [`${count}_students`]: Number(e.target.value)
-                                          }))}
-                                          placeholder="0"
-                                          min="0"
-                                          className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                                      />
-                                  </div>
-                              </div>
-                          ))}
-                          <div className="flex gap-3 col-span-1 lg:col-span-4 mt-2">
-                              <button
-                                  onClick={handleSavePrices}
-                                  className="w-full bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:bg-blue-700 transition-colors transform hover:scale-105 text-sm"
-                              >
-                                  <i className="fas fa-save mr-1"></i>Guardar Cambios
-                              </button>
-                              <button
-                                  onClick={() => setMode('list')}
-                                  className="w-full bg-gray-400 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:bg-gray-500 transition-colors transform hover:scale-105 text-sm"
-                              >
-                                  <i className="fas fa-times mr-1"></i>Cancelar
-                              </button>
-                          </div>
-                      </div>
+                      return (
+                        <button
+                          key={day}
+                          onClick={() => setSelectedDate(date)}
+                          className={`
+                            p-2 rounded-lg aspect-square flex items-center justify-center 
+                            transition-colors font-semibold 
+                            ${isSelected ? 'bg-blue-600 text-white' : hasClasses ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' : 'bg-gray-50 hover:bg-gray-200'}
+                            ${isToday && !isSelected && 'border-2 border-blue-400'}
+                          `}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
                   </div>
-              )}
-              
-              {mode === 'monthly_report' && (
-                  <div className="mb-8">
-                      <div className="flex justify-between items-center mb-4">
-                          <h2 className="text-2xl font-semibold text-gray-700">Informe Mensual de Ingresos</h2>
-                          <button
-                              onClick={() => setMode('list')}
-                              className="bg-gray-400 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-500 transition-colors transform hover:scale-105 text-sm"
-                          >
-                              <i className="fas fa-arrow-left mr-1"></i>Volver
-                          </button>
-                      </div>
-
-                      <div className="overflow-x-auto bg-gray-50 rounded-2xl shadow-inner mb-4">
-                          <table className="min-w-full">
-                              <thead>
-                                  <tr className="bg-blue-600 text-white uppercase text-xs leading-normal">
-                                      <th className="py-2 px-4 text-left rounded-tl-2xl">Mes y Año</th>
-                                      <th className="py-2 px-4 text-left">1 Alumno</th>
-                                      <th className="py-2 px-4 text-left">2 Alumnos</th>
-                                      <th className="py-2 px-4 text-left">3 Alumnos</th>
-                                      <th className="py-2 px-4 text-left">4 Alumnos</th>
-                                      <th className="py-2 px-4 text-left rounded-tr-2xl">Ingresos Totales</th>
-                                  </tr>
-                              </thead>
-                              <tbody className="text-gray-700 text-sm font-light">
-                                  {Object.keys(monthlyReport).sort().map(monthKey => {
-                                      const data = monthlyReport[monthKey];
-                                      return (
-                                          <tr key={monthKey} className="border-b border-gray-200 hover:bg-blue-50 transition-colors">
-                                              <td className="py-2 px-4 text-left whitespace-nowrap">{data.monthName}</td>
-                                              <td className="py-2 px-4 text-left">{data.classesByStudentCount['1'] || 0}</td>
-                                              <td className="py-2 px-4 text-left">{data.classesByStudentCount['2'] || 0}</td>
-                                              <td className="py-2 px-4 text-left">{data.classesByStudentCount['3'] || 0}</td>
-                                              <td className="py-2 px-4 text-left">{data.classesByStudentCount['4'] || 0}</td>
-                                              <td className="py-2 px-4 text-left">${data.totalRevenue}</td>
-                                          </tr>
-                                      );
-                                  })}
-                              </tbody>
-                          </table>
-                      </div>
-                      <div className="mt-6 flex justify-end space-x-2 no-export">
-                          <button onClick={exportMonthlyReportPdf} className="bg-purple-600 text-white font-bold py-2 px-4 rounded-full shadow-md hover:bg-purple-700 transition-colors transform hover:scale-105 text-sm">
-                              <i className="fas fa-file-pdf mr-1"></i>Exportar Informe PDF
-                          </button>
-                      </div>
-
-                      <div className="mt-6 text-gray-700 text-center text-md p-3 bg-gray-50 rounded-xl shadow-inner">
-                          <p>Total de alumnos registrados hasta la fecha: <span className="font-bold text-blue-600">{totalStudents}</span></p>
-                          <p>Ingresos totales hasta la fecha: <span className="font-bold text-green-600">${totalRevenue}</span></p>
-                      </div>
+                  <div className="mt-6">
+                    <h4 className="text-xl font-bold mb-4">Clases para el {selectedDate.toLocaleDateString('es-ES', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</h4>
+                     <input
+                          type="text"
+                          placeholder="Filtrar por nombre de alumno..."
+                          value={filterText}
+                          onChange={(e) => setFilterText(e.target.value)}
+                          className="p-2 mb-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+                      />
+                    {filteredClassesForSelectedDate.length > 0 ? (
+                        <div className="space-y-4">
+                            {filteredClassesForSelectedDate.map(cls => (
+                                <div key={cls.id} className={`p-4 rounded-xl shadow-md ${colorMap[cls.studentCount]}`}>
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <p className="font-bold text-gray-900">{cls.time} - {cls.studentNames.join(', ')}</p>
+                                            <p className="text-sm text-gray-600">{cls.studentCount} {cls.studentCount === 1 ? 'persona' : 'personas'} - ${cls.price.toLocaleString()}</p>
+                                        </div>
+                                        <div className="flex space-x-2">
+                                            <button onClick={() => handleEditEntry(cls)} className="text-blue-600 hover:text-blue-900">
+                                                <i className="fas fa-edit"></i>
+                                            </button>
+                                            <button onClick={() => confirmDeletion(cls)} className="text-red-600 hover:text-red-900">
+                                                <i className="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="p-6 text-center italic text-gray-500 bg-gray-50 rounded-xl">
+                            No hay clases para esta fecha.
+                        </div>
+                    )}
                   </div>
+                </div>
               )}
-
             </div>
           ) : (
-            <div className="w-full max-w-sm bg-white rounded-3xl shadow-lg p-8 mt-12 transform transition-all duration-300">
-              <h1 className="text-2xl font-bold text-center text-gray-800 mb-4">
-                <i className="fas fa-sign-in-alt text-blue-500 mr-2"></i>Iniciar Sesión
-              </h1>
-              <div className="flex flex-col">
-                {loginError && <p className="text-red-500 text-center mb-3 text-sm">{loginError}</p>}
-                <div className="mb-3">
+            <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+              <div className="w-full max-w-sm p-6 bg-white rounded-xl shadow-lg text-center">
+                <h2 className="text-2xl font-bold mb-4 text-gray-900">Iniciar Sesión</h2>
+                <p className="text-sm text-gray-600 mb-6">Inicia sesión para ver y gestionar tus clases de pádel.</p>
+                <div className="mb-4">
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Correo electrónico"
-                    className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all text-sm"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div className="mb-4">
+                <div className="mb-6">
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Contraseña"
-                    className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all text-sm"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <button
-                  onClick={handleSignIn}
-                  className="w-full bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:bg-blue-700 transition-colors transform hover:scale-105 text-sm"
+                <button 
+                  onClick={handleSignIn} 
+                  className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
                 >
-                  <i className="fas fa-user-circle mr-1"></i>Iniciar Sesión
+                  Iniciar Sesión
                 </button>
-                <button
-                  onClick={handleSignUp}
-                  className="w-full mt-2 bg-green-600 text-white font-bold py-2.5 px-5 rounded-lg shadow-md hover:bg-green-700 transition-colors transform hover:scale-105 text-sm"
+                <button 
+                  onClick={handleSignUp} 
+                  className="w-full mt-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition-colors"
                 >
-                  <i className="fas fa-user-plus mr-1"></i>Registrarse
+                  Registrarse
                 </button>
               </div>
             </div>
@@ -1144,10 +1085,14 @@
       );
     };
 
-    const rootElement = document.getElementById('root');
-    const root = ReactDOM.createRoot(rootElement);
-    root.render(<App />);
-
+    ReactDOM.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>,
+      document.getElementById('root')
+    );
   </script>
 </body>
 </html>
+
+
