@@ -286,15 +286,13 @@ setNewEntry(prev => ({
         monthly[monthKey].total += entry.price;
     });
 
-    const monthlyReportsData = Object.keys(monthly).map(monthKey => {
-  const [year, month] = monthKey.split('-');
-  return {
+    const monthlyReportsData = Object.keys(monthly).map(monthKey => ({
+  month: new Date(parseInt(monthKey.split('-')[0]), parseInt(monthKey.split('-')[1]) - 1).toLocaleString('es-ES', { year: 'numeric', month: 'long' }),
+
         month: new Date(parseInt(year), parseInt(month) - 1).toLocaleString('es-ES', { year: 'numeric', month: 'long' }),
-        count: monthly[monthKey].count,
+ count: monthly[monthKey].count,
     total: monthly[monthKey].total,
-  }).sort((a, b) => new Date(b.month) - new Date(a.month));
-setMonthlyReports(monthlyReportsData);
-};
+})).sort((a, b) => new Date(b.month) - new Date(a.month));
 
       const handleAddEntry = async () => {
         if (!newEntry.studentName || !newEntry.day || !newEntry.date || !newEntry.studentCount) {
