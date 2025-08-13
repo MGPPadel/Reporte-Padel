@@ -179,7 +179,7 @@
 
       const handleDateChange = (e) => {
           const newDate = e.target.value;
-          const dateObj = new Date(newDate); 
+          const dateObj = new Date(newDate.replace(/-/g, '/')) 
           const dayIndex = dateObj.getDay(); 
           const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; 
           setNewEntry(prev => ({
