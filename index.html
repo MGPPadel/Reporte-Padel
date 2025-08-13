@@ -11,9 +11,12 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
   
   <script type="module">
+    // Importaciones de Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, deleteDoc, updateDoc, writeBatch, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    
+    // Hacemos que Firebase sea accesible globalmente para el script de React
     window.firebase = {
       initializeApp,
       getAuth,
@@ -39,8 +42,9 @@
     };
   </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+  <!-- Bibliotecas para la exportación a PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 
 </head>
 <body class="bg-gray-100 font-sans">
@@ -49,18 +53,24 @@
   <script type="text/babel">
     const App = () => {
       const { useState, useEffect, useRef, useMemo } = React;
+      
+      // Valores por defecto para los precios de las clases
       const defaultValueMap = {
         1: 12000,
         2: 19000,
         3: 24000,
         4: 26000,
       };
+      
+      // Mapeo de colores para la tabla según el número de alumnos
       const colorMap = {
         1: 'bg-orange-100',
         2: 'bg-green-100',
         3: 'bg-blue-100',
         4: 'bg-red-100',
       };
+      
+      // -- ESTADOS DE LA APLICACIÓN --
       const [rawClasses, setRawClasses] = useState([]);
       const [newEntry, setNewEntry] = useState({
         studentName: '',
@@ -96,12 +106,14 @@
       const [localEditedStudents, setLocalEditedStudents] = useState([]);
       const [localEditedIds, setLocalEditedIds] = useState([]);
       
+      // -- REFERENCIAS DE FIREBASE Y OPCIONES --
       const firebaseConfigRef = useRef(null);
       const dbRef = useRef(null);
       const authRef = useRef(null);
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
       const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
 
+      // -- FUNCIONES DE AYUDA --
       const formatCurrency = (value) => {
         return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
       };
@@ -112,6 +124,7 @@
         return `${day}/${month}/${year}`;
       };
 
+      // -- LÓGICA DE FIREBASE --
       const handleConfigSubmit = async (e) => {
         e.preventDefault();
         try {
@@ -130,11 +143,102 @@
         }
       };
       
+      const initFirebase = async () => {
+        setLoading(true);
+        try {
+          const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+          setAppId(appId);
+          // Usamos la configuración de Firebase proporcionada
+          const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+          
+          if (!firebaseConfig) {
+              setShowConfigModal(true);
+              setLoading(false);
+              return;
+          }
+
+          const app = firebase.initializeApp(firebaseConfig);
+          const auth = firebase.getAuth(app);
+          const db = firebase.getFirestore(app);
+
+          dbRef.current = db;
+          authRef.current = auth;
+
+          const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+          if (initialAuthToken) {
+              await firebase.signInWithCustomToken(auth, initialAuthToken);
+          } else {
+              await firebase.signInAnonymously(auth);
+          }
+          
+          firebase.onAuthStateChanged(auth, (user) => {
+            if (user) {
+              setUserId(user.uid);
+              setIsLoggedIn(true);
+            } else {
+              setUserId(null);
+              setIsLoggedIn(false);
+              setLoading(false);
+            }
+          });
+        } catch (error) {
+          console.error("Error initializing Firebase:", error);
+          setShowConfigModal(true);
+          setConfigError('Error al conectar a Firebase. Revisa tu configuración e inténtalo de nuevo.');
+          setLoading(false);
+        }
+      };
+
+      useEffect(() => {
+        initFirebase();
+      }, []);
+
+      useEffect(() => {
+        if (!dbRef.current || !userId || !appId) {
+          setRawClasses([]);
+          return;
+        }
+
+        const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
+        const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
+
+        const unsubscribeClasses = firebase.onSnapshot(userClassesRef, (snapshot) => {
+          const fetchedClasses = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setRawClasses(fetchedClasses);
+          setLoading(false);
+        });
+
+        const unsubscribeValues = firebase.onSnapshot(userValuesDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const newValues = {
+              1: data['1'] || defaultValueMap[1],
+              2: data['2'] || defaultValueMap[2],
+              3: data['3'] || defaultValueMap[3],
+              4: data['4'] || defaultValueMap[4],
+            };
+            setEditableValues(newValues);
+          } else {
+            setEditableValues(defaultValueMap);
+            firebase.setDoc(userValuesDocRef, defaultValueMap);
+          }
+        });
+
+        return () => {
+          unsubscribeClasses();
+          unsubscribeValues();
+        };
+
+      }, [dbRef.current, userId, appId]);
+
+      // -- LÓGICA DE PROCESAMIENTO DE DATOS Y FILTRADO --
       const calculateReports = (classesToReport) => {
         const weeklyReportMap = new Map();
         const monthlyReportMap = new Map();
         const availableMonthsSet = new Set();
-
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
         const processedClassKeys = new Set();
 
@@ -183,103 +287,9 @@
         const sortedAvailableMonths = [...availableMonthsSet].sort();
         return { weeklyReportsArray, monthlyReportsArray, sortedAvailableMonths };
       };
-
-      const initFirebase = async () => {
-        setLoading(true);
-        try {
-          const appId = 'default-padel-app';
-          setAppId(appId);
-          // Reemplaza con tu configuración de Firebase
-          const myFirebaseConfig = {
-            apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
-            authDomain: "app-de-padel.firebaseapp.com",
-            projectId: "app-de-padel",
-            storageBucket: "app-de-padel.firebasestorage.app",
-            messagingSenderId: "731771747398",
-            appId: "1:731771747398:web:ebc8b723fe220869fade47"
-          };
-
-          if (!firebaseConfigRef.current) {
-            firebaseConfigRef.current = myFirebaseConfig;
-          }
-          if (!firebaseConfigRef.current) {
-              setShowConfigModal(true);
-              setLoading(false);
-              return;
-          }
-
-          const app = firebase.initializeApp(firebaseConfigRef.current);
-          const auth = firebase.getAuth(app);
-          const db = firebase.getFirestore(app);
-
-          dbRef.current = db;
-          authRef.current = auth;
-
-          firebase.onAuthStateChanged(auth, (user) => {
-            if (user) {
-              setUserId(user.uid);
-              setIsLoggedIn(true);
-            } else {
-              setUserId(null);
-              setIsLoggedIn(false);
-              setLoading(false);
-            }
-          });
-        } catch (error) {
-          console.error("Error initializing Firebase:", error);
-          setShowConfigModal(true);
-          setConfigError('Error al conectar a Firebase. Revisa tu configuración e inténtalo de nuevo.');
-          setLoading(false);
-        }
-      };
-
-      useEffect(() => {
-        initFirebase();
-      }, []);
-
-      useEffect(() => {
-        if (!dbRef.current || !userId) {
-          setRawClasses([]);
-          return;
-        }
-
-        const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-        const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
-
-        const unsubscribeClasses = firebase.onSnapshot(userClassesRef, (snapshot) => {
-          const fetchedClasses = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          setRawClasses(fetchedClasses);
-          setLoading(false);
-        });
-
-        const unsubscribeValues = firebase.onSnapshot(userValuesDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            const newValues = {
-              1: data['1'] || defaultValueMap[1],
-              2: data['2'] || defaultValueMap[2],
-              3: data['3'] || defaultValueMap[3],
-              4: data['4'] || defaultValueMap[4],
-            };
-            setEditableValues(newValues);
-          } else {
-            setEditableValues(defaultValueMap);
-            firebase.setDoc(userValuesDocRef, defaultValueMap);
-          }
-        });
-
-        return () => {
-          unsubscribeClasses();
-          unsubscribeValues();
-        };
-
-      }, [dbRef.current, userId]);
-
+      
       const processedClasses = useMemo(() => {
-        // First, group students by date-day-time
+        // Primero, agrupa los estudiantes por fecha-día-hora
         const classesByDayTime = rawClasses.reduce((acc, curr) => {
           const key = `${curr.date}-${curr.day}-${curr.time}`;
           if (!acc[key]) {
@@ -289,7 +299,7 @@
           return acc;
         }, {});
       
-        // Then, process each class with its student count and value
+        // Luego, procesa cada clase con el conteo de alumnos y el valor
         const processed = rawClasses.map(cls => {
           const key = `${cls.date}-${cls.day}-${cls.time}`;
           const studentCount = (classesByDayTime[key] || []).length;
@@ -302,7 +312,7 @@
           };
         });
       
-        // Finally, sort the processed classes
+        // Finalmente, ordena las clases procesadas
         processed.sort((a, b) => {
           const dateA = new Date(a.date);
           const dateB = new Date(b.date);
@@ -345,7 +355,7 @@
           return Array.from(groupedMap.values());
       }, [processedClasses]);
       
-      // Separate useEffect for report calculation to prevent re-renders on every input change
+      // useEffect separado para el cálculo de informes
       useEffect(() => {
           const { weeklyReportsArray, monthlyReportsArray, sortedAvailableMonths } = calculateReports(processedClasses);
           setWeeklyReports(weeklyReportsArray);
@@ -353,6 +363,7 @@
           setAvailableMonths(sortedAvailableMonths);
       }, [processedClasses]);
       
+      // -- MANEJADORES DE EVENTOS --
       const handleInputChange = (e) => {
         const { name, value } = e.target;
         const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -416,7 +427,7 @@
       };
       
       // Función para manejar el cambio en los nombres de los alumnos en el modal de edición
-      // FIX PARA EL BUG DEL FOCO: Esta función ahora solo actualiza el estado local 'localEditedStudents'
+      // CORRECCIÓN: Esta función ahora solo actualiza el estado local 'localEditedStudents'
       const handleEditStudentNameChange = (e, studentIndex) => {
           const newStudents = [...localEditedStudents];
           newStudents[studentIndex] = e.target.value;
@@ -551,6 +562,7 @@
         setShowConfirmationModal(true);
       };
       
+      // -- LÓGICA DE EXPORTACIÓN Y IMPORTACIÓN --
       const exportWeeklyPDF = () => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -692,20 +704,20 @@
             if (!importedData.precios || !importedData.clases) {
               throw new Error("Formato de archivo inválido.");
             }
-            // Ask for confirmation
+            // Solicitar confirmación
             setModalContent({
               title: 'Confirmar Importación de Datos',
               message: '¿Estás seguro de que quieres importar estos datos? Se agregarán a tus datos actuales.',
               onConfirm: async () => {
                 try {
                   const db = dbRef.current;
-                  const appId = 'default-padel-app';
+                  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                   const userId = authRef.current.currentUser.uid;
                   const batch = firebase.writeBatch(db);
-                  // Update precios
+                  // Actualizar precios
                   const userValuesDocRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
                   batch.set(userValuesDocRef, importedData.precios);
-                  // Add new clases
+                  // Añadir nuevas clases
                   const userClassesRef = firebase.collection(db, `artifacts/${appId}/users/${userId}/clases_padel`);
                   importedData.clases.forEach(cls => {
                     const newDocRef = firebase.doc(userClassesRef);
@@ -760,6 +772,7 @@
         reader.readAsText(file);
       };
       
+      // -- LÓGICA DE FILTRADO --
       const filteredGroupedClasses = useMemo(() => {
           return groupedClasses.filter(cls => {
               const studentNames = cls.students.join(', ').toLowerCase();
@@ -773,6 +786,7 @@
           });
       }, [groupedClasses, searchQuery, selectedMonth, startDate, endDate]);
       
+      // -- LÓGICA DE AUTENTICACIÓN --
       const handleAuthSubmit = async (e) => {
           e.preventDefault();
           setAuthError('');
@@ -799,6 +813,7 @@
           }
       };
       
+      // -- COMPONENTES DE LA INTERFAZ DE USUARIO --
       const AuthScreen = () => (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
           <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
