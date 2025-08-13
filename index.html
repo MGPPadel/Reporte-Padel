@@ -62,10 +62,10 @@
     ];
     
     const defaultClassPrices = {
-      1: 5000,
-      2: 3000,
-      3: 2500,
-      4: 2000,
+      1: 12000,
+      2: 19000,
+      3: 24000,
+      4: 26000,
     };
     const peopleOptions = [1, 2, 3, 4];
     
@@ -85,13 +85,13 @@
       const [classes, setClasses] = useState([]);
       const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
       const [newEntry, setNewEntry] = useState({
-        studentName: '',
-        day: '',
-        time: '8:00 a. m.',
-        date: new Date().toISOString().slice(0, 10),
-        studentCount: 1, 
-        price: defaultClassPrices[1], 
-      });
+  studentNames: [''], // Se cambia a un array de nombres
+  day: '',
+  time: '8:00 a. m.',
+  date: new Date().toISOString().slice(0, 10),
+  studentCount: 1,
+  price: defaultClassPrices[1],
+});
       const [monthlyReports, setMonthlyReports] = useState([]);
       const [isEditing, setIsEditing] = useState(false);
       const [editedClassId, setEditedClassId] = useState(null);
@@ -194,10 +194,13 @@
       };
 
       useEffect(() => {
-        setNewEntry(prev => ({
-          ...prev,
-          price: customPrices[prev.studentCount]
-        }));
+    // Cuando studentCount cambie, actualiza el precio y el número de campos de nombre.
+    setNewEntry(prev => ({
+      ...prev,
+      price: customPrices[prev.studentCount],
+      studentNames: Array(prev.studentCount).fill(''), // Crea un array con el número correcto de cadenas vacías
+    }));
+}, [newEntry.studentCount, customPrices]);
       }, [newEntry.studentCount, customPrices]);
 
       useEffect(() => {
@@ -309,11 +312,32 @@
         setMonthlyReports(monthlyReportsData);
       };
 
-      const handleAddEntry = async () => {
-        if (!newEntry.studentName || !newEntry.day || !newEntry.date || !newEntry.studentCount) {
-          showMessageBox('Error', 'Por favor, completa todos los campos.', 'error');
-          return;
-        }
+   const handleAddEntry = async () => {
+    if (!newEntry.studentNames.every(name => name.trim() !== '')) {
+      showMessageBox('Error', 'Por favor, completa todos los nombres de los alumnos.', 'error');
+      return;
+    }
+
+    try {
+        const classesCollectionRef = firebase.collection(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`);
+        
+        const classData = {
+            studentNames: newEntry.studentNames, // Pasa el array directamente
+            day: newEntry.day,
+            time: newEntry.time,
+            date: newEntry.date,
+            studentCount: newEntry.studentCount,
+            price: newEntry.price,
+        };
+        
+        // ... (resto del código)
+    } catch (error) {
+        // ... (manejo de errores)
+    }
+};
+    setView('add');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 
         if (!userId) {
           showMessageBox('Error', 'Debes iniciar sesión para registrar clases.', 'error');
@@ -352,13 +376,14 @@
             showMessageBox('Éxito', 'Clase registrada con éxito.', 'success');
           }
           
-          setNewEntry({
-            studentName: '',
-            day: '',
-            time: '8:00 a. m.',
-            date: new Date().toISOString().slice(0, 10),
-            studentCount: 1,
-            price: customPrices[1],
+        setNewEntry({
+    studentNames: [''], // Restablece a un array con una cadena vacía
+    day: '',
+    time: '8:00 a. m.',
+    date: new Date().toISOString().slice(0, 10),
+    studentCount: 1,
+    price: customPrices[1],
+});
           });
           setIsEditing(false);
           setEditedClassId(null);
@@ -780,14 +805,20 @@
         ))}
       </select>
       
-      {/* ➡️ Mover el input de nombres aquí */}
-      <input
+      {Array.from({ length: newEntry.studentCount }).map((_, index) => (
+    <input
+        key={index}
         type="text"
-        placeholder="Nombre del Alumno(s)"
+        placeholder={`Nombre del Alumno ${index + 1}`}
         className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={newEntry.studentName}
-        onChange={(e) => setNewEntry({...newEntry, studentName: e.target.value})}
-      />
+        value={newEntry.studentNames[index] || ''}
+        onChange={(e) => {
+            const newNames = [...newEntry.studentNames];
+            newNames[index] = e.target.value;
+            setNewEntry(prev => ({ ...prev, studentNames: newNames }));
+        }}
+    />
+))}
 
       <input
         type="date"
