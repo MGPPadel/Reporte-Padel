@@ -202,7 +202,7 @@
 
       useEffect(() => {
           if (newEntry.date) {
-              const dateObj = new Date(newEntry.date + 'T00:00:00');
+              const dateObj = new Date(newEntry.date.replace(/-/g, '/'));
               const dayIndex = dateObj.getDay();
               const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1];
               setNewEntry(prev => ({ ...prev, day: newDay }));
