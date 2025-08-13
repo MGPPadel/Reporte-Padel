@@ -812,22 +812,26 @@ const dateObj = new Date(year, month - 1, day);
     </p>
   </div>
 </div>
-              </div>
-              <div className="overflow-x-auto mb-6">
-                <div className="flex space-x-4 pb-4">
-                  {monthlyReports.map((report, index) => (
-                    <div key={index} className="flex-none w-64 bg-gray-50 p-4 rounded-xl shadow-md">
-                      <h3 className="font-semibold text-gray-700">{report.month.toUpperCase()}</h3>
-                      <p className="text-sm text-gray-600">Clases: {report.count}</p>
-                      <p className="text-lg font-bold text-gray-900 mt-1">Total: ${report.total.toLocaleString()}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center space-x-2 mb-4">
-                <i className="fas fa-cogs text-xl text-gray-600"></i>
-                <h2 className="text-2xl font-bold text-gray-900">Configuración de Precios</h2>
-              </div>
+ // Código corregido:
+<>
+  ...
+  </div>
+  <div className="overflow-x-auto mb-6">
+    <div className="flex space-x-4 pb-4">
+      {monthlyReports.map((report, index) => (
+        <div key={index} className="flex-none w-64 bg-gray-50 p-4 rounded-xl shadow-md">
+          <h3 className="font-semibold text-gray-700">{report.month.toUpperCase()}</h3>
+          <p className="text-sm text-gray-600">Clases: {report.count}</p>
+          <p className="text-lg font-bold text-gray-900 mt-1">Total: ${report.total.toLocaleString()}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+  <div className="flex items-center space-x-2 mb-4">
+    <i className="fas fa-cogs text-xl text-gray-600"></i>
+    <h2 className="text-2xl font-bold text-gray-900">Configuración de Precios</h2>
+  </div>
+</>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
                 {peopleOptions.map(count => (
                   <div key={count}>
@@ -1146,6 +1150,7 @@ const dateObj = new Date(year, month - 1, day);
   </script>
 </body>
 </html>
+
 
 
 
