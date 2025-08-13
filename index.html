@@ -298,7 +298,11 @@ const dateObj = new Date(year, month - 1, day);
       };
 
       const handleAddEntry = async () => {
-    // ... validación de campos ...
+    // ...
+    // Ahora 'await' es válido
+    await firebase.updateDoc(docRef, { ... });
+    // ...
+};
     
     if (!userId) {
         showMessageBox('Error', 'Debes iniciar sesión para registrar clases.', 'error');
