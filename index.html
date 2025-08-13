@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -760,72 +760,76 @@
                 </button>
               </div>
 
-              {view === 'add' && (
-                <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                    {isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <input
-                      type="text"
-                      placeholder="Nombre del Alumno(s)"
-                      className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={newEntry.studentName}
-                      onChange={(e) => setNewEntry({...newEntry, studentName: e.target.value})}
-                    />
-                    <input
-                      type="date"
-                      className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={newEntry.date}
-                      onChange={handleDateChange}
-                    />
-                    <select
-                      className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={newEntry.studentCount}
-                      onChange={(e) => setNewEntry(prev => ({...prev, studentCount: parseInt(e.target.value), price: customPrices[parseInt(e.target.value)]}))}
-                    >
-                      <option value="" disabled>Selecciona el número de alumnos</option>
-                      {peopleOptions.map(num => (
-                        <option key={num} value={num}>
-                          {num} {num === 1 ? 'Alumno' : 'Alumnos'}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={newEntry.time}
-                      onChange={(e) => setNewEntry({...newEntry, time: e.target.value})}
-                    >
-                      <option value="" disabled>Selecciona la hora</option>
-                      {timesOfDay.map(time => (
-                        <option key={time} value={time}>
-                          {time}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex space-x-4">
-                    <p className="text-lg font-semibold text-gray-700">Día de la semana: <span className="text-blue-600">{newEntry.day || 'N/A'}</span></p>
-                    <p className="text-lg font-semibold text-gray-700">Precio de la clase: <span className="text-green-600">${newEntry.price}</span></p>
-                  </div>
-                  <div className="mt-6 flex space-x-4">
-                    <button
-                      onClick={handleAddEntry}
-                      className="flex-1 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-                    >
-                      <i className="fas fa-save mr-2"></i> {isEditing ? 'Guardar Cambios' : 'Registrar Clase'}
-                    </button>
-                    {isEditing && (
-                        <button
-                          onClick={handleCancelEdit}
-                          className="bg-gray-400 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-500 transition-colors"
-                        >
-                          <i className="fas fa-times-circle mr-2"></i> Cancelar
-                        </button>
-                    )}
-                  </div>
-                </div>
-              )}
+{view === 'add' && (
+  <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
+    <h2 className="text-2xl font-bold text-gray-800 mb-6">
+      {isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}
+    </h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      {/* ➡️ Mover el select de alumnos al inicio */}
+      <select
+        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        value={newEntry.studentCount}
+        onChange={(e) => setNewEntry(prev => ({...prev, studentCount: parseInt(e.target.value), price: customPrices[parseInt(e.target.value)]}))}
+      >
+        <option value="" disabled>Selecciona la cantidad de alumnos</option>
+        {peopleOptions.map(num => (
+          <option key={num} value={num}>
+            {num} {num === 1 ? 'Alumno' : 'Alumnos'}
+          </option>
+        ))}
+      </select>
+      
+      {/* ➡️ Mover el input de nombres aquí */}
+      <input
+        type="text"
+        placeholder="Nombre del Alumno(s)"
+        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        value={newEntry.studentName}
+        onChange={(e) => setNewEntry({...newEntry, studentName: e.target.value})}
+      />
+
+      <input
+        type="date"
+        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        value={newEntry.date}
+        onChange={handleDateChange}
+      />
+      <select
+        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        value={newEntry.time}
+        onChange={(e) => setNewEntry({...newEntry, time: e.target.value})}
+      >
+        <option value="" disabled>Selecciona la hora</option>
+        {timesOfDay.map(time => (
+          <option key={time} value={time}>
+            {time}
+          </option>
+        ))}
+      </select>
+    </div>
+    <div className="flex space-x-4">
+      <p className="text-lg font-semibold text-gray-700">Día de la semana: <span className="text-blue-600">{newEntry.day || 'N/A'}</span></p>
+      <p className="text-lg font-semibold text-gray-700">Precio de la clase: <span className="text-green-600">${newEntry.price}</span></p>
+    </div>
+    <div className="mt-6 flex space-x-4">
+      <button
+        onClick={handleAddEntry}
+        className="flex-1 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+      >
+        <i className="fas fa-save mr-2"></i> {isEditing ? 'Guardar Cambios' : 'Registrar Clase'}
+      </button>
+      {isEditing && (
+        <button
+          onClick={handleCancelEdit}
+          className="bg-gray-400 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-500 transition-colors"
+        >
+          <i className="fas fa-times-circle mr-2"></i> Cancelar
+        </button>
+      )}
+    </div>
+  </div>
+)}
 
               {view === 'list' && (
                 <div className="bg-gray-50 p-6 rounded-xl shadow-inner">
@@ -1019,12 +1023,17 @@
                         <label className="text-lg font-semibold text-gray-700 w-32">
                           {num} {num === 1 ? 'Alumno' : 'Alumnos'}:
                         </label>
-                        <input
-                          type="number"
-                          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={customPrices[num] || ''}
-                          onChange={(e) => setCustomPrices({...customPrices, [num]: parseFloat(e.target.value) || 0})}
-                        />
+                        <div className="flex flex-1 items-center rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500">
+                          <span className="bg-gray-200 text-gray-700 py-3 px-4 rounded-l-lg border-r border-gray-300">
+                            $
+                          </span>
+                          <input
+                            type="number"
+                            className="flex-1 p-3 rounded-r-lg focus:outline-none"
+                            value={customPrices[num] || ''}
+                            onChange={(e) => setCustomPrices({...customPrices, [num]: parseFloat(e.target.value) || 0})}
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
