@@ -66,11 +66,11 @@
 
             // Efecto para manejar la autenticación del usuario.
             useEffect(() => {
-                const unsubscribeAuth = firebase.onAuthStateChanged(auth, async (currentUser) => {
+                const unsubscribeAuth = window.firebase.onAuthStateChanged(window.auth, async (currentUser) => {
                     if (!currentUser) {
-                        if (initialAuthToken) {
+                        if (window.initialAuthToken) {
                             try {
-                                await firebase.signInWithCustomToken(auth, initialAuthToken);
+                                await window.firebase.signInWithCustomToken(window.auth, window.initialAuthToken);
                             } catch (e) {
                                 console.error("Error signing in with custom token:", e);
                                 setError("Error de autenticación. Intente recargar.");
@@ -78,7 +78,7 @@
                             }
                         } else {
                             try {
-                                await firebase.signInAnonymously(auth);
+                                await window.firebase.signInAnonymously(window.auth);
                             } catch (e) {
                                 console.error("Error signing in anonymously:", e);
                                 setError("Error de autenticación anónima. Intente recargar.");
@@ -102,10 +102,10 @@
                     setError(null);
                     
                     // La ruta de la colección para los datos públicos.
-                    const collectionPath = `artifacts/${appId}/public/data/padelClasses`;
-                    const q = firebase.query(firebase.collection(db, collectionPath));
+                    const collectionPath = `artifacts/${window.appId}/public/data/padelClasses`;
+                    const q = window.firebase.query(window.firebase.collection(window.db, collectionPath));
                     
-                    unsubscribeSnapshot = firebase.onSnapshot(q, (snapshot) => {
+                    unsubscribeSnapshot = window.firebase.onSnapshot(q, (snapshot) => {
                         const newClasses = snapshot.docs.map(doc => ({
                             id: doc.id,
                             ...doc.data()
@@ -156,10 +156,10 @@
 
             const handleDeleteGroupedClass = async (ids) => {
                 setLoading(true);
-                const batch = firebase.writeBatch(db);
+                const batch = window.firebase.writeBatch(window.db);
                 try {
                     for (const id of ids) {
-                        const docRef = firebase.doc(db, `artifacts/${appId}/public/data/padelClasses`, id);
+                        const docRef = window.firebase.doc(window.db, `artifacts/${window.appId}/public/data/padelClasses`, id);
                         batch.delete(docRef);
                     }
                     await batch.commit();
