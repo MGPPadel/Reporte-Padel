@@ -82,13 +82,16 @@
       const [classes, setClasses] = useState([]);
       const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
       const [newEntry, setNewEntry] = useState({
+
         studentName: '',
         day: '',
         time: '8:00 a. m.',
         date: new Date().toISOString().slice(0, 10),
         studentCount: 1, 
         price: defaultClassPrices[1], 
-      });
+      ,
+  names: [""]
+}\);
       const [monthlyReports, setMonthlyReports] = useState([]);
       const [isEditing, setIsEditing] = useState(false);
       const [editedClassId, setEditedClassId] = useState(null);
@@ -180,8 +183,8 @@
       const handleDateChange = (e) => {
   const newDate = e.target.value;
   const [year, month, day] = newDate.split('-').map(Number);
-  const dateObj = new Date(Date.UTC(year, month - 1, day)); 
-  const dayIndex = dateObj.getUTCDay(); 
+  const dateObj = new Date(year, month - 1, day); // Local date
+  const dayIndex = dateObj.getDay();
   const newDay = daysOfWeek[dayIndex];
   setNewEntry(prev => ({
     ...prev,
@@ -202,14 +205,14 @@
       }, []);
 
       useEffect(() => {
-          if (newEntry.date) {
-              const [year, month, day] = newEntry.date.split('-').map(Number);
-const dateObj = new Date(year, month - 1, day);
-              const dayIndex = dateObj.getDay();
-              const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1];
-              setNewEntry(prev => ({ ...prev, day: newDay }));
-          }
-      }, [newEntry.date]);
+  if (newEntry.date) {
+    const [year, month, day] = newEntry.date.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, day); // Local date
+    const dayIndex = dateObj.getDay();
+    const newDay = daysOfWeek[dayIndex];
+    setNewEntry(prev => ({ ...prev, day: newDay }));
+  }
+}, [newEntry.date]);
 
       const fetchPrices = async (db, currentUserId) => {
         if (!currentUserId) {
@@ -1095,3 +1098,12 @@ const dateObj = new Date(year, month - 1, day);
 </body>
 </html>
 
+
+
+const handleNameChange = (index, value) => {
+  setNewEntry(prev => {
+    const updatedNames = [...prev.names];
+    updatedNames[index] = value;
+    return { ...prev, names: updatedNames };
+  });
+};
