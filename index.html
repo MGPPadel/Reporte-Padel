@@ -182,13 +182,13 @@
           const [year, month, day] = newDate.split('-').map(Number);
 const dateObj = new Date(year, month - 1, day); 
           const dayIndex = dateObj.getDay(); 
-          const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; 
-          setNewEntry(prev => ({
-              ...prev,
-              date: newDate,
-              day: newDay,
-          }));
-      };
+          const newDay = daysOfWeek[dayIndex]; // Se usa directamente el índice
+    setNewEntry(prev => ({
+        ...prev,
+        date: newDate,
+        day: newDay,
+    }));
+};
 
       useEffect(() => {
         setNewEntry(prev => ({
@@ -206,10 +206,13 @@ const dateObj = new Date(year, month - 1, day);
               const [year, month, day] = newEntry.date.split('-').map(Number);
 const dateObj = new Date(year, month - 1, day);
               const dayIndex = dateObj.getDay();
-              const newDay = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1];
-              setNewEntry(prev => ({ ...prev, day: newDay }));
-          }
-      }, [newEntry.date]);
+              const newDay = daysOfWeek[dayIndex]; // Se usa directamente el índice
+        setNewEntry(prev => ({
+            ...prev,
+            day: newDay
+        }));
+    }
+}, [newEntry.date]);
 
       const fetchPrices = async (db, currentUserId) => {
         if (!currentUserId) {
