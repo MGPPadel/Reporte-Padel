@@ -199,12 +199,11 @@
       ...prev,
       price: customPrices[prev.studentCount],
       studentNames: Array(prev.studentCount).fill(''), // Crea un array con el número correcto de cadenas vacías
-    }));
-}, [newEntry.studentCount, customPrices]);
-      }, [newEntry.studentCount, customPrices]);
-
-      useEffect(() => {
-        initFirebase();
+     }));
+  }, [newEntry.studentCount, customPrices]);
+   
+        useEffect(() => {
+          initFirebase();
       }, []);
 
       useEffect(() => {
