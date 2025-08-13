@@ -82,34 +82,13 @@
       const [classes, setClasses] = useState([]);
       const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
       const [newEntry, setNewEntry] = useState({
-
-        studentName: '',
-        day: '',
-        time: '8:00 a. m.',
-        date: new Date().toISOString().slice(0, 10),
-        studentCount: 1, 
-        price: defaultClassPrices[1], 
-      ,
+  date: "",
+  day: "",
+  time: "",
+  studentCount: 1,
+  price: defaultClassPrices[1],
   names: [""]
-}\);
-      const [monthlyReports, setMonthlyReports] = useState([]);
-      const [isEditing, setIsEditing] = useState(false);
-      const [editedClassId, setEditedClassId] = useState(null);
-      const [showConfigModal, setShowConfigModal] = useState(false);
-      const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
-      const [configError, setConfigError] = useState('');
-
-      const [view, setView] = useState('list');
-      const [selectedDate, setSelectedDate] = useState(new Date());
-      const [filterText, setFilterText] = useState('');
-      
-      const [messageBox, setMessageBox] = useState({
-        show: false,
-        title: '',
-        content: '',
-        type: 'confirm', // 'confirm', 'success', 'error'
-        onConfirm: null,
-      });
+});
 
       const dbRef = useRef(null);
       const authRef = useRef(null);
