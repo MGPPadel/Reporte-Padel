@@ -372,7 +372,7 @@ const dateObj = new Date(year, month - 1, day);
             studentName: '',
             day: '',
             time: '8:00 a. m.',
-            date: new Date().toLocaleDateString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-'),,
+            date: new Date().toISOString().slice(0, 10),
             studentCount: 1,
             price: customPrices[1],
           });
