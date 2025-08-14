@@ -192,11 +192,11 @@ const App = () => {
 
     // Definición de estados
     const [email, setEmail] = useState(''); 
- const [password, setPassword] = useState(''); 
+    const [password, setPassword] = useState(''); 
     const [userId, setUserId] = useState(null); 
- const [loading, setLoading] = useState(true); 
+    const [loading, setLoading] = useState(true); 
     const [classes, setClasses] = useState([]); 
-   const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
+    const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
     const [newEntry, setNewEntry] = useState({
         studentCount: 1,
         studentNames: [''],
@@ -208,13 +208,13 @@ const App = () => {
    const [monthlyReports, setMonthlyReports] = useState({}); 
    const [selectedDate, setSelectedDate] = useState(new Date()); 
    const [isEditing, setIsEditing] = useState(false); 
-    const [editedClassId, setEditedClassId] = useState(null); 
-  const [showConfigModal, setShowConfigModal] = useState(false); 
-const [firebaseConfigInput, setFirebaseConfigInput] = useState(''); 
-    const [configError, setConfigError] = useState(''); 
-    const [view, setView] = useState('list'); 
+   const [editedClassId, setEditedClassId] = useState(null); 
+   const [showConfigModal, setShowConfigModal] = useState(false); 
+   const [firebaseConfigInput, setFirebaseConfigInput] = useState(''); 
+   const [configError, setConfigError] = useState(''); 
+   const [view, setView] = useState('list'); 
    const [filterText, setFilterText] = useState(''); 
-    const [messageBox, setMessageBox] = useState({
+   const [messageBox, setMessageBox] = useState({
         show: false,
         title: '',
         content: '',
@@ -397,7 +397,7 @@ const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
            }); 
             console.error("Error adding/updating class:", error); 
         } finally {
-            [cite_start]setLoading(false); 
+           setLoading(false); 
         }
     };
 
@@ -478,11 +478,11 @@ const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
     };
 
     const handleDateChange = (e) => {
-      const dateString = e.target.value; 
-        const dateObj = new Date(`${dateString}T00:00:00Z`); // Usamos T00:00:00Z para evitar problemas de zona horaria 
-        const dayOfWeek = daysOfWeek[dateObj.getUTCDay()]; 
-       setNewEntry(prev => ({ ...prev, date: dateString, day: dayOfWeek })); 
-    };
+     const dateString = e.target.value; 
+       const dateObj = new Date(`${dateString}T00:00:00Z`); // Usamos T00:00:00Z para evitar problemas de zona horaria;
+       const dayOfWeek = daysOfWeek[dateObj.getUTCDay()]; 
+      setNewEntry(prev => ({ ...prev, date: dateString, day: dayOfWeek })); 
+ };
     const handleCustomPriceChange = (studentCount, price) => {
        setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 })); 
     };
@@ -911,6 +911,7 @@ const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
 }; 
 
 ReactDOM.render(<App />, document.getElementById('root')); 
+
 
 
 
