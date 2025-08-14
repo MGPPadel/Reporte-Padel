@@ -139,6 +139,7 @@
             const [userId, setUserId] = useState(null);
             const [loading, setLoading] = useState(true);
             const [classes, setClasses] = useState([]);
+            const [students, setStudents] = useState([]); // New state for students
             const [activityLog, setActivityLog] = useState([]);
             const [customPrices, setCustomPrices] = useState(defaultClassPrices);
             const [newEntry, setNewEntry] = useState({
@@ -149,6 +150,14 @@
                 time: timesOfDay[0],
                 price: defaultClassPrices[1] || 0,
             });
+            const [newStudent, setNewStudent] = useState({
+                firstName: '',
+                lastName: '',
+                phone: '',
+            });
+            const [isEditingStudent, setIsEditingStudent] = useState(false);
+            const [editedStudentId, setEditedStudentId] = useState(null);
+
             const [monthlyReports, setMonthlyReports] = useState({});
             const [selectedMonthYear, setSelectedMonthYear] = useState('');
             const [isEditing, setIsEditing] = useState(false);
@@ -317,17 +326,88 @@
                     console.error("Error adding log entry:", error);
                 }
             };
+
+            const addStudent = async () => {
+                if (!dbRef.current || !userId) return;
+                if (!newStudent.firstName || !newStudent.lastName || !newStudent.phone) {
+                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos del alumno.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    return;
+                }
+                try {
+                    setLoading(true);
+                    const studentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'students');
+                    if (isEditingStudent) {
+                        const studentDocRef = window.doc(studentsColRef, editedStudentId);
+                        await window.setDoc(studentDocRef, newStudent);
+                        setMessageBox({ show: true, title: 'Alumno actualizado', content: 'El alumno se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    } else {
+                        await window.addDoc(studentsColRef, newStudent);
+                        setMessageBox({ show: true, title: 'Alumno añadido', content: 'El nuevo alumno se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    }
+                    setNewStudent({ firstName: '', lastName: '', phone: '' });
+                    setIsEditingStudent(false);
+                    setEditedStudentId(null);
+                } catch (error) {
+                    setMessageBox({ show: true, title: 'Error al guardar el alumno', content: 'Hubo un error al guardar los datos del alumno. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    console.error("Error adding/updating student:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const editStudent = (studentToEdit) => {
+                setNewStudent(studentToEdit);
+                setIsEditingStudent(true);
+                setEditedStudentId(studentToEdit.id);
+            };
+
+            const deleteStudent = (studentId) => {
+                setMessageBox({
+                    show: true,
+                    title: 'Confirmar eliminación',
+                    content: '¿Estás seguro de que quieres eliminar a este alumno? Esta acción es irreversible.',
+                    type: 'confirm',
+                    onConfirm: async () => {
+                        if (!dbRef.current || !userId) return;
+                        try {
+                            setLoading(true);
+                            const studentDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'students', studentId);
+                            await window.deleteDoc(studentDocRef);
+                            setMessageBox({ show: true, title: 'Alumno eliminado', content: 'El alumno ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        } catch (error) {
+                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar al alumno. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                            console.error("Error deleting student:", error);
+                        } finally {
+                            setLoading(false);
+                        }
+                    },
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                });
+            };
+
+            const sendWhatsApp = (phone) => {
+                const formattedPhone = phone.replace(/\D/g, ''); // Remove all non-digit characters
+                const url = `https://wa.me/${formattedPhone}`;
+                window.open(url, '_blank');
+            };
+
             useEffect(() => {
                 if (userId && dbRef.current) {
                     loadCustomPrices();
+                    
                     const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
                     const classesQuery = window.query(classesColRef);
-
                     const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
                         const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        // Sort descending by date
                         const sortedClasses = fetchedClasses.sort((a, b) => new Date(b.date) - new Date(a.date));
                         setClasses(sortedClasses);
+                    });
+
+                    const studentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'students');
+                    const studentsQuery = window.query(studentsColRef);
+                    const unsubscribeStudents = window.onSnapshot(studentsQuery, (snapshot) => {
+                        const fetchedStudents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setStudents(fetchedStudents.sort((a, b) => a.lastName.localeCompare(b.lastName)));
                     });
 
                     const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
@@ -337,12 +417,15 @@
                         const sortedLog = fetchedLog.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
                         setActivityLog(sortedLog);
                     });
+
                     return () => {
                         unsubscribeClasses();
+                        unsubscribeStudents();
                         unsubscribeLog();
                     };
                 } else {
                     setClasses([]);
+                    setStudents([]);
                     setActivityLog([]);
                 }
             }, [userId]);
@@ -354,7 +437,6 @@
             useEffect(() => {
                 const report = {};
                 classes.forEach(cls => {
-                    // Fix: Use UTC methods to prevent timezone issues
                     const date = new Date(`${cls.date}T00:00:00Z`);
                     const monthYear = `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
                     if (!report[monthYear]) {
@@ -803,7 +885,7 @@
 
                                 <div className="mt-8">
                                     <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-                                        <h2 className="text-2xl font-bold text-gray-800">Sección de {view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : 'Calendario'}</h2>
+                                        <h2 className="text-2xl font-bold text-gray-800">Sección de {view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : view === 'calendar' ? 'Calendario' : 'Alumnos'}</h2>
                                         <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
                                             <button onClick={() => setView('list')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de clases">
                                                 <i className="fas fa-list"></i>
@@ -813,6 +895,9 @@
                                             </button>
                                             <button onClick={() => setView('calendar')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver calendario">
                                                 <i className="fas fa-calendar-alt"></i>
+                                            </button>
+                                            <button onClick={() => setView('students')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'students' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de alumnos">
+                                                <i className="fas fa-user-friends"></i>
                                             </button>
                                             <button onClick={() => setShowConfigModal(true)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Configurar precios">
                                                 <i className="fas fa-dollar-sign"></i>
@@ -940,6 +1025,65 @@
                                                         )}
                                                     </div>
                                                 ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {view === 'students' && (
+                                        <div className="mt-8">
+                                            <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
+                                                <h3 className="text-2xl font-bold text-gray-800 mb-4">{isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}</h3>
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                                                    <input type="text" placeholder="Nombre" value={newStudent.firstName} onChange={(e) => setNewStudent(prev => ({ ...prev, firstName: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                                    <input type="text" placeholder="Apellido" value={newStudent.lastName} onChange={(e) => setNewStudent(prev => ({ ...prev, lastName: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                                    <input type="tel" placeholder="Teléfono (ej: 549381XXXXXXX)" value={newStudent.phone} onChange={(e) => setNewStudent(prev => ({ ...prev, phone: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                                </div>
+                                                <div className="flex space-x-4">
+                                                    <button onClick={addStudent} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                                                        {isEditingStudent ? 'Guardar Cambios' : 'Añadir Alumno'}
+                                                    </button>
+                                                    {isEditingStudent && (
+                                                        <button onClick={() => { setIsEditingStudent(false); setNewStudent({ firstName: '', lastName: '', phone: '' }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                                            Cancelar
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="overflow-x-auto rounded-xl shadow-lg">
+                                                <h3 className="text-xl font-bold text-gray-800 p-4 bg-white border-b-2">Lista de Alumnos</h3>
+                                                {students.length > 0 ? (
+                                                    <div className="bg-white">
+                                                        <div className="hidden md:grid grid-cols-4 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
+                                                            <div>Nombre</div>
+                                                            <div>Apellido</div>
+                                                            <div>Teléfono</div>
+                                                            <div className="text-center">Acciones</div>
+                                                        </div>
+                                                        <div className="divide-y divide-gray-200">
+                                                            {students.map(student => (
+                                                                <div key={student.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-center">
+                                                                    <div className="font-medium text-gray-800">{student.firstName}</div>
+                                                                    <div className="text-gray-600">{student.lastName}</div>
+                                                                    <div className="text-gray-600">{student.phone}</div>
+                                                                    <div className="flex justify-end md:justify-center space-x-2">
+                                                                        <button onClick={() => sendWhatsApp(student.phone)} className="text-green-600 hover:text-green-800 transition-colors" title="Enviar WhatsApp">
+                                                                            <i className="fab fa-whatsapp"></i>
+                                                                        </button>
+                                                                        <button onClick={() => editStudent(student)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar alumno">
+                                                                            <i className="fas fa-edit"></i>
+                                                                        </button>
+                                                                        <button onClick={() => deleteStudent(student.id)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar alumno">
+                                                                            <i className="fas fa-trash-alt"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-center text-gray-500 p-8 bg-white">No hay alumnos registrados.</p>
+                                                )}
                                             </div>
                                         </div>
                                     )}
