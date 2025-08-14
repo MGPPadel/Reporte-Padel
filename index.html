@@ -20,7 +20,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, query, Timestamp, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
         window.initializeApp = initializeApp;
         window.getAuth = getAuth;
         window.signInWithEmailAndPassword = signInWithEmailAndPassword;
@@ -48,8 +47,8 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // Accede a las variables globales de Firebase proporcionadas por el entorno de Canvas.
-        // Si no existen, utiliza valores por defecto para evitar errores.
+        // Access global Firebase variables provided by the Canvas environment.
+        // If they don't exist, use default values to avoid errors.
         const firebaseConfig = {
             apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
             authDomain: "app-de-padel.firebaseapp.com",
@@ -59,8 +58,9 @@
             appId: "1:731771747398:web:ebc8b723fe220869fade47"
         };
         const appId = typeof firebaseConfig.appId !== 'undefined' ? firebaseConfig.appId : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ?
+        __initial_auth_token : null;
+
         const { useState, useEffect, useRef, useMemo } = React;
         const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
         const defaultClassPrices = {
@@ -182,7 +182,7 @@
                     const app = window.initializeApp(firebaseConfig);
                     dbRef.current = window.getFirestore(app);
                     authRef.current = window.getAuth(app);
-                    
+
                     const unsubscribe = window.onAuthStateChanged(authRef.current, (user) => {
                         if (user) {
                             setUserId(user.uid);
@@ -212,7 +212,6 @@
             useEffect(() => {
                 initializeFirebase();
             }, []);
-            
             const signIn = async () => {
                 try {
                     setLoading(true);
@@ -230,7 +229,6 @@
                     setLoading(false);
                 }
             };
-            
             const handlePasswordReset = async () => {
                 if (!email) {
                     setMessageBox({
@@ -265,7 +263,6 @@
                     setLoading(false);
                 }
             };
-
             const signOutUser = async () => {
                 try {
                     await window.signOut(authRef.current);
@@ -325,7 +322,7 @@
                         const sortedClasses = fetchedClasses.sort((a, b) => new Date(a.date) - new Date(b.date));
                         setClasses(sortedClasses);
                     });
-                    
+
                     const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
                     const logQuery = window.query(logColRef);
                     const unsubscribeLog = window.onSnapshot(logQuery, (snapshot) => {
@@ -348,27 +345,20 @@
                 }
             }, [customPrices]);
             useEffect(() => {
-    const report = {};
-    classes.forEach(cls => {
-        // Parseo manual de fecha para evitar problemas de zona horaria
-        const [year, month] = cls.date.split('-').map(Number);
-        const monthYear = `${year}-${month.toString().padStart(2, '0')}`;
-
-        if (!report[monthYear]) {
-            report[monthYear] = { totalIncome: 0, classCount: 0, classCountByStudent: {} };
-        }
-
-        // Asegurar que price sea número
-        const price = Number(cls.price) || 0;
-        report[monthYear].totalIncome += price;
-        report[monthYear].classCount += 1;
-
-        const studentCount = cls.studentCount;
-        report[monthYear].classCountByStudent[studentCount] =
-            (report[monthYear].classCountByStudent[studentCount] || 0) + 1;
-    });
-    setMonthlyReports(report);
-}, [classes]);
+                const report = {};
+                classes.forEach(cls => {
+                    const date = new Date(cls.date);
+                    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                    if (!report[monthYear]) {
+                        report[monthYear] = { totalIncome: 0, classCount: 0, classCountByStudent: {} };
+                    }
+                    report[monthYear].totalIncome += cls.price;
+                    report[monthYear].classCount += 1;
+                    const studentCount = cls.studentCount;
+                    report[monthYear].classCountByStudent[studentCount] = (report[monthYear].classCountByStudent[studentCount] || 0) + 1;
+                });
+                setMonthlyReports(report);
+            }, [classes]);
 
             const handleNewEntryChange = (e) => {
                 const { name, value } = e.target;
@@ -497,7 +487,7 @@
                     setLoading(false);
                 });
             };
-            
+
             const uniqueMonths = useMemo(() => {
                 const months = new Set();
                 classes.forEach(cls => {
@@ -540,10 +530,10 @@
                 for (let i = 1; i <= remainingDays; i++) {
                     days.push({ day: i, classes: [], isCurrentMonth: false });
                 }
-                
+
                 return days;
             };
-            
+
             const calendarDays = useMemo(() => getCalendarDays(selectedDate), [selectedDate, classes]);
 
             const handleCalendarNavigation = (delta) => {
@@ -558,7 +548,7 @@
             };
 
             const reportTableRef = useRef(null);
-            
+
             const exportData = () => {
                 const data = JSON.stringify(classes, null, 2);
                 const blob = new Blob([data], { type: 'application/json' });
@@ -608,7 +598,7 @@
                     // Start a new batch
                     const batch = window.writeBatch(dbRef.current);
                     const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
-                    
+
                     // Delete all existing documents
                     const existingDocs = await window.getDocs(classesColRef);
                     existingDocs.forEach(doc => {
@@ -654,7 +644,7 @@
                         onConfirm={messageBox.onConfirm}
                         onClose={() => setMessageBox({ ...messageBox, show: false })}
                     />
-                    
+
                     {/* Hidden file input for import */}
                     <input
                         type="file"
@@ -749,7 +739,7 @@
                                 <button onClick={handlePasswordReset} className="mt-2 text-blue-600 hover:underline">¿No recuerdas la contraseña?</button>
                             </div>
                         )}
-                        
+
                         {userId && (
                             <>
                                 <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
@@ -770,7 +760,7 @@
                                             </select>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="flex flex-col md:flex-row gap-4 mb-4">
                                         <div className="w-full md:w-1/2">
                                             <label className="block text-gray-700 font-medium mb-2">Nombres de los alumnos:</label>
@@ -791,7 +781,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mt-6">
                                         <button onClick={addClass} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors flex-1">
                                             {isEditing ? 'Guardar Cambios' : 'Añadir Clase'}
@@ -803,7 +793,7 @@
                                         )}
                                     </div>
                                 </div>
-                                
+
                                 <div className="mt-8">
                                     <div className="flex flex-col md:flex-row justify-between items-center mb-6">
                                         <h2 className="text-2xl font-bold text-gray-800">Sección de {view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : 'Calendario'}</h2>
@@ -828,7 +818,7 @@
                                             </button>
                                         </div>
                                     </div>
-                                    
+
                                     {view === 'list' && (
                                         <>
                                             <div className="mb-6">
@@ -861,11 +851,11 @@
                                                                     <div className="text-sm text-gray-600 md:text-base">{cls.time}</div>
                                                                     <div className="md:col-span-2">
                                                                         {cls.studentCount > 1 ? (
-                                                                            <ul className="list-disc list-inside font-bold">
+                                                                            <ul className="list-disc list-inside">
                                                                                 {cls.studentNames.map((name, index) => <li key={index}>{name}</li>)}
                                                                             </ul>
                                                                         ) : (
-                                                                            <span className="font-bold">{cls.studentNames[0]}</span>
+                                                                            <span>{cls.studentNames[0]}</span>
                                                                         )}
                                                                     </div>
                                                                     <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
@@ -897,9 +887,7 @@
                                                 <h3 className="text-2xl font-bold mb-4">Reporte Mensual</h3>
                                                 {Object.keys(monthlyReports).length > 0 ? (
                                                     <div className="space-y-6">
-                                                        {Object.keys(monthlyReports)
-    .sort((a, b) => new Date(a + "-01") - new Date(b + "-01"))
-    .map(monthYear => (
+                                                        {Object.keys(monthlyReports).sort().map(monthYear => (
                                                             <div key={monthYear} className="border-b pb-4">
                                                                 <h4 className="text-xl font-bold text-gray-700 mb-2">{formatMonthYear(monthYear)}</h4>
                                                                 <p className="text-gray-600">Ingreso total: <span className="font-bold text-green-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
@@ -988,4 +976,3 @@
     </script>
 </body>
 </html>
-
