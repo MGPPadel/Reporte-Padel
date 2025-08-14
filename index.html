@@ -322,11 +322,19 @@ const dateObj = new Date(year, month - 1, day);
     setMonthlyReports(monthlyReportsData);
 };
 
-      const handleAddEntry = async () => {
-        if (!newEntry.studentName || !newEntry.day || !newEntry.date || !newEntry.studentCount) {
-          showMessageBox('Error', 'Por favor, completa todos los campos.', 'error');
-          return;
-        }
+      // Validación del formulario antes de guardar la clase
+const areStudentNamesComplete = newEntry.studentNames.every(name => name.trim() !== '');
+
+if (
+  !newEntry.date ||
+  !newEntry.time ||
+  !newEntry.studentCount ||
+  newEntry.studentNames.length === 0 ||
+  !areStudentNamesComplete
+) {
+  alert('Por favor, completa todos los campos.');
+  return;
+}
 
         if (!userId) {
           showMessageBox('Error', 'Debes iniciar sesión para registrar clases.', 'error');
@@ -1094,6 +1102,7 @@ const dateObj = new Date(year, month - 1, day);
   </script>
 </body>
 </html>
+
 
 
 
