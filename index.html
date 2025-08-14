@@ -189,6 +189,18 @@ const dateObj = new Date(year, month - 1, day);
         day: newDay,
     }));
 };
+      const handleAddEntry = async () => {
+    // 1. Validación del formulario
+    const areStudentNamesComplete = newEntry.studentNames.every(name => name.trim() !== '');
+    if (
+        !newEntry.date ||
+        !newEntry.time ||
+        !newEntry.studentCount ||
+        !areStudentNamesComplete
+    ) {
+        alert('Por favor, completa todos los campos.');
+        return;
+    }
 
       useEffect(() => {
         setNewEntry(prev => ({
@@ -1102,6 +1114,7 @@ if (
   </script>
 </body>
 </html>
+
 
 
 
