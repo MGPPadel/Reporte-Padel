@@ -401,7 +401,7 @@
                     const classData = { ...newEntry, timestamp: window.Timestamp.fromDate(new Date(newEntry.date)) };
                     if (isEditing) {
                         const classDocRef = window.doc(classesColRef, editedClassId);
-                        await window.updateDoc(classDocRef, classData);
+                        await window.setDoc(classDocRef, classData);
                         setMessageBox({ show: true, title: 'Clase actualizada', content: 'La clase se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                         addLogEntry('Clase editada', `Clase con ${classData.studentNames.join(', ')} editada el día ${classData.date} a las ${classData.time}.`);
                     } else {
@@ -602,7 +602,7 @@
                 try {
                     // Start a new batch
                     const batch = window.writeBatch(dbRef.current);
-                    const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
+                    const classesColRef = window.collection(db.current, 'artifacts', appId, 'users', userId, 'classes');
 
                     // Delete all existing documents
                     const existingDocs = await window.getDocs(classesColRef);
