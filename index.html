@@ -54,9 +54,17 @@
     <script type="text/babel">
         // Accede a las variables globales de Firebase proporcionadas por el entorno de Canvas.
         // Si no existen, utiliza valores por defecto para evitar errores.
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const firebaseConfig = {
+      apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+      authDomain: "app-de-padel.firebaseapp.com",
+      projectId: "app-de-padel",
+      storageBucket: "app-de-padel.firebasestorage.app",
+      messagingSenderId: "731771747398",
+      appId: "1:731771747398:web:ebc8b723fe220869fade47"
+    };
+    
+    const appId = typeof firebaseConfig.appId !== 'undefined' ? firebaseConfig.appId : 'default-app-id';
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         const { useState, useEffect, useRef, useMemo } = React;
         const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -969,3 +977,4 @@
     </script>
 </body>
 </html>
+
