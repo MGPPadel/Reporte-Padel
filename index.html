@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Informe de Clases de Padel</title>
     
+    <link rel="icon" href="URL_DE_TU_FAVICON.png" type="image/png">
+    
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -683,17 +685,18 @@
                 const days = [];
                 const prevMonthLastDay = new Date(year, month, 0).getDate();
                 for (let i = firstDayOfMonth - 1; i >= 0; i--) {
-                    days.push({ day: prevMonthLastDay - i, classes: [], isCurrentMonth: false });
+                    days.push({ day: prevMonthLastDay - i, classes: [], isCurrentMonth: false, dailyIncome: 0 });
                 }
                 for (let i = 1; i <= lastDayOfMonth; i++) {
                     const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`;
                     const classesOnDay = classes.filter(cls => cls.date === dateStr);
-                    days.push({ day: i, classes: classesOnDay, isCurrentMonth: true, date: dateStr });
+                    const dailyIncome = classesOnDay.reduce((sum, cls) => sum + cls.price, 0);
+                    days.push({ day: i, classes: classesOnDay, isCurrentMonth: true, date: dateStr, dailyIncome });
                 }
                 const totalDays = days.length;
                 const remainingDays = 42 - totalDays;
                 for (let i = 1; i <= remainingDays; i++) {
-                    days.push({ day: i, classes: [], isCurrentMonth: false });
+                    days.push({ day: i, classes: [], isCurrentMonth: false, dailyIncome: 0 });
                 }
 
                 return days;
@@ -891,7 +894,11 @@
 
                     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-6xl transition-all duration-300">
                         <div className="flex justify-between items-center mb-6">
-                            <h1 className="text-3xl font-extrabold text-gray-800">Informe de Clases de Padel</h1>
+                            <div className="flex items-center">
+                                {/* Aquí va la etiqueta del logo */}
+                                <img src="URL_DE_TU_LOGO.png" alt="Logo de la aplicación" className="w-10 h-10 mr-4"/>
+                                <h1 className="text-3xl font-extrabold text-gray-800">Informe de Clases de Padel</h1>
+                            </div>
                             <div className="flex space-x-2">
                                 {userId && (
                                     <button onClick={signOutUser} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-colors" title="Cerrar sesión">
@@ -1099,6 +1106,11 @@
                                                 {calendarDays.map((day, index) => (
                                                     <div key={index} className={`relative h-24 p-1 rounded-lg transition-colors ${day.isCurrentMonth ? 'bg-gray-100' : 'bg-gray-50 text-gray-400'}`}>
                                                         <span className="font-bold text-sm">{day.day}</span>
+                                                        {day.dailyIncome > 0 && (
+                                                            <span className="absolute top-1 right-1 text-xs font-bold text-green-600 bg-green-200 px-2 py-1 rounded-full shadow-sm">
+                                                                {formatPrice(day.dailyIncome)}
+                                                            </span>
+                                                        )}
                                                         {day.classes.length > 0 && (
                                                             <div className="mt-1 space-y-1">
                                                                 {day.classes.map(cls => (
