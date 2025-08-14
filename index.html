@@ -5,27 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Informe de Clases de Padel</title>
     
-    <!-- Librerías de React y Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Font Awesome para los iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
-    <!-- Librerías para exportar a PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <!-- Configuración y librerías de Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, query, Timestamp, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
         window.initializeApp = initializeApp;
         window.getAuth = getAuth;
         window.signInWithEmailAndPassword = signInWithEmailAndPassword;
@@ -62,7 +56,6 @@
       messagingSenderId: "731771747398",
       appId: "1:731771747398:web:ebc8b723fe220869fade47"
     };
-    
     const appId = typeof firebaseConfig.appId !== 'undefined' ? firebaseConfig.appId : 'default-app-id';
     const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
@@ -86,10 +79,8 @@
             3: 'bg-blue-100',
             4: 'bg-purple-100',
         };
-
         const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
             if (!show) return null;
-
             let icon, bgColor, titleColor;
             switch (type) {
                 case 'success':
@@ -175,18 +166,15 @@
             const dbRef = useRef(null);
             const authRef = useRef(null);
             const fileInputRef = useRef(null);
-            
             const formatPrice = (price) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price);
             const formatMonthYear = (monthYearString) => {
                 const [year, month] = monthYearString.split('-');
                 return new Date(year, month - 1).toLocaleString('es-AR', { month: 'long', year: 'numeric' });
             };
-
             const formatDate = (timestamp) => {
                 const date = new Date(timestamp.seconds * 1000);
                 return date.toLocaleString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
             };
-
             const initializeFirebase = async () => {
                 try {
                     const app = window.initializeApp(firebaseConfig);
@@ -201,7 +189,6 @@
                         }
                         setLoading(false);
                     });
-                    
                     if (initialAuthToken) {
                         await window.signInWithCustomToken(authRef.current, initialAuthToken);
                     } else {
@@ -221,11 +208,9 @@
                     setLoading(false);
                 }
             };
-            
             useEffect(() => {
                 initializeFirebase();
             }, []);
-
             const signIn = async () => {
                 try {
                     setLoading(true);
@@ -243,7 +228,6 @@
                     setLoading(false);
                 }
             };
-
             const signOutUser = async () => {
                 try {
                     await window.signOut(authRef.current);
@@ -253,7 +237,6 @@
                     console.error("Error signing out:", error);
                 }
             };
-            
             const saveCustomPrices = async () => {
                 if (!dbRef.current || !userId) return;
                 try {
@@ -268,7 +251,6 @@
                     setLoading(false);
                 }
             };
-
             const loadCustomPrices = async () => {
                 if (!dbRef.current || !userId) return;
                 try {
@@ -281,7 +263,6 @@
                     console.error("Error loading custom prices:", error);
                 }
             };
-            
             const addLogEntry = async (action, details) => {
                 if (!dbRef.current || !userId) return;
                 try {
@@ -295,7 +276,6 @@
                     console.error("Error adding log entry:", error);
                 }
             };
-
             useEffect(() => {
                 if (userId && dbRef.current) {
                     loadCustomPrices();
@@ -304,7 +284,7 @@
 
                     const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
                         const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        const sortedClasses = fetchedClasses.sort((a, b) => new Date(a.date) - new Date(b.date));
+                        const sortedClasses = fetchedClasses.sort((a, b) => new Date(`${b.date} ${b.time}`) - new Date(`${a.date} ${a.time}`));
                         setClasses(sortedClasses);
                     });
                     
@@ -315,7 +295,6 @@
                         const sortedLog = fetchedLog.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
                         setActivityLog(sortedLog);
                     });
-
                     return () => {
                         unsubscribeClasses();
                         unsubscribeLog();
@@ -325,13 +304,11 @@
                     setActivityLog([]);
                 }
             }, [userId]);
-
             useEffect(() => {
                 if (Object.keys(customPrices).length > 0) {
                     setNewEntry(prev => ({ ...prev, price: customPrices[prev.studentCount] || 0 }));
                 }
             }, [customPrices]);
-
             useEffect(() => {
                 const report = {};
                 classes.forEach(cls => {
@@ -364,16 +341,13 @@
                     setNewEntry(prev => ({ ...prev, [name]: value }));
                 }
             };
-            
             const handleDateChange = (e) => {
                 const dateString = e.target.value;
                 const dateObj = new Date(`${dateString}T00:00:00Z`);
                 const dayOfWeek = daysOfWeek[dateObj.getUTCDay()];
                 setNewEntry(prev => ({ ...prev, date: dateString, day: dayOfWeek }));
             };
-
             const handleCustomPriceChange = (studentCount, price) => setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 }));
-
             const addClass = async () => {
                 if (!dbRef.current || !userId) return;
                 if (newEntry.studentNames.some(name => name.trim() === '') || newEntry.price <= 0) {
@@ -411,7 +385,6 @@
                     setLoading(false);
                 }
             };
-            
             const deleteClass = (id, classData) => {
                 setMessageBox({
                     show: true,
@@ -450,7 +423,6 @@
                 setEditedClassId(classToEdit.id);
                 setView('list'); // Switch to list view to show the edit form
             };
-
             const generatePDF = () => {
                 if (!reportTableRef.current) return;
                 setLoading(true);
@@ -489,7 +461,6 @@
                 });
                 return Array.from(months).sort((a, b) => new Date(a) - new Date(b));
             }, [classes]);
-
             const filteredClasses = useMemo(() => {
                 let filtered = classes;
                 if (selectedMonthYear) {
@@ -500,13 +471,12 @@
                 }
                 return filtered;
             }, [classes, selectedMonthYear, filterText]);
-
             const getCalendarDays = (date) => {
                 const year = date.getFullYear();
                 const month = date.getMonth();
-                const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 = Sunday
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                // 0 = Sunday
                 const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
-                
                 const days = [];
                 // Add padding days from the previous month
                 const prevMonthLastDay = new Date(year, month, 0).getDate();
@@ -538,7 +508,6 @@
                     return newDate;
                 });
             };
-
             const handleClassClick = (cls) => {
                 setSelectedClassDetails(cls);
             };
@@ -587,7 +556,6 @@
                 };
                 reader.readAsText(file);
             };
-
             const importData = async (data) => {
                 if (!dbRef.current || !userId) return;
                 setLoading(true);
@@ -601,17 +569,14 @@
                     existingDocs.forEach(doc => {
                         batch.delete(doc.ref);
                     });
-                    
                     // Add new documents from the imported data
                     data.forEach(cls => {
                         const newDocRef = window.doc(classesColRef);
                         const { id, ...classData } = cls; // Exclude the old ID
                         batch.set(newDocRef, { ...classData, timestamp: window.Timestamp.fromDate(new Date(classData.date)) });
                     });
-
                     // Commit the batch
                     await batch.commit();
-
                     setMessageBox({
                         show: true,
                         title: 'Importación exitosa',
@@ -633,8 +598,6 @@
                     setLoading(false);
                 }
             };
-
-
             return (
                 <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
                     {/* Custom Message Box Component */}
@@ -646,16 +609,8 @@
                         onConfirm={messageBox.onConfirm}
                         onClose={() => setMessageBox({ ...messageBox, show: false })}
                     />
-                    
                     {/* Hidden file input for import */}
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        className="hidden"
-                        accept=".json"
-                    />
-
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                     {/* Custom Price Configuration Modal */}
                     {showConfigModal && (
                         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
@@ -666,13 +621,7 @@
                                         <label className="block text-gray-700 font-medium">Precio para {count} {count === 1 ? 'persona' : 'personas'}</label>
                                         <div className="flex items-center">
                                             <span className="text-xl font-bold mr-2 text-gray-700">$</span>
-                                            <input
-                                                type="number"
-                                                value={customPrices[count] || ''}
-                                                onChange={(e) => handleCustomPriceChange(count, e.target.value)}
-                                                className="mt-1 p-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                                placeholder="0"
-                                            />
+                                            <input type="number" value={customPrices[count] || ''} onChange={(e) => handleCustomPriceChange(count, e.target.value)} className="mt-1 p-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow" placeholder="0" />
                                         </div>
                                     </div>
                                 ))}
@@ -683,7 +632,6 @@
                             </div>
                         </div>
                     )}
-
                     {/* Class Details Modal */}
                     {selectedClassDetails && (
                         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
@@ -711,14 +659,12 @@
                             </div>
                         </div>
                     )}
-
                     {/* Loading Spinner */}
                     {loading && (
                         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
                             <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-4 border-blue-500 border-opacity-25"></div>
                         </div>
                     )}
-
                     {/* Main Application Card */}
                     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-6xl transition-all duration-300">
                         <div className="flex justify-between items-center mb-6">
@@ -731,7 +677,6 @@
                                 )}
                             </div>
                         </div>
-
                         {!userId && (
                             <div className="flex flex-col space-y-4">
                                 <h2 className="text-2xl font-bold text-gray-800">Iniciar Sesión</h2>
@@ -740,7 +685,6 @@
                                 <button onClick={signIn} className="bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Ingresar</button>
                             </div>
                         )}
-                        
                         {userId && (
                             <>
                                 <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
@@ -761,7 +705,6 @@
                                             </select>
                                         </div>
                                     </div>
-                                    
                                     <div className="flex flex-col md:flex-row gap-4 mb-4">
                                         <div className="w-full md:w-1/2">
                                             <label className="block text-gray-700 font-medium mb-2">Nombres de los alumnos:</label>
@@ -776,199 +719,199 @@
                                                     {timesOfDay.map(time => (<option key={time} value={time}>{time}</option>))}
                                                 </select>
                                             </div>
-                                            <div className="mt-4">
+                                            <div className="mt-4 md:mt-0">
                                                 <label className="block text-gray-700 font-medium">Precio:</label>
                                                 <p className="p-3 w-full border rounded-lg bg-gray-200 text-gray-800 font-bold transition-shadow">{formatPrice(newEntry.price)}</p>
                                             </div>
                                         </div>
                                     </div>
-                                    
-                                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mt-6">
-                                        <button onClick={addClass} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors flex-1">
-                                            {isEditing ? 'Guardar Cambios' : 'Añadir Clase'}
-                                        </button>
+                                    <div className="flex justify-end space-x-2">
                                         {isEditing && (
-                                            <button onClick={() => { setIsEditing(false); setNewEntry({ studentCount: 1, studentNames: [''], date: new Date().toISOString().split('T')[0], day: daysOfWeek[new Date().getDay()], time: timesOfDay[0], price: customPrices[1] || 0 }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                            <button onClick={() => {
+                                                setIsEditing(false);
+                                                setEditedClassId(null);
+                                                setNewEntry({
+                                                    studentCount: 1,
+                                                    studentNames: [''],
+                                                    date: new Date().toISOString().split('T')[0],
+                                                    day: daysOfWeek[new Date().getDay()],
+                                                    time: timesOfDay[0],
+                                                    price: customPrices[1] || 0,
+                                                });
+                                            }} className="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-600 transition-colors">
                                                 Cancelar
                                             </button>
                                         )}
+                                        <button onClick={addClass} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                                            {isEditing ? 'Guardar Cambios' : 'Añadir Clase'}
+                                        </button>
                                     </div>
                                 </div>
-                                
                                 <div className="mt-8">
-                                    <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-                                        <h2 className="text-2xl font-bold text-gray-800">Sección de {view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : 'Calendario'}</h2>
-                                        <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
-                                            <button onClick={() => setView('list')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de clases">
-                                                <i className="fas fa-list"></i>
-                                            </button>
-                                            <button onClick={() => setView('report')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'report' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver reporte mensual">
-                                                <i className="fas fa-chart-bar"></i>
-                                            </button>
-                                            <button onClick={() => setView('calendar')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver calendario">
-                                                <i className="fas fa-calendar-alt"></i>
-                                            </button>
-                                            <button onClick={() => setShowConfigModal(true)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Configurar precios">
-                                                <i className="fas fa-dollar-sign"></i>
-                                            </button>
-                                            <button onClick={exportData} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Exportar datos a JSON">
-                                                <i className="fas fa-file-export"></i>
-                                            </button>
-                                            <button onClick={() => fileInputRef.current.click()} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Importar datos desde JSON">
-                                                <i className="fas fa-file-import"></i>
-                                            </button>
-                                        </div>
+                                    <div className="flex justify-center md:justify-start space-x-2 mb-4">
+                                        <button onClick={() => setView('add')} className={`py-2 px-4 rounded-lg font-bold transition-colors ${view === 'add' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-600'}`}>
+                                            <i className="fas fa-plus mr-2"></i>Añadir Clase
+                                        </button>
+                                        <button onClick={() => setView('list')} className={`py-2 px-4 rounded-lg font-bold transition-colors ${view === 'list' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-600'}`}>
+                                            <i className="fas fa-calendar-alt mr-2"></i>Ver Lista de Clases
+                                        </button>
+                                        <button onClick={() => setView('reports')} className={`py-2 px-4 rounded-lg font-bold transition-colors ${view === 'reports' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-600'}`}>
+                                            <i className="fas fa-chart-bar mr-2"></i>Ver Reportes
+                                        </button>
+                                        <button onClick={() => setView('calendar')} className={`py-2 px-4 rounded-lg font-bold transition-colors ${view === 'calendar' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-600'}`}>
+                                            <i className="fas fa-calendar-alt mr-2"></i>Ver Calendario
+                                        </button>
+                                        <button onClick={() => setShowConfigModal(true)} className="py-2 px-4 rounded-lg font-bold transition-colors bg-white text-blue-600 border border-blue-600">
+                                            <i className="fas fa-cog mr-2"></i>Precios
+                                        </button>
                                     </div>
-                                    
-                                    {view === 'list' && (
-                                        <>
-                                            <div className="mb-6">
-                                                <div className="flex flex-wrap gap-2 mb-4">
-                                                    <button onClick={() => setSelectedMonthYear('')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === '' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Todos</button>
-                                                    {uniqueMonths.map(monthYear => (
-                                                        <button key={monthYear} onClick={() => setSelectedMonthYear(monthYear)} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === monthYear ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>
-                                                            {formatMonthYear(monthYear)}
-                                                        </button>
+                                    <div className="flex justify-center md:justify-start space-x-2 mb-4">
+                                        <button onClick={exportData} className="py-2 px-4 rounded-lg font-bold transition-colors bg-white text-gray-600 border border-gray-600">
+                                            <i className="fas fa-download mr-2"></i>Exportar
+                                        </button>
+                                        <button onClick={() => fileInputRef.current.click()} className="py-2 px-4 rounded-lg font-bold transition-colors bg-white text-gray-600 border border-gray-600">
+                                            <i className="fas fa-upload mr-2"></i>Importar
+                                        </button>
+                                    </div>
+                                    <div className="flex justify-center md:justify-start space-x-2 mb-4">
+                                        <h3 className="text-xl font-bold text-gray-800">Última Actividad</h3>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-xl shadow-md mt-4 max-h-48 overflow-y-auto">
+                                        <ul className="divide-y divide-gray-200">
+                                            {activityLog.map(log => (
+                                                <li key={log.id} className="py-2 text-sm text-gray-600">
+                                                    <strong>{log.action}:</strong> {log.details} <span className="text-xs text-gray-400">({formatDate(log.timestamp)})</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                                {view === 'list' && (
+                                    <div className="mt-8">
+                                        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                                            <div className="w-full sm:w-1/2">
+                                                <label className="block text-gray-700 font-medium mb-1">Filtrar por Mes:</label>
+                                                <select value={selectedMonthYear} onChange={(e) => setSelectedMonthYear(e.target.value)} className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow">
+                                                    <option value="">Todos los meses</option>
+                                                    {uniqueMonths.map(month => (
+                                                        <option key={month} value={month}>{formatMonthYear(month)}</option>
                                                     ))}
-                                                </div>
-                                                <input type="text" placeholder="Buscar por alumno..." value={filterText} onChange={(e) => setFilterText(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full"/>
+                                                </select>
                                             </div>
-                                            <div className="overflow-x-auto rounded-xl shadow-lg">
-                                                {filteredClasses.length > 0 ? (
-                                                    <div className="bg-white">
-                                                        <div className="hidden md:grid grid-cols-7 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
-                                                            <div>Fecha</div>
-                                                            <div>Día</div>
-                                                            <div>Hora</div>
-                                                            <div className="col-span-2">Alumnos</div>
-                                                            <div>Precio</div>
-                                                            <div className="text-center">Acciones</div>
-                                                        </div>
-                                                        <div className="divide-y divide-gray-200">
-                                                            {filteredClasses.map(cls => (
-                                                                <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center ${colorMap[cls.studentCount]} md:rounded-none`}>
-                                                                    <div className="text-sm text-gray-600 md:text-base">{cls.date}</div>
-                                                                    <div className="text-sm text-gray-600 md:text-base">{cls.day}</div>
-                                                                    <div className="text-sm text-gray-600 md:text-base">{cls.time}</div>
-                                                                    <div className="md:col-span-2">
-                                                                        {cls.studentCount > 1 ? (
-                                                                            <ul className="list-disc list-inside font-bold">
-                                                                                {cls.studentNames.map((name, index) => <li key={index}>{name}</li>)}
-                                                                            </ul>
-                                                                        ) : (
-                                                                            <span className="font-bold">{cls.studentNames[0]}</span>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
-                                                                    <div className="flex justify-end md:justify-center space-x-2 mt-2 md:mt-0">
-                                                                        <button onClick={() => editClass(cls)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar clase">
-                                                                            <i className="fas fa-edit"></i>
-                                                                        </button>
-                                                                        <button onClick={() => deleteClass(cls.id, cls)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar clase">
-                                                                            <i className="fas fa-trash-alt"></i>
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-center text-gray-500 p-8 bg-white">No hay clases para los criterios seleccionados.</p>
-                                                )}
-                                            </div>
-                                        </>
-                                    )}
-
-                                    {view === 'report' && (
-                                        <div>
-                                            <div className="flex justify-end mb-4">
-                                                <button onClick={generatePDF} className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors">Generar PDF</button>
-                                            </div>
-                                            <div ref={reportTableRef} className="bg-white p-4 rounded-xl shadow-lg">
-                                                <h3 className="text-2xl font-bold mb-4">Reporte Mensual</h3>
-                                                {Object.keys(monthlyReports).length > 0 ? (
-                                                    <div className="space-y-6">
-                                                        {Object.keys(monthlyReports).sort().map(monthYear => (
-                                                            <div key={monthYear} className="border-b pb-4">
-                                                                <h4 className="text-xl font-bold text-gray-700 mb-2">{formatMonthYear(monthYear)}</h4>
-                                                                <p className="text-gray-600">Ingreso total: <span className="font-bold text-green-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
-                                                                <p className="text-gray-600">Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span></p>
-                                                                <div className="mt-2 text-sm text-gray-500">
-                                                                    <p className="font-bold">Clases por cantidad de alumnos:</p>
-                                                                    <ul className="list-disc list-inside ml-4">
-                                                                        {Object.entries(monthlyReports[monthYear].classCountByStudent).map(([count, numClasses]) => (<li key={count}>{count} {count === '1' ? 'persona' : 'personas'}: {numClasses}</li>))}
-                                                                    </ul>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-center text-gray-500">No hay reportes disponibles.</p>
-                                                )}
+                                            <div className="w-full sm:w-1/2">
+                                                <label className="block text-gray-700 font-medium mb-1">Buscar por Alumno:</label>
+                                                <input type="text" placeholder="Buscar..." value={filterText} onChange={(e) => setFilterText(e.target.value)} className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
                                             </div>
                                         </div>
-                                    )}
-
-                                    {view === 'calendar' && (
-                                        <div className="bg-white p-6 rounded-xl shadow-lg">
-                                            <div className="flex justify-between items-center mb-4">
-                                                <button onClick={() => handleCalendarNavigation(-1)} className="text-blue-600 hover:text-blue-800 transition-colors p-2 rounded-full"><i className="fas fa-chevron-left"></i></button>
-                                                <h3 className="text-xl font-bold">{selectedDate.toLocaleString('es-AR', { month: 'long', year: 'numeric' })}</h3>
-                                                <button onClick={() => handleCalendarNavigation(1)} className="text-blue-600 hover:text-blue-800 transition-colors p-2 rounded-full"><i className="fas fa-chevron-right"></i></button>
-                                            </div>
-                                            <div className="grid grid-cols-7 gap-1 text-center font-bold text-gray-700 mb-2">
-                                                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => <div key={day} className="p-2">{day}</div>)}
-                                            </div>
-                                            <div className="grid grid-cols-7 gap-1">
-                                                {calendarDays.map((day, index) => (
-                                                    <div key={index} className={`relative h-24 p-1 rounded-lg transition-colors ${day.isCurrentMonth ? 'bg-gray-100' : 'bg-gray-50 text-gray-400'}`}>
-                                                        <span className="font-bold text-sm">{day.day}</span>
-                                                        {day.classes.length > 0 && (
-                                                            <div className="mt-1 space-y-1">
-                                                                {day.classes.map(cls => (
-                                                                    <div key={cls.id} onClick={() => handleClassClick(cls)} className={`cursor-pointer rounded-md p-1 text-xs truncate font-medium text-gray-800 shadow-md transition-transform transform hover:scale-105 ${colorMap[cls.studentCount]}`}>
-                                                                        {cls.time}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
-                                        <h2 className="text-2xl font-bold text-gray-800 mb-4">Historial de Actividad</h2>
-                                        <div className="overflow-x-auto rounded-xl shadow-lg">
-                                            {activityLog.length > 0 ? (
-                                                <div className="bg-white p-4">
-                                                    <ul className="divide-y divide-gray-200">
-                                                        {activityLog.map(log => (
-                                                            <li key={log.id} className="py-4 flex justify-between items-center text-sm">
-                                                                <div className="flex-1">
-                                                                    <span className="font-bold text-blue-600 uppercase mr-2">{log.action}:</span>
-                                                                    <span className="text-gray-700">{log.details}</span>
+                                        <div className="bg-white p-4 rounded-xl shadow-md max-h-96 overflow-y-auto mt-4">
+                                            {filteredClasses.length > 0 ? (
+                                                <ul className="divide-y divide-gray-200">
+                                                    {filteredClasses.map(classEntry => (
+                                                        <li key={classEntry.id} className="py-4 px-2 flex items-center justify-between transition-colors hover:bg-gray-50 rounded-lg">
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center text-sm mb-1">
+                                                                    <span className="text-gray-500 mr-2"><i className="fas fa-calendar-day"></i></span>
+                                                                    <span className="font-bold">{classEntry.date} ({classEntry.day})</span>
+                                                                    <span className="text-gray-500 mx-2"><i className="fas fa-clock"></i></span>
+                                                                    <span className="font-bold">{classEntry.time}</span>
                                                                 </div>
-                                                                <span className="text-gray-500 text-xs">{formatDate(log.timestamp)}</span>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
+                                                                <div className="flex items-center text-sm mb-1">
+                                                                    <span className="text-gray-500 mr-2"><i className="fas fa-user-friends"></i></span>
+                                                                    <span className="font-bold">{classEntry.studentNames.join(', ')}</span>
+                                                                </div>
+                                                                <div className="flex items-center text-sm">
+                                                                    <span className="text-gray-500 mr-2"><i className="fas fa-coins"></i></span>
+                                                                    <span className="font-bold text-green-600">{formatPrice(classEntry.price)}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center space-x-2 text-gray-400">
+                                                                <button onClick={() => editClass(classEntry)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar clase">
+                                                                    <i className="fas fa-edit"></i>
+                                                                </button>
+                                                                <button onClick={() => deleteClass(classEntry.id, classEntry)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar clase">
+                                                                    <i className="fas fa-trash-alt"></i>
+                                                                </button>
+                                                            </div>
+                                                        </li>
+                                                    ))}
+                                                </ul>
                                             ) : (
-                                                <p className="text-center text-gray-500 p-8 bg-white">No hay actividad reciente.</p>
+                                                <p className="text-center text-gray-500 mt-4">No se encontraron clases.</p>
                                             )}
                                         </div>
                                     </div>
-                                </div>
+                                )}
+                                {view === 'reports' && (
+                                    <div className="mt-8">
+                                        <h2 className="text-2xl font-bold text-gray-800 mb-4">Reportes Mensuales</h2>
+                                        <div className="bg-white p-4 rounded-xl shadow-md max-h-96 overflow-y-auto" ref={reportTableRef}>
+                                            {Object.keys(monthlyReports).length > 0 ? (
+                                                <table className="min-w-full divide-y divide-gray-200">
+                                                    <thead className="bg-gray-50">
+                                                        <tr>
+                                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mes</th>
+                                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ingresos Totales</th>
+                                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total de Clases</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="bg-white divide-y divide-gray-200">
+                                                        {Object.keys(monthlyReports).sort().map(monthYear => (
+                                                            <tr key={monthYear} className="hover:bg-gray-100 transition-colors">
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatMonthYear(monthYear)}</td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-bold">{formatPrice(monthlyReports[monthYear].totalIncome)}</td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{monthlyReports[monthYear].classCount}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            ) : (
+                                                <p className="text-center text-gray-500 mt-4">No hay datos de reportes para mostrar.</p>
+                                            )}
+                                        </div>
+                                        {Object.keys(monthlyReports).length > 0 && (
+                                            <div className="mt-4 flex justify-end">
+                                                <button onClick={generatePDF} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-colors">
+                                                    <i className="fas fa-file-pdf mr-2"></i>Generar PDF
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {view === 'calendar' && (
+                                    <div className="mt-8">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <button onClick={() => handleCalendarNavigation(-1)} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
+                                                <i className="fas fa-chevron-left text-gray-600"></i>
+                                            </button>
+                                            <h2 className="text-2xl font-bold text-gray-800">{selectedDate.toLocaleString('es-AR', { month: 'long', year: 'numeric' })}</h2>
+                                            <button onClick={() => handleCalendarNavigation(1)} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
+                                                <i className="fas fa-chevron-right text-gray-600"></i>
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-7 gap-1 text-center font-medium text-gray-600 mb-2">
+                                            {daysOfWeek.map(day => <div key={day}>{day.substring(0, 3)}</div>)}
+                                        </div>
+                                        <div className="grid grid-cols-7 gap-1">
+                                            {calendarDays.map((day, index) => (
+                                                <div
+                                                    key={index}
+                                                    className={`aspect-square p-2 border rounded-lg overflow-y-auto transition-colors ${day.isCurrentMonth ? 'bg-white hover:bg-blue-50 cursor-pointer' : 'bg-gray-200 text-gray-400'}`}
+                                                    onClick={day.isCurrentMonth && day.classes.length > 0 ? () => handleClassClick(day.classes[0]) : null}
+                                                >
+                                                    <p className={`font-bold ${day.isCurrentMonth ? 'text-gray-800' : ''}`}>{day.day}</p>
+                                                    {day.isCurrentMonth && day.classes.length > 0 && (
+                                                        <div className={`mt-1 text-xs px-1 py-0.5 rounded-full text-white ${colorMap[day.classes.length]}`}>
+                                                            {day.classes.length} clases
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
-                    {userId && (
-                        <div className="mt-8 text-center text-gray-500">
-                            ID de Usuario: <span className="font-mono">{userId}</span>
-                        </div>
-                    )}
                 </div>
             );
         };
@@ -977,4 +920,3 @@
     </script>
 </body>
 </html>
-
