@@ -41,6 +41,8 @@
         window.Timestamp = Timestamp;
         window.getDocs = getDocs;
         window.writeBatch = writeBatch;
+        window.setPersistence = setPersistence;
+        window.browserSessionPersistence = browserSessionPersistence;
     </script>
 </head>
 <body>
@@ -212,11 +214,13 @@
             useEffect(() => {
                 initializeFirebase();
             }, []);
+
             const signIn = async () => {
                 try {
                     setLoading(true);
-                    await window.setPersistence(authRef.current, window.browserSessionPersistence);
-                    await window.signInWithEmailAndPassword(authRef.current, email, password);
+                    const auth = authRef.current;
+                    await window.setPersistence(auth, window.browserSessionPersistence);
+                    await window.signInWithEmailAndPassword(auth, email, password);
                 } catch (error) {
                     setMessageBox({
                         show: true,
@@ -230,6 +234,7 @@
                     setLoading(false);
                 }
             };
+
             const handlePasswordReset = async () => {
                 if (!email) {
                     setMessageBox({
