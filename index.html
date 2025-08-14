@@ -321,8 +321,7 @@ const dateObj = new Date(year, month - 1, day);
     })).sort((a, b) => new Date(b.month) - new Date(a.month));
     setMonthlyReports(monthlyReportsData);
 };
-
-   const handleAddEntry = async () => {
+const handleAddEntry = async () => {
     // 1. Validación del formulario
     const areStudentNamesComplete = newEntry.studentNames.every(name => name.trim() !== '');
     if (
@@ -367,6 +366,22 @@ const dateObj = new Date(year, month - 1, day);
             await firebase.addDoc(classesCollectionRef, entryToSave);
             showMessageBox('Éxito', 'Clase registrada con éxito.', 'success');
         }
+        
+        // Limpiar el formulario y salir del modo edición
+        setNewEntry({
+            studentCount: 1,
+            studentNames: [''],
+            date: new Date().toISOString().split('T')[0],
+            day: '',
+            time: timesOfDay[0],
+            price: 0,
+        });
+        setIsEditing(false);
+    } catch (error) {
+        console.error("Error al guardar la clase:", error);
+        showMessageBox('Error', 'Error al guardar la clase en la base de datos.', 'error');
+    }
+};
         
         // Limpiar el formulario y salir del modo edición
         setNewEntry({
@@ -1113,6 +1128,7 @@ const dateObj = new Date(year, month - 1, day);
   </script>
 </body>
 </html>
+
 
 
 
