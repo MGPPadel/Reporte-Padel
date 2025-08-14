@@ -325,7 +325,8 @@
 
                     const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
                         const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        const sortedClasses = fetchedClasses.sort((a, b) => new Date(a.date) - new Date(b.date));
+                        // Sort descending by date
+                        const sortedClasses = fetchedClasses.sort((a, b) => new Date(b.date) - new Date(a.date));
                         setClasses(sortedClasses);
                     });
 
@@ -602,7 +603,7 @@
                 try {
                     // Start a new batch
                     const batch = window.writeBatch(dbRef.current);
-                    const classesColRef = window.collection(db.current, 'artifacts', appId, 'users', userId, 'classes');
+                    const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
 
                     // Delete all existing documents
                     const existingDocs = await window.getDocs(classesColRef);
