@@ -345,20 +345,27 @@
                 }
             }, [customPrices]);
             useEffect(() => {
-                const report = {};
-                classes.forEach(cls => {
-                    const date = new Date(cls.date);
-                    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-                    if (!report[monthYear]) {
-                        report[monthYear] = { totalIncome: 0, classCount: 0, classCountByStudent: {} };
-                    }
-                    report[monthYear].totalIncome += cls.price;
-                    report[monthYear].classCount += 1;
-                    const studentCount = cls.studentCount;
-                    report[monthYear].classCountByStudent[studentCount] = (report[monthYear].classCountByStudent[studentCount] || 0) + 1;
-                });
-                setMonthlyReports(report);
-            }, [classes]);
+    const report = {};
+    classes.forEach(cls => {
+        // Parseo manual de fecha para evitar problemas de zona horaria
+        const [year, month] = cls.date.split('-').map(Number);
+        const monthYear = `${year}-${month.toString().padStart(2, '0')}`;
+
+        if (!report[monthYear]) {
+            report[monthYear] = { totalIncome: 0, classCount: 0, classCountByStudent: {} };
+        }
+
+        // Asegurar que price sea número
+        const price = Number(cls.price) || 0;
+        report[monthYear].totalIncome += price;
+        report[monthYear].classCount += 1;
+
+        const studentCount = cls.studentCount;
+        report[monthYear].classCountByStudent[studentCount] =
+            (report[monthYear].classCountByStudent[studentCount] || 0) + 1;
+    });
+    setMonthlyReports(report);
+}, [classes]);
 
             const handleNewEntryChange = (e) => {
                 const { name, value } = e.target;
@@ -497,15 +504,17 @@
                 return Array.from(months).sort((a, b) => new Date(a) - new Date(b));
             }, [classes]);
             const filteredClasses = useMemo(() => {
-                let filtered = classes;
-                if (selectedMonthYear) {
-                    filtered = filtered.filter(cls => cls.date.startsWith(selectedMonthYear));
-                }
-                if (filterText) {
-                    filtered = filtered.filter(cls => cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase())));
-                }
-                return filtered;
-            }, [classes, selectedMonthYear, filterText]);
+    let filtered = classes;
+    if (selectedMonthYear) {
+        filtered = filtered.filter(cls => cls.date.startsWith(selectedMonthYear));
+    }
+    if (filterText) {
+        filtered = filtered.filter(cls => cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase())));
+    }
+    // Ordenar por fecha ascendente (día 1 abajo, más recientes arriba en la lista final)
+    filtered = filtered.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+    return filtered;
+}, [classes, selectedMonthYear, filterText]);
             const getCalendarDays = (date) => {
                 const year = date.getFullYear();
                 const month = date.getMonth();
@@ -887,7 +896,9 @@
                                                 <h3 className="text-2xl font-bold mb-4">Reporte Mensual</h3>
                                                 {Object.keys(monthlyReports).length > 0 ? (
                                                     <div className="space-y-6">
-                                                        {Object.keys(monthlyReports).sort().map(monthYear => (
+                                                        {Object.keys(monthlyReports)
+    .sort((a, b) => new Date(a + "-01") - new Date(b + "-01"))
+    .map(monthYear => (
                                                             <div key={monthYear} className="border-b pb-4">
                                                                 <h4 className="text-xl font-bold text-gray-700 mb-2">{formatMonthYear(monthYear)}</h4>
                                                                 <p className="text-gray-600">Ingreso total: <span className="font-bold text-green-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
