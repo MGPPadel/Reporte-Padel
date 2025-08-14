@@ -861,66 +861,7 @@ const dateObj = new Date(year, month - 1, day);
     )}
 </div>
               
-              <div className="flex items-center space-x-2 mb-4">
-                <i className="fas fa-plus-circle text-xl text-gray-600"></i>
-                <h2 className="text-2xl font-bold text-gray-900">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
-                <input
-                  type="text"
-                  placeholder="Nombre del Alumno"
-                  value={newEntry.studentName}
-                  onChange={(e) => setNewEntry({ ...newEntry, studentName: e.target.value })}
-                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <input
-                  type="date"
-                  value={newEntry.date}
-                  onChange={handleDateChange}
-                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <select
-                  value={newEntry.day}
-                  disabled={true}
-                  className="p-3 border border-gray-300 rounded-lg bg-gray-200 cursor-not-allowed text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {daysOfWeek.map(day => <option key={day} value={day}>{day}</option>)}
-                </select>
-                <select
-                  value={newEntry.time}
-                  onChange={(e) => setNewEntry({ ...newEntry, time: e.target.value })}
-                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {timesOfDay.map(time => <option key={time} value={time}>{time}</option>)}
-                </select>
-                <select
-                  value={newEntry.studentCount}
-                  onChange={(e) => setNewEntry({ ...newEntry, studentCount: parseInt(e.target.value) })}
-                  className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {peopleOptions.map(count => <option key={count} value={count}>{count} {count === 1 ? 'persona' : 'personas'}</option>)}
-                </select>
-                <div className="p-3 border border-gray-300 rounded-lg bg-white flex items-center justify-between col-span-1">
-                  <span className="text-gray-500">Valor de la Clase:</span>
-                  <span className="font-bold text-gray-900">${newEntry.price.toLocaleString()}</span>
-                </div>
-                {isEditing ? (
-                  <div className="md:col-span-2 lg:col-span-2 flex space-x-2">
-                    <button onClick={handleAddEntry} className="w-1/2 bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">
-                      Guardar Cambios
-                    </button>
-                    <button onClick={handleCancelEdit} className="w-1/2 bg-gray-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-600 transition-colors">
-                      Cancelar
-                    </button>
-                  </div>
-                ) : (
-                  <button onClick={handleAddEntry} className="md:col-span-2 lg:col-span-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                    Registrar Clase
-                  </button>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-2 mb-4">
+       <div className="flex items-center space-x-2 mb-4">
                 <i className="fas fa-list-ul text-xl text-gray-600"></i>
                 <h2 className="text-2xl font-bold text-gray-900">Listado de Clases Registradas</h2>
               </div>
@@ -1153,6 +1094,7 @@ const dateObj = new Date(year, month - 1, day);
   </script>
 </body>
 </html>
+
 
 
 
