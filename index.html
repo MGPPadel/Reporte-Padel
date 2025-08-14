@@ -12,10 +12,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <!-- Configuración y librerías de Firebase -->
+    <!-- Firebase Libraries -->
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-      import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+      import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
       import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, query, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
       window.firebase = {
           initializeApp,
@@ -23,6 +23,7 @@
           signInWithEmailAndPassword,
           signOut,
           onAuthStateChanged,
+          signInAnonymously,
           getFirestore,
           doc,
           getDoc,
@@ -41,6 +42,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         body {
             font-family: 'Inter', sans-serif;
+            background: #f0f4f8; /* A light, clean background */
         }
     </style>
 </head>
@@ -50,7 +52,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // Variables de configuración y datos estáticos
+        // Static data and configuration variables
         const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
         const defaultClassPrices = {
             1: 5000,
@@ -61,6 +63,8 @@
         const peopleOptions = [1, 2, 3, 4];
         const timesOfDay = [
             '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
+            '1:00 p. m.', '2:00 p. m.', '3:00 p. m.', '4:00 p. m.', '5:00 p. m.',
+            '6:00 p. m.', '7:00 p. m.', '8:00 p. m.', '9:00 p. m.', '10:00 p. m.',
         ];
         const colorMap = {
             1: 'bg-yellow-100',
@@ -69,7 +73,7 @@
             4: 'bg-purple-100',
         };
 
-        // Componente de mensaje (modal) para reemplazar alert()
+        // Custom modal component to replace browser alerts
         const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
             if (!show) return null;
 
@@ -122,19 +126,12 @@
         };
 
         const App = () => {
-            // Variables de configuración de Firebase
+            // Firebase configuration variables from the environment
             const __app_id = "default-app-id";
-            const __firebase_config = `{
-                "apiKey": "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
-                "authDomain": "app-de-padel.firebaseapp.com",
-                "projectId": "app-de-padel",
-                "storageBucket": "app-de-padel.firebasestorage.app",
-                "messagingSenderId": "731771747398",
-                "appId": "1:731771747398:web:ebc8b723fe220869fade47"
-            }`;
-            const __initial_auth_token = null; // Asumimos que no hay token inicial para esta app
+            const __firebase_config = `{"apiKey": "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk", "authDomain": "app-de-padel.firebaseapp.com", "projectId": "app-de-padel", "storageBucket": "app-de-padel.firebasestorage.app", "messagingSenderId": "731771747398", "appId": "1:731771747398:web:ebc8b723fe220869fade47"}`;
+            const __initial_auth_token = null;
 
-            // Estado de la aplicación
+            // Application state hooks
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
             const [userId, setUserId] = useState(null);
@@ -145,13 +142,12 @@
                 studentCount: 1,
                 studentNames: [''],
                 date: new Date().toISOString().split('T')[0],
-                day: daysOfWeek[new Date().getDay()], // Se inicializa el día de la semana
+                day: daysOfWeek[new Date().getDay()],
                 time: timesOfDay[0],
                 price: defaultClassPrices[1] || 0,
             });
             const [monthlyReports, setMonthlyReports] = useState({});
-            const [selectedDate, setSelectedDate] = useState(new Date());
-            const [selectedMonthYear, setSelectedMonthYear] = useState(''); // Nuevo estado para el mes seleccionado
+            const [selectedMonthYear, setSelectedMonthYear] = useState('');
             const [isEditing, setIsEditing] = useState(false);
             const [editedClassId, setEditedClassId] = useState(null);
             const [showConfigModal, setShowConfigModal] = useState(false);
@@ -165,69 +161,72 @@
                 onConfirm: null,
             });
 
-            // Referencias para Firebase y otros elementos
+            // Firebase and DOM element references
             const dbRef = useRef(null);
             const authRef = useRef(null);
             const appIdRef = useRef(null);
-            const tableRef = useRef(null);
+            const reportTableRef = useRef(null);
 
-            // Funciones de utilidad
-            const formatPrice = (price) => {
-                return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price);
-            };
-
+            // Utility functions
+            const formatPrice = (price) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price);
             const formatMonthYear = (monthYearString) => {
                 const [year, month] = monthYearString.split('-');
-                const date = new Date(year, month - 1);
-                return date.toLocaleString('es-AR', { month: 'long', year: 'numeric' });
+                return new Date(year, month - 1).toLocaleString('es-AR', { month: 'long', year: 'numeric' });
             };
 
-            // Funciones para manejar Firebase
-            const initializeFirebase = async () => {
-                try {
-                    const firebaseConfig = JSON.parse(__firebase_config);
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                    
-                    if (!window.firebase) {
-                        console.error("Firebase no está disponible. Asegúrate de que los scripts se carguen correctamente.");
-                        return;
-                    }
-
-                    const app = window.firebase.initializeApp(firebaseConfig);
-                    dbRef.current = window.firebase.getFirestore(app);
-                    authRef.current = window.firebase.getAuth(app);
-                    appIdRef.current = appId;
-
-                    // Manejo del estado de autenticación
-                    const unsubscribe = window.firebase.onAuthStateChanged(authRef.current, (user) => {
-                        if (user) {
-                            setUserId(user.uid);
-                        } else {
-                            setUserId(null);
+            // Firebase initialization and authentication
+            useEffect(() => {
+                const initializeFirebase = async () => {
+                    try {
+                        const firebaseConfig = JSON.parse(__firebase_config);
+                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                        
+                        if (!window.firebase) {
+                            console.error("Firebase is not available. Check script imports.");
+                            return;
                         }
-                        setLoading(false);
-                    });
-                    
-                    return () => unsubscribe();
-                } catch (error) {
-                    console.error("Error al inicializar Firebase:", error);
-                    setMessageBox({
-                        show: true,
-                        title: 'Error de configuración',
-                        content: 'Error al inicializar Firebase. Revisa tu configuración.',
-                        type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
-                    });
-                    setLoading(false);
-                }
-            };
 
+                        const app = window.firebase.initializeApp(firebaseConfig);
+                        dbRef.current = window.firebase.getFirestore(app);
+                        authRef.current = window.firebase.getAuth(app);
+                        appIdRef.current = appId;
+
+                        const unsubscribe = window.firebase.onAuthStateChanged(authRef.current, (user) => {
+                            if (user) {
+                                setUserId(user.uid);
+                            } else {
+                                setUserId(null);
+                            }
+                            setLoading(false);
+                        });
+                        
+                        // Handle initial auth state from provided token
+                        if (__initial_auth_token) {
+                            await window.firebase.signInWithCustomToken(authRef.current, __initial_auth_token);
+                        } else {
+                             await window.firebase.signInAnonymously(authRef.current);
+                        }
+
+                        return () => unsubscribe();
+                    } catch (error) {
+                        console.error("Error initializing Firebase:", error);
+                        setMessageBox({
+                            show: true,
+                            title: 'Error de configuración',
+                            content: 'Error al inicializar Firebase. Revisa tu configuración.',
+                            type: 'error',
+                            onClose: () => setMessageBox({ ...messageBox, show: false })
+                        });
+                        setLoading(false);
+                    }
+                };
+                initializeFirebase();
+            }, []);
+
+            // Handle user sign-in
             const signIn = async () => {
                 try {
                     setLoading(true);
-                    if (!authRef.current) {
-                        throw new Error("Auth no inicializado");
-                    }
                     await window.firebase.signInWithEmailAndPassword(authRef.current, email, password);
                 } catch (error) {
                     setMessageBox({
@@ -243,9 +242,9 @@
                 }
             };
 
+            // Handle user sign-out
             const signOutUser = async () => {
                 try {
-                    if (!authRef.current) return;
                     await window.firebase.signOut(authRef.current);
                     setUserId(null);
                     setClasses([]);
@@ -253,28 +252,17 @@
                     console.error("Error signing out:", error);
                 }
             };
-
+            
+            // Function to load and save custom prices
             const saveCustomPrices = async () => {
                 if (!dbRef.current || !userId) return;
                 try {
                     setLoading(true);
                     const userDocRef = window.firebase.doc(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'config', 'prices');
                     await window.firebase.setDoc(userDocRef, { prices: customPrices });
-                    setMessageBox({
-                        show: true,
-                        title: 'Precios guardados',
-                        content: 'Los precios de las clases se han guardado exitosamente.',
-                        type: 'success',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
-                    });
+                    setMessageBox({ show: true, title: 'Precios guardados', content: 'Los precios de las clases se han guardado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                 } catch (error) {
-                    setMessageBox({
-                        show: true,
-                        title: 'Error al guardar',
-                        content: 'Hubo un error al guardar los precios.',
-                        type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
-                    });
+                    setMessageBox({ show: true, title: 'Error al guardar', content: 'Hubo un error al guardar los precios.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     console.error("Error saving custom prices:", error);
                 } finally {
                     setLoading(false);
@@ -293,19 +281,57 @@
                     console.error("Error loading custom prices:", error);
                 }
             };
-            
+
+            // Real-time data fetching for classes
+            useEffect(() => {
+                if (userId && dbRef.current) {
+                    loadCustomPrices();
+                    const classesColRef = window.firebase.collection(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'classes');
+                    const q = window.firebase.query(classesColRef);
+
+                    const unsubscribe = window.firebase.onSnapshot(q, (snapshot) => {
+                        const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        const sortedClasses = fetchedClasses.sort((a, b) => new Date(a.date) - new Date(b.date));
+                        setClasses(sortedClasses);
+                    });
+                    return () => unsubscribe();
+                } else {
+                    setClasses([]);
+                }
+            }, [userId]);
+
+            // Update newEntry price when customPrices change
+            useEffect(() => {
+                if (Object.keys(customPrices).length > 0) {
+                    setNewEntry(prev => ({ ...prev, price: customPrices[prev.studentCount] || 0 }));
+                }
+            }, [customPrices]);
+
+            // Generate monthly report data
+            useEffect(() => {
+                const report = {};
+                classes.forEach(cls => {
+                    const date = new Date(cls.date);
+                    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                    if (!report[monthYear]) {
+                        report[monthYear] = { totalIncome: 0, classCount: 0, classCountByStudent: {} };
+                    }
+                    report[monthYear].totalIncome += cls.price;
+                    report[monthYear].classCount += 1;
+                    const studentCount = cls.studentCount;
+                    report[monthYear].classCountByStudent[studentCount] = (report[monthYear].classCountByStudent[studentCount] || 0) + 1;
+                });
+                setMonthlyReports(report);
+            }, [classes]);
+
+            // Handle changes in the new class form
             const handleNewEntryChange = (e) => {
                 const { name, value } = e.target;
                 if (name === 'studentCount') {
                     const count = parseInt(value);
                     const newNames = Array(count).fill('');
                     const newPrice = customPrices[count] || 0;
-                    setNewEntry(prev => ({
-                        ...prev,
-                        studentCount: count,
-                        studentNames: newNames,
-                        price: newPrice,
-                    }));
+                    setNewEntry(prev => ({ ...prev, studentCount: count, studentNames: newNames, price: newPrice }));
                 } else if (name.startsWith('studentName-')) {
                     const index = parseInt(name.split('-')[1]);
                     const newNames = [...newEntry.studentNames];
@@ -323,81 +349,47 @@
                 setNewEntry(prev => ({ ...prev, date: dateString, day: dayOfWeek }));
             };
 
-            const handleCustomPriceChange = (studentCount, price) => {
-                setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 }));
-            };
+            const handleCustomPriceChange = (studentCount, price) => setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 }));
 
+            // Add or update a class in Firestore
             const addClass = async () => {
                 if (!dbRef.current || !userId) return;
                 if (newEntry.studentNames.some(name => name.trim() === '') || newEntry.price <= 0) {
-                    setMessageBox({
-                        show: true,
-                        title: 'Error de validación',
-                        content: 'Por favor, completa todos los campos de los alumnos y el precio.',
-                        type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
-                    });
+                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos de los alumnos y el precio.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     return;
                 }
-
                 try {
                     setLoading(true);
                     const classesColRef = window.firebase.collection(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'classes');
-                    
-                    const dateObj = new Date(newEntry.date);
-                    const dayOfWeek = daysOfWeek[dateObj.getUTCDay()];
-                    const classData = {
-                        ...newEntry,
-                        day: dayOfWeek,
-                        date: newEntry.date,
-                        timestamp: window.firebase.Timestamp.fromDate(dateObj)
-                    };
-
+                    const classData = { ...newEntry, timestamp: window.firebase.Timestamp.fromDate(new Date(newEntry.date)) };
                     if (isEditing) {
                         const classDocRef = window.firebase.doc(classesColRef, editedClassId);
                         await window.firebase.updateDoc(classDocRef, classData);
-                        setIsEditing(false);
-                        setEditedClassId(null);
-                        setMessageBox({
-                            show: true,
-                            title: 'Clase actualizada',
-                            content: 'La clase se ha actualizado exitosamente.',
-                            type: 'success',
-                            onClose: () => setMessageBox({ ...messageBox, show: false })
-                        });
+                        setMessageBox({ show: true, title: 'Clase actualizada', content: 'La clase se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     } else {
                         await window.firebase.addDoc(classesColRef, classData);
-                        setMessageBox({
-                            show: true,
-                            title: 'Clase añadida',
-                            content: 'La nueva clase se ha añadido exitosamente.',
-                            type: 'success',
-                            onClose: () => setMessageBox({ ...messageBox, show: false })
-                        });
+                        setMessageBox({ show: true, title: 'Clase añadida', content: 'La nueva clase se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     }
-                    
+                    // Reset the form
                     setNewEntry({
                         studentCount: 1,
                         studentNames: [''],
                         date: new Date().toISOString().split('T')[0],
-                        day: daysOfWeek[new Date().getDay()], // Se reinicia el día al estado inicial
+                        day: daysOfWeek[new Date().getDay()],
                         time: timesOfDay[0],
                         price: customPrices[1] || 0,
                     });
+                    setIsEditing(false);
+                    setEditedClassId(null);
                 } catch (error) {
-                    setMessageBox({
-                        show: true,
-                        title: 'Error al guardar la clase',
-                        content: 'Hubo un error al guardar los datos de la clase. Inténtalo de nuevo.',
-                        type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
-                    });
+                    setMessageBox({ show: true, title: 'Error al guardar la clase', content: 'Hubo un error al guardar los datos de la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     console.error("Error adding/updating class:", error);
                 } finally {
                     setLoading(false);
                 }
             };
             
+            // Delete a class from Firestore
             const deleteClass = (id) => {
                 setMessageBox({
                     show: true,
@@ -410,21 +402,9 @@
                             setLoading(true);
                             const classDocRef = window.firebase.doc(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'classes', id);
                             await window.firebase.deleteDoc(classDocRef);
-                            setMessageBox({
-                                show: true,
-                                title: 'Clase eliminada',
-                                content: 'La clase ha sido eliminada exitosamente.',
-                                type: 'success',
-                                onClose: () => setMessageBox({ ...messageBox, show: false })
-                            });
+                            setMessageBox({ show: true, title: 'Clase eliminada', content: 'La clase ha sido eliminada exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                         } catch (error) {
-                            setMessageBox({
-                                show: true,
-                                title: 'Error al eliminar',
-                                content: 'Hubo un error al eliminar la clase. Inténtalo de nuevo.',
-                                type: 'error',
-                                onClose: () => setMessageBox({ ...messageBox, show: false })
-                            });
+                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                             console.error("Error deleting class:", error);
                         } finally {
                             setLoading(false);
@@ -434,6 +414,7 @@
                 });
             };
 
+            // Edit a class
             const editClass = (classToEdit) => {
                 setNewEntry({
                     studentCount: classToEdit.studentCount,
@@ -447,10 +428,11 @@
                 setEditedClassId(classToEdit.id);
             };
 
+            // Generate a PDF report
             const generatePDF = () => {
-                if (!tableRef.current) return;
+                if (!reportTableRef.current) return;
                 setLoading(true);
-                const input = tableRef.current;
+                const input = reportTableRef.current;
                 html2canvas(input, { scale: 2 }).then((canvas) => {
                     const imgData = canvas.toDataURL('image/png');
                     const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
@@ -469,74 +451,15 @@
                         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
                         heightLeft -= pageHeight;
                     }
-                    pdf.save(`informe_clases_${selectedDate.getFullYear()}_${selectedDate.getMonth() + 1}.pdf`);
+                    pdf.save(`informe_clases.pdf`);
                     setLoading(false);
                 }).catch(err => {
                     console.error("Error generating PDF:", err);
                     setLoading(false);
                 });
             };
-
-            // Hooks de efecto
-            useEffect(() => {
-                const cleanup = initializeFirebase();
-                return cleanup;
-            }, []);
-
-            useEffect(() => {
-                if (userId && dbRef.current) {
-                    loadCustomPrices();
-                    const classesColRef = window.firebase.collection(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'classes');
-                    
-                    const q = window.firebase.query(classesColRef);
-
-                    const unsubscribe = window.firebase.onSnapshot(q, (snapshot) => {
-                        const fetchedClasses = snapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data()
-                        }));
-                        const sortedClasses = fetchedClasses.sort((a, b) => new Date(a.date) - new Date(b.date));
-                        setClasses(sortedClasses);
-                    });
-
-                    return () => unsubscribe();
-                } else {
-                    setClasses([]);
-                }
-            }, [userId, dbRef.current]);
-
-            useEffect(() => {
-                if (Object.keys(customPrices).length > 0) {
-                    setNewEntry(prev => ({
-                        ...prev,
-                        price: customPrices[prev.studentCount] || 0
-                    }));
-                }
-            }, [customPrices]);
-
-            useEffect(() => {
-                const report = {};
-                classes.forEach(cls => {
-                    const date = new Date(cls.date);
-                    const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
-                    if (!report[monthYear]) {
-                        report[monthYear] = {
-                            totalIncome: 0,
-                            classCount: 0,
-                            classCountByStudent: {}, // Nuevo campo para el desglose
-                        };
-                    }
-                    report[monthYear].totalIncome += cls.price;
-                    report[monthYear].classCount += 1;
-                    
-                    // Agregar el desglose por cantidad de alumnos
-                    const studentCount = cls.studentCount;
-                    report[monthYear].classCountByStudent[studentCount] = (report[monthYear].classCountByStudent[studentCount] || 0) + 1;
-                });
-                setMonthlyReports(report);
-            }, [classes]);
             
-            // Genera la lista de meses únicos para las pestañas
+            // Create a list of unique months for the report view tabs
             const uniqueMonths = useMemo(() => {
                 const months = new Set();
                 classes.forEach(cls => {
@@ -546,34 +469,22 @@
                 return Array.from(months).sort((a, b) => new Date(a) - new Date(b));
             }, [classes]);
 
-            // Filtra las clases basadas en la fecha, el mes y el texto de búsqueda
+            // Filter classes based on selected month and text
             const filteredClasses = useMemo(() => {
                 let filtered = classes;
-
-                // Filtrar por mes si hay uno seleccionado
                 if (selectedMonthYear) {
                     filtered = filtered.filter(cls => cls.date.startsWith(selectedMonthYear));
                 }
-
-                // Filtrar por fecha específica si está seleccionada
-                const selectedDateString = selectedDate.toISOString().split('T')[0];
-                if (!selectedMonthYear && classes.some(cls => cls.date === selectedDateString)) {
-                    filtered = filtered.filter(cls => cls.date === selectedDateString);
-                }
-
-                // Filtrar por texto de búsqueda
                 if (filterText) {
-                    filtered = filtered.filter(cls => 
-                        cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()))
-                    );
+                    filtered = filtered.filter(cls => cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase())));
                 }
-
                 return filtered;
-            }, [classes, selectedDate, selectedMonthYear, filterText]);
+            }, [classes, selectedMonthYear, filterText]);
+
 
             return (
                 <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
-                    {/* Componente de la caja de mensajes */}
+                    {/* Custom Message Box Component */}
                     <MessageBox
                         show={messageBox.show}
                         title={messageBox.title}
@@ -583,16 +494,14 @@
                         onClose={() => setMessageBox({ ...messageBox, show: false })}
                     />
 
-                    {/* Modal de configuración */}
+                    {/* Custom Price Configuration Modal */}
                     {showConfigModal && (
                         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
                             <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg transform transition-all duration-300 ease-in-out">
                                 <h3 className="text-xl font-bold mb-4">Configuración de Precios</h3>
                                 {peopleOptions.map(count => (
                                     <div key={count} className="mb-4">
-                                        <label className="block text-gray-700 font-medium">
-                                            Precio para {count} {count === 1 ? 'persona' : 'personas'}
-                                        </label>
+                                        <label className="block text-gray-700 font-medium">Precio para {count} {count === 1 ? 'persona' : 'personas'}</label>
                                         <div className="flex items-center">
                                             <span className="text-xl font-bold mr-2 text-gray-700">$</span>
                                             <input
@@ -606,320 +515,218 @@
                                     </div>
                                 ))}
                                 <div className="flex justify-end mt-6">
-                                    <button
-                                        onClick={() => { saveCustomPrices(); setShowConfigModal(false); }}
-                                        className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors mr-2"
-                                    >
-                                        Guardar
-                                    </button>
-                                    <button
-                                        onClick={() => setShowConfigModal(false)}
-                                        className="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition-colors"
-                                    >
-                                        Cancelar
-                                    </button>
+                                    <button onClick={() => { saveCustomPrices(); setShowConfigModal(false); }} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors mr-2">Guardar</button>
+                                    <button onClick={() => setShowConfigModal(false)} className="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition-colors">Cancelar</button>
                                 </div>
                             </div>
                         </div>
                     )}
 
+                    {/* Loading Spinner */}
                     {loading && (
                         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
                             <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-4 border-blue-500 border-opacity-25"></div>
                         </div>
                     )}
 
-                    {/* Tarjeta principal */}
-                    <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-4xl transition-all duration-300">
+                    {/* Main Application Card */}
+                    <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-6xl transition-all duration-300">
+                        {/* Header with Title and Buttons */}
                         <div className="flex justify-between items-center mb-6">
                             <h1 className="text-3xl font-extrabold text-gray-800">Informe de Clases de Padel</h1>
                             <div className="flex space-x-2">
                                 {userId && (
-                                    <button
-                                        onClick={signOutUser}
-                                        className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-colors"
-                                        title="Cerrar sesión"
-                                    >
+                                    <button onClick={signOutUser} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-colors" title="Cerrar sesión">
                                         <i className="fas fa-sign-out-alt"></i>
                                     </button>
                                 )}
                             </div>
                         </div>
 
-                        {/* Login */}
+                        {/* Login Form */}
                         {!userId && (
                             <div className="flex flex-col space-y-4">
                                 <h2 className="text-2xl font-bold text-gray-800">Iniciar Sesión</h2>
-                                <input
-                                    type="email"
-                                    placeholder="Email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                />
-                                <input
-                                    type="password"
-                                    placeholder="Contraseña"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                />
-                                <button
-                                    onClick={signIn}
-                                    className="bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-                                >
-                                    Ingresar
-                                </button>
+                                <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                <input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                <button onClick={signIn} className="bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Ingresar</button>
                             </div>
                         )}
                         
-                        {/* Contenido principal si el usuario está autenticado */}
+                        {/* Main Content (visible after login) */}
                         {userId && (
                             <>
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-2xl font-bold text-gray-800">
-                                        {view === 'list' ? 'Gestión de Clases' : 'Reporte Mensual'}
-                                    </h2>
-                                    <div className="flex items-center space-x-2">
-                                        <button
-                                            onClick={() => {
-                                                setView(view === 'list' ? 'report' : 'list');
-                                                setSelectedMonthYear(''); // Limpiar el mes seleccionado al cambiar de vista
-                                            }}
-                                            className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-600 transition-colors"
-                                            title={view === 'list' ? 'Ver Reporte' : 'Volver a la lista'}
-                                        >
-                                            <i className={view === 'list' ? 'fas fa-chart-bar' : 'fas fa-list'}></i>
-                                        </button>
-                                        <button
-                                            onClick={() => setShowConfigModal(true)}
-                                            className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors"
-                                            title="Configurar precios"
-                                        >
-                                            <i className="fas fa-dollar-sign"></i>
-                                        </button>
+                                {/* "Add New Class" Form at the Top */}
+                                <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
+                                    <h2 className="text-2xl font-bold text-gray-800 mb-4">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
+                                    <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                        {/* Date Picker */}
+                                        <div className="w-full md:w-1/3">
+                                            <label className="block text-gray-700 font-medium">Fecha:</label>
+                                            <input type="date" name="date" value={newEntry.date} onChange={handleDateChange} className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                        </div>
+                                        {/* Day of the Week (auto-populated) */}
+                                        <div className="w-full md:w-1/3">
+                                            <label className="block text-gray-700 font-medium">Día:</label>
+                                            <p className="p-3 w-full border rounded-lg bg-gray-200 text-gray-800 font-bold transition-shadow">{newEntry.day}</p>
+                                        </div>
+                                        {/* Number of Students */}
+                                        <div className="w-full md:w-1/3">
+                                            <label className="block text-gray-700 font-medium">Personas:</label>
+                                            <select name="studentCount" value={newEntry.studentCount} onChange={handleNewEntryChange} className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow">
+                                                {peopleOptions.map(count => (<option key={count} value={count}>{count}</option>))}
+                                            </select>
+                                        </div>
                                     </div>
-                                </div>
-
-                                {/* Controles de filtro y fecha */}
-                                <div className="mb-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
-                                    <input
-                                        type="date"
-                                        value={selectedDate.toISOString().split('T')[0]}
-                                        onChange={(e) => {
-                                            setSelectedDate(new Date(e.target.value));
-                                            setSelectedMonthYear(''); // Limpiar el mes seleccionado
-                                        }}
-                                        className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full md:w-auto"
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar por alumno..."
-                                        value={filterText}
-                                        onChange={(e) => setFilterText(e.target.value)}
-                                        className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full md:flex-1"
-                                    />
-                                </div>
-                                
-                                {/* Pestañas de meses para la vista de lista */}
-                                {view === 'list' && (
-                                    <div className="flex flex-wrap gap-2 mb-4">
-                                        <button
-                                            onClick={() => setSelectedMonthYear('')}
-                                            className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === '' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-                                        >
-                                            Todos
-                                        </button>
-                                        {uniqueMonths.map(monthYear => (
-                                            <button
-                                                key={monthYear}
-                                                onClick={() => setSelectedMonthYear(monthYear)}
-                                                className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === monthYear ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-                                            >
-                                                {formatMonthYear(monthYear)}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-
-
-                                {/* Vista de lista de clases - vista horizontal */}
-                                {view === 'list' && (
-                                    <div className="overflow-x-auto">
-                                        {filteredClasses.length > 0 ? (
-                                            <div className="bg-white rounded-xl shadow-lg">
-                                                {/* Encabezados de la tabla */}
-                                                <div className="hidden md:grid grid-cols-6 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
-                                                    <div className="col-span-2">Alumnos</div>
-                                                    <div>Fecha</div>
-                                                    <div>Hora</div>
-                                                    <div>Precio</div>
-                                                    <div className="text-center">Acciones</div>
-                                                </div>
-
-                                                {/* Filas de la tabla */}
-                                                <div className="divide-y divide-gray-200">
-                                                    {filteredClasses.map(cls => (
-                                                        <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-6 gap-4 p-4 items-center ${colorMap[cls.studentCount]} rounded-xl md:rounded-none`}>
-                                                            <div className="font-bold md:col-span-2">{cls.studentNames.join(', ')}</div>
-                                                            <div className="text-sm text-gray-600 md:text-base">{cls.day}, {cls.date}</div>
-                                                            <div className="text-sm text-gray-600 md:text-base">{cls.time}</div>
-                                                            <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
-                                                            <div className="flex justify-end md:justify-center space-x-2 mt-2 md:mt-0">
-                                                                <button
-                                                                    onClick={() => editClass(cls)}
-                                                                    className="text-blue-600 hover:text-blue-800 transition-colors"
-                                                                    title="Editar clase"
-                                                                >
-                                                                    <i className="fas fa-edit"></i>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => deleteClass(cls.id)}
-                                                                    className="text-red-600 hover:text-red-800 transition-colors"
-                                                                    title="Eliminar clase"
-                                                                >
-                                                                    <i className="fas fa-trash-alt"></i>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                    
+                                    {/* Student Names and Time/Price */}
+                                    <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                        <div className="w-full md:w-1/2">
+                                            <label className="block text-gray-700 font-medium mb-2">Nombres de los alumnos:</label>
+                                            {newEntry.studentNames.map((name, index) => (
+                                                <input key={index} type="text" name={`studentName-${index}`} placeholder={`Nombre del alumno ${index + 1}`} value={name} onChange={handleNewEntryChange} className="p-3 w-full mb-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                            ))}
+                                        </div>
+                                        <div className="w-full md:w-1/2 flex flex-col justify-between">
+                                            <div>
+                                                <label className="block text-gray-700 font-medium">Hora:</label>
+                                                <select name="time" value={newEntry.time} onChange={handleNewEntryChange} className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow">
+                                                    {timesOfDay.map(time => (<option key={time} value={time}>{time}</option>))}
+                                                </select>
                                             </div>
-                                        ) : (
-                                            <p className="text-center text-gray-500">No hay clases para la fecha seleccionada.</p>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Vista de Reporte Mensual */}
-                                {view === 'report' && (
-                                    <div>
-                                        <div className="flex justify-end mb-4">
-                                            <button
-                                                onClick={generatePDF}
-                                                className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors"
-                                            >
-                                                Generar PDF
-                                            </button>
-                                        </div>
-                                        <div ref={tableRef} className="bg-white p-4 rounded-xl shadow-lg">
-                                            <h3 className="text-2xl font-bold mb-4">Reporte Mensual</h3>
-                                            {Object.keys(monthlyReports).length > 0 ? (
-                                                <div className="space-y-6">
-                                                    {Object.keys(monthlyReports).sort().map(monthYear => (
-                                                        <div key={monthYear} className="border-b pb-4">
-                                                            <h4 className="text-xl font-bold text-gray-700 mb-2">
-                                                                {new Date(monthYear).toLocaleString('es-AR', { year: 'numeric', month: 'long' })}
-                                                            </h4>
-                                                            <p className="text-gray-600">
-                                                                Ingreso total: <span className="font-bold text-green-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span>
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span>
-                                                            </p>
-                                                            <div className="mt-2 text-sm text-gray-500">
-                                                                <p className="font-bold">Clases por cantidad de alumnos:</p>
-                                                                <ul className="list-disc list-inside ml-4">
-                                                                    {Object.entries(monthlyReports[monthYear].classCountByStudent).map(([count, numClasses]) => (
-                                                                        <li key={count}>
-                                                                            {count} {count === '1' ? 'persona' : 'personas'}: {numClasses}
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <p className="text-center text-gray-500">No hay reportes disponibles.</p>
-                                            )}
+                                            <div className="mt-4">
+                                                <label className="block text-gray-700 font-medium">Precio:</label>
+                                                <p className="p-3 w-full border rounded-lg bg-gray-200 text-gray-800 font-bold transition-shadow">{formatPrice(newEntry.price)}</p>
+                                            </div>
                                         </div>
                                     </div>
-                                )}
-
-                                {/* Formulario de entrada */}
-                                <div className="mt-8">
-                                    <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                                        {isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}
-                                    </h2>
-                                    <div className="flex flex-col space-y-4">
-                                        <label className="block text-gray-700 font-medium">Fecha:</label>
-                                        <input
-                                            type="date"
-                                            name="date"
-                                            value={newEntry.date}
-                                            onChange={handleDateChange}
-                                            className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                        />
-                                        
-                                        {/* Campo de día de la semana que se actualiza automáticamente */}
-                                        <label className="block text-gray-700 font-medium">Día:</label>
-                                        <p className="p-3 border rounded-lg bg-gray-200 text-gray-800 font-bold transition-shadow">
-                                            {newEntry.day}
-                                        </p>
-
-                                        <label className="block text-gray-700 font-medium">Número de personas:</label>
-                                        <select
-                                            name="studentCount"
-                                            value={newEntry.studentCount}
-                                            onChange={handleNewEntryChange}
-                                            className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                        >
-                                            {peopleOptions.map(count => (
-                                                <option key={count} value={count}>{count}</option>
-                                            ))}
-                                        </select>
-
-                                        {newEntry.studentNames.map((name, index) => (
-                                            <input
-                                                key={index}
-                                                type="text"
-                                                name={`studentName-${index}`}
-                                                placeholder={`Nombre del alumno ${index + 1}`}
-                                                value={name}
-                                                onChange={handleNewEntryChange}
-                                                className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                            />
-                                        ))}
-
-                                        <label className="block text-gray-700 font-medium">Hora:</label>
-                                        <select
-                                            name="time"
-                                            value={newEntry.time}
-                                            onChange={handleNewEntryChange}
-                                            className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                        >
-                                            {timesOfDay.map(time => (
-                                                <option key={time} value={time}>{time}</option>
-                                            ))}
-                                        </select>
-
-                                        {/* El campo de precio ahora es de solo lectura y se actualiza automáticamente */}
-                                        <label className="block text-gray-700 font-medium">Precio:</label>
-                                        <p className="p-3 border rounded-lg bg-gray-200 text-gray-800 font-bold transition-shadow">
-                                            {formatPrice(newEntry.price)}
-                                        </p>
-                                        
-                                        <button
-                                            onClick={addClass}
-                                            className="bg-green-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-green-700 transition-colors"
-                                        >
+                                    
+                                    {/* Action Buttons */}
+                                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mt-6">
+                                        <button onClick={addClass} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors flex-1">
                                             {isEditing ? 'Guardar Cambios' : 'Añadir Clase'}
                                         </button>
                                         {isEditing && (
-                                            <button
-                                                onClick={() => { setIsEditing(false); setNewEntry({ studentCount: 1, studentNames: [''], date: new Date().toISOString().split('T')[0], day: daysOfWeek[new Date().getDay()], time: timesOfDay[0], price: customPrices[1] || 0 }); }}
-                                                className="bg-gray-300 text-gray-800 font-bold py-3 rounded-lg shadow-md hover:bg-gray-400 transition-colors"
-                                            >
+                                            <button onClick={() => { setIsEditing(false); setNewEntry({ studentCount: 1, studentNames: [''], date: new Date().toISOString().split('T')[0], day: daysOfWeek[new Date().getDay()], time: timesOfDay[0], price: customPrices[1] || 0 }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                 Cancelar
                                             </button>
                                         )}
                                     </div>
                                 </div>
+                                
+                                {/* Class Management and Reports Section */}
+                                <div className="mt-8">
+                                    <div className="flex flex-col md:flex-row justify-between items-center mb-6">
+                                        <h2 className="text-2xl font-bold text-gray-800">{view === 'list' ? 'Gestión de Clases' : 'Reporte Mensual'}</h2>
+                                        <div className="flex items-center space-x-2 mt-4 md:mt-0">
+                                            <button onClick={() => setView(view === 'list' ? 'report' : 'list')} className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-600 transition-colors" title={view === 'list' ? 'Ver Reporte' : 'Volver a la lista'}>
+                                                <i className={view === 'list' ? 'fas fa-chart-bar' : 'fas fa-list'}></i>
+                                            </button>
+                                            <button onClick={() => setShowConfigModal(true)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Configurar precios">
+                                                <i className="fas fa-dollar-sign"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Month Tabs and Filter for List View */}
+                                    {view === 'list' && (
+                                        <div className="mb-6">
+                                            <div className="flex flex-wrap gap-2 mb-4">
+                                                <button onClick={() => setSelectedMonthYear('')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === '' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Todos</button>
+                                                {uniqueMonths.map(monthYear => (
+                                                    <button key={monthYear} onClick={() => setSelectedMonthYear(monthYear)} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === monthYear ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>
+                                                        {formatMonthYear(monthYear)}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <input type="text" placeholder="Buscar por alumno..." value={filterText} onChange={(e) => setFilterText(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full"/>
+                                        </div>
+                                    )}
+
+                                    {/* Class List Table */}
+                                    {view === 'list' && (
+                                        <div className="overflow-x-auto rounded-xl shadow-lg">
+                                            {filteredClasses.length > 0 ? (
+                                                <div className="bg-white">
+                                                    <div className="hidden md:grid grid-cols-7 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
+                                                        <div>Fecha</div>
+                                                        <div>Día</div>
+                                                        <div>Hora</div>
+                                                        <div className="col-span-2">Alumnos</div>
+                                                        <div>Precio</div>
+                                                        <div className="text-center">Acciones</div>
+                                                    </div>
+                                                    <div className="divide-y divide-gray-200">
+                                                        {filteredClasses.map(cls => (
+                                                            <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center ${colorMap[cls.studentCount]} md:rounded-none`}>
+                                                                <div className="text-sm text-gray-600 md:text-base">{cls.date}</div>
+                                                                <div className="text-sm text-gray-600 md:text-base">{cls.day}</div>
+                                                                <div className="text-sm text-gray-600 md:text-base">{cls.time}</div>
+                                                                {/* --- Modified section for student names --- */}
+                                                                <div className="md:col-span-2">
+                                                                    {cls.studentCount > 1 ? (
+                                                                        <ul className="list-disc list-inside font-bold">
+                                                                            {cls.studentNames.map((name, index) => <li key={index}>{name}</li>)}
+                                                                        </ul>
+                                                                    ) : (
+                                                                        <span className="font-bold">{cls.studentNames[0]}</span>
+                                                                    )}
+                                                                </div>
+                                                                {/* ------------------------------------------- */}
+                                                                <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
+                                                                <div className="flex justify-end md:justify-center space-x-2 mt-2 md:mt-0">
+                                                                    <button onClick={() => editClass(cls)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar clase">
+                                                                        <i className="fas fa-edit"></i>
+                                                                    </button>
+                                                                    <button onClick={() => deleteClass(cls.id)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar clase">
+                                                                        <i className="fas fa-trash-alt"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="text-center text-gray-500 p-8 bg-white">No hay clases para los criterios seleccionados.</p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Monthly Report View */}
+                                    {view === 'report' && (
+                                        <div>
+                                            <div className="flex justify-end mb-4">
+                                                <button onClick={generatePDF} className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors">Generar PDF</button>
+                                            </div>
+                                            <div ref={reportTableRef} className="bg-white p-4 rounded-xl shadow-lg">
+                                                <h3 className="text-2xl font-bold mb-4">Reporte Mensual</h3>
+                                                {Object.keys(monthlyReports).length > 0 ? (
+                                                    <div className="space-y-6">
+                                                        {Object.keys(monthlyReports).sort().map(monthYear => (
+                                                            <div key={monthYear} className="border-b pb-4">
+                                                                <h4 className="text-xl font-bold text-gray-700 mb-2">{formatMonthYear(monthYear)}</h4>
+                                                                <p className="text-gray-600">Ingreso total: <span className="font-bold text-green-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
+                                                                <p className="text-gray-600">Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span></p>
+                                                                <div className="mt-2 text-sm text-gray-500">
+                                                                    <p className="font-bold">Clases por cantidad de alumnos:</p>
+                                                                    <ul className="list-disc list-inside ml-4">
+                                                                        {Object.entries(monthlyReports[monthYear].classCountByStudent).map(([count, numClasses]) => (<li key={count}>{count} {count === '1' ? 'persona' : 'personas'}: {numClasses}</li>))}
+                                                                    </ul>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-center text-gray-500">No hay reportes disponibles.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </>
                         )}
                     </div>
-                    {/* Pie de página con el ID de usuario */}
+                    {/* User ID Footer */}
                     {userId && (
                         <div className="mt-8 text-center text-gray-500">
                             ID de Usuario: <span className="font-mono">{userId}</span>
