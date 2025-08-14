@@ -189,7 +189,7 @@ const dateObj = new Date(year, month - 1, day);
         day: newDay,
     }));
 };
-      const handleAddEntry = async () => {
+    const handleAddEntry = async () => {
     // 1. Validación del formulario
     const areStudentNamesComplete = newEntry.studentNames.every(name => name.trim() !== '');
     if (
@@ -202,6 +202,54 @@ const dateObj = new Date(year, month - 1, day);
         return;
     }
 
+    if (!userId) {
+        showMessageBox('Error', 'Debes iniciar sesión para registrar clases.', 'error');
+        return;
+    }
+
+    const db = dbRef.current;
+    if (!db) {
+        showMessageBox('Error', 'No se pudo conectar a la base de datos.', 'error');
+        return;
+    }
+
+    const entryToSave = {
+        studentNames: newEntry.studentNames,
+        date: newEntry.date,
+        day: newEntry.day,
+        time: newEntry.time,
+        studentCount: newEntry.studentCount,
+        price: newEntry.price,
+    };
+
+    try {
+        if (isEditing && newEntry.id) {
+            // 2. Lógica para EDITAR una clase
+            const classDocRef = firebase.doc(db, `artifacts/${appIdRef.current}/users/${userId}/classes`, newEntry.id);
+            await firebase.updateDoc(classDocRef, entryToSave);
+            showMessageBox('Éxito', 'Clase actualizada con éxito.', 'success');
+        } else {
+            // 3. Lógica para AÑADIR una clase
+            const classesCollectionRef = firebase.collection(db, `artifacts/${appIdRef.current}/users/${userId}/classes`);
+            await firebase.addDoc(classesCollectionRef, entryToSave);
+            showMessageBox('Éxito', 'Clase registrada con éxito.', 'success');
+        }
+        
+        // Limpiar el formulario
+        setNewEntry({
+            studentCount: 1,
+            studentNames: [''],
+            date: new Date().toISOString().split('T')[0],
+            day: '',
+            time: timesOfDay[0],
+            price: 0,
+        });
+        setIsEditing(false); // Salir del modo edición
+    } catch (error) {
+        console.error("Error al guardar la clase:", error);
+        showMessageBox('Error', 'Error al guardar la clase en la base de datos.', 'error');
+    }
+};
       useEffect(() => {
         setNewEntry(prev => ({
           ...prev,
@@ -1114,6 +1162,7 @@ if (
   </script>
 </body>
 </html>
+
 
 
 
