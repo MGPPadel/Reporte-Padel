@@ -382,77 +382,6 @@ const handleAddEntry = async () => {
         showMessageBox('Error', 'Error al guardar la clase en la base de datos.', 'error');
     }
 };
-        
-        // Limpiar el formulario y salir del modo edición
-        setNewEntry({
-            studentCount: 1,
-            studentNames: [''],
-            date: new Date().toISOString().split('T')[0],
-            day: '',
-            time: timesOfDay[0],
-            price: 0,
-        });
-        setIsEditing(false);
-    } catch (error) {
-        console.error("Error al guardar la clase:", error);
-        showMessageBox('Error', 'Error al guardar la clase en la base de datos.', 'error');
-    }
-};
-        // Limpiar el formulario y salir del modo edición
-        setNewEntry({
-            studentCount: 1,
-            studentNames: [''],
-            date: new Date().toISOString().split('T')[0],
-            day: '',
-            time: timesOfDay[0],
-            price: 0,
-        });
-        setIsEditing(false);
-    } catch (error) {
-        console.error("Error al guardar la clase:", error);
-        showMessageBox('Error', 'Error al guardar la clase en la base de datos.', 'error');
-    }
-};
-        // Limpiar el formulario
-        setNewEntry({
-            studentCount: 1,
-            studentNames: [''],
-            date: new Date().toISOString().split('T')[0],
-            day: '',
-            time: timesOfDay[0],
-            price: 0,
-        });
-        setIsEditing(false); // Salir del modo edición
-    } catch (error) {
-        console.error("Error al guardar la clase:", error);
-        showMessageBox('Error', 'Error al guardar la clase en la base de datos.', 'error');
-    }
-};
-          setNewEntry({
-            studentName: '',
-            day: '',
-            time: '8:00 a. m.',
-            date: new Date().toISOString().slice(0, 10),
-            studentCount: 1,
-            price: customPrices[1],
-          });
-          setIsEditing(false);
-          setEditedClassId(null);
-        } catch (error) {
-          console.error("Error saving document: ", error);
-          showMessageBox('Error', 'Error al registrar/actualizar la clase.', 'error');
-        }
-      };
-
-      const confirmDeletion = (entry) => {
-        showMessageBox(
-          '¿Estás seguro?', 
-          `¿Estás seguro de que quieres eliminar la clase completa de ${entry.studentNames.join(', ')} del día ${entry.day} a las ${entry.time}?`,
-          'confirm',
-          () => handleDeleteEntry(entry.id)
-        );
-      };
-
       const handleDeleteEntry = async (id) => {
         try {
           const docRef = firebase.doc(dbRef.current, `artifacts/${appIdRef.current}/users/${userId}/classes`, id);
@@ -1128,6 +1057,7 @@ const handleAddEntry = async () => {
   </script>
 </body>
 </html>
+
 
 
 
