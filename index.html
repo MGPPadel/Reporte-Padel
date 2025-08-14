@@ -108,40 +108,42 @@
     const { useState, useEffect, useRef, useMemo } = React;
 
 const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
 const defaultClassPrices = {
-    1: 12000,
-    2: 19000,
+    1: 5000,
+    2: 3000,
     3: 24000,
     4: 26000,
-[cite_start]}; [cite: 233]
-[cite_start]const peopleOptions = [1, 2, 3, 4]; [cite: 234]
+};
+
+const peopleOptions = [1, 2, 3, 4];
 
 const timesOfDay = [
-    '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
-[cite_start]]; [cite: 235]
+    '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',];
+
 
 const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
-    [cite_start]if (!show) return null; [cite: 236]
+  if (!show) return null; 
 
-    [cite_start]let icon, bgColor, titleColor; [cite: 237]
+    let icon, bgColor, titleColor; 
     switch (type) {
         case 'success':
-            [cite_start]icon = <i className="fas fa-check-circle text-4xl text-green-500"></i>; [cite: 237]
-            [cite_start]bgColor = 'bg-white'; [cite: 238]
-            [cite_start]titleColor = 'text-green-600'; [cite: 238]
+            icon = <i className="fas fa-check-circle text-4xl text-green-500"></i>; 
+        bgColor = 'bg-white'; 
+           titleColor = 'text-green-600'; 
             break;
         case 'error':
-            [cite_start]icon = <i className="fas fa-times-circle text-4xl text-red-500"></i>; [cite: 238]
-            [cite_start]bgColor = 'bg-white'; [cite: 239]
-            [cite_start]titleColor = 'text-red-600'; [cite: 239]
+           icon = <i className="fas fa-times-circle text-4xl text-red-500"></i>; 
+            bgColor = 'bg-white'; 
+           titleColor = 'text-red-600'; 
             break;
         case 'confirm':
-            [cite_start]icon = <i className="fas fa-question-circle text-4xl text-blue-500"></i>; [cite: 239]
-            [cite_start]bgColor = 'bg-white'; [cite: 240]
-            [cite_start]titleColor = 'text-blue-600'; [cite: 240]
+            icon = <i className="fas fa-question-circle text-4xl text-blue-500"></i>; 
+            bgColor = 'bg-white'; 
+            titleColor = 'text-blue-600'; 
             break;
         default:
-            [cite_start]icon = null; [cite: 240]
+            ]icon = null; 
     }
 
     return (
@@ -153,7 +155,7 @@ const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
                 <div className="mt-4">
                     {type === 'confirm' && (
                         <button
-                            [cite_start]onClick={() => { onConfirm(); onClose(); }} [cite: 243]
+                            onClick={() => { onConfirm(); onClose(); }} 
                             className={`py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-600 hover:bg-blue-700 shadow-md mr-2`}
                         >
                             [cite_start]Aceptar [cite: 244]
@@ -163,17 +165,16 @@ const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
                         onClick={onClose}
                         className={`py-2 px-4 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ? 'bg-gray-400 hover:bg-gray-500' : type === 'success' ? [cite_start]'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} shadow-md`} [cite: 245, 246]
                     >
-                        {type === 'confirm' ? [cite_start]'Cancelar' : 'Cerrar'} [cite: 247]
+                        {type === 'confirm' ? 'Cancelar' : 'Cerrar'} 
                     </button>
                 </div>
             </div>
         </div>
     );
-[cite_start]}; [cite: 248]
 
 const App = () => {
     // Definición de las constantes de configuración dentro del componente
-    [cite_start]const __app_id = "default-app-id"; [cite: 256]
+   const __app_id = "default-app-id";
     const __firebase_config = `{
         "apiKey": "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
         "authDomain": "app-de-padel.firebaseapp.com",
@@ -181,156 +182,155 @@ const App = () => {
         "storageBucket": "app-de-padel.firebasestorage.app",
         "messagingSenderId": "731771747398",
         "appId": "1:731771747398:web:ebc8b723fe220869fade47"
-    [cite_start]}`; [cite: 257]
+
     const colorMap = {
         1: 'bg-yellow-100',
         2: 'bg-green-100',
         3: 'bg-blue-100',
         4: 'bg-purple-100',
-    [cite_start]}; [cite: 258]
+   
 
     // Definición de estados
-    [cite_start]const [email, setEmail] = useState(''); [cite: 248]
-    [cite_start]const [password, setPassword] = useState(''); [cite: 249]
-    [cite_start]const [userId, setUserId] = useState(null); [cite: 249]
-    [cite_start]const [loading, setLoading] = useState(true); [cite: 249]
-    [cite_start]const [classes, setClasses] = useState([]); [cite: 249]
-    [cite_start]const [customPrices, setCustomPrices] = useState(defaultClassPrices); [cite: 250]
+    const [email, setEmail] = useState(''); 
+ const [password, setPassword] = useState(''); 
+    const [userId, setUserId] = useState(null); 
+ const [loading, setLoading] = useState(true); 
+    const [classes, setClasses] = useState([]); 
+   const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
     const [newEntry, setNewEntry] = useState({
         studentCount: 1,
         studentNames: [''],
         date: new Date().toISOString().split('T')[0],
         day: '',
-        [cite_start]time: timesOfDay[0], [cite: 250]
+        time: timesOfDay[0], 
         price: 0,
-    [cite_start]}); [cite: 251]
-    [cite_start]const [monthlyReports, setMonthlyReports] = useState({}); [cite: 251]
-    [cite_start]const [selectedDate, setSelectedDate] = useState(new Date()); [cite: 252]
-    [cite_start]const [isEditing, setIsEditing] = useState(false); [cite: 252]
-    [cite_start]const [editedClassId, setEditedClassId] = useState(null); [cite: 252]
-    [cite_start]const [showConfigModal, setShowConfigModal] = useState(false); [cite: 252]
-    [cite_start]const [firebaseConfigInput, setFirebaseConfigInput] = useState(''); [cite: 253]
-    [cite_start]const [configError, setConfigError] = useState(''); [cite: 253]
-    [cite_start]const [view, setView] = useState('list'); [cite: 253]
-    [cite_start]const [filterText, setFilterText] = useState(''); [cite: 254]
+ }); 
+   const [monthlyReports, setMonthlyReports] = useState({}); 
+   const [selectedDate, setSelectedDate] = useState(new Date()); 
+   const [isEditing, setIsEditing] = useState(false); 
+    const [editedClassId, setEditedClassId] = useState(null); 
+  const [showConfigModal, setShowConfigModal] = useState(false); 
+const [firebaseConfigInput, setFirebaseConfigInput] = useState(''); 
+    const [configError, setConfigError] = useState(''); 
+    const [view, setView] = useState('list'); 
+   const [filterText, setFilterText] = useState(''); 
     const [messageBox, setMessageBox] = useState({
         show: false,
         title: '',
         content: '',
         type: 'confirm',
         onConfirm: null,
-    [cite_start]}); [cite: 254, 255]
-
+}); 
     // Referencias
-    [cite_start]const dbRef = useRef(null); [cite: 255]
-    [cite_start]const authRef = useRef(null); [cite: 255]
-    [cite_start]const userRef = useRef(null); [cite: 255]
-    [cite_start]const firebaseConfigRef = useRef(null); [cite: 256]
-    [cite_start]const appIdRef = useRef(null); [cite: 256]
-    [cite_start]const tableRef = useRef(null); [cite: 256]
+   const dbRef = useRef(null); 
+   const authRef = useRef(null); 
+    const userRef = useRef(null); 
+    const firebaseConfigRef = useRef(null); 
+    const appIdRef = useRef(null); 
+    const tableRef = useRef(null); 
 
     // Funciones de utilidad
     const formatPrice = (price) => {
-        [cite_start]return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price); [cite: 259, 260]
+        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price); 
     };
 
     // Funciones de Firebase
     const initializeFirebase = async () => {
         try {
-            [cite_start]const firebaseConfig = JSON.parse(__firebase_config); [cite: 260]
-            const appId = typeof __app_id !== 'undefined' ? [cite_start]__app_id : 'default-app-id'; [cite: 261]
-            [cite_start]const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, getFirestore } = window.firebase; [cite: 262]
+           const firebaseConfig = JSON.parse(__firebase_config); 
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; 
+         const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, getFirestore } = window.firebase;
 
-            [cite_start]const app = initializeApp(firebaseConfig); [cite: 262]
-            [cite_start]dbRef.current = getFirestore(app); [cite: 262]
-            [cite_start]authRef.current = getAuth(app); [cite: 263]
-            [cite_start]appIdRef.current = appId; [cite: 263]
+            const app = initializeApp(firebaseConfig); 
+         dbRef.current = getFirestore(app); 
+           authRef.current = getAuth(app); 
+           appIdRef.current = appId;
 
-            const authToken = typeof __initial_auth_token !== 'undefined' ? [cite_start]__initial_auth_token : null; [cite: 264]
+            const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
             if (authToken) {
-                [cite_start]await signInWithCustomToken(authRef.current, authToken); [cite: 265]
+                await signInWithCustomToken(authRef.current, authToken); 
             } else {
-                [cite_start]await signInAnonymously(authRef.current); [cite: 266]
+            await signInAnonymously(authRef.current);
             }
             
-            userRef.current = authRef.current.currentUser?.uid || [cite_start]'anonymous'; [cite: 266, 267]
+            userRef.current = authRef.current.currentUser?.uid || 'anonymous';
             
         } catch (error) {
-            [cite_start]console.error("Error initializing Firebase:", error); [cite: 268]
-            [cite_start]setConfigError("Error al inicializar Firebase. Revisa tu configuración."); [cite: 268]
+            console.error("Error initializing Firebase:", error); 
+           setConfigError("Error al inicializar Firebase. Revisa tu configuración."); 
         } finally {
-            [cite_start]setLoading(false); [cite: 269]
+           setLoading(false); 
         }
     };
     const signIn = async () => {
         try {
-            [cite_start]setLoading(true); [cite: 270]
-            [cite_start]await window.firebase.signInWithEmailAndPassword(authRef.current, email, password); [cite: 270]
+            setLoading(true);
+            await window.firebase.signInWithEmailAndPassword(authRef.current, email, password); 
         } catch (error) {
             setMessageBox({
                 show: true,
                 title: 'Error de autenticación',
                 content: 'Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.',
                 type: 'error',
-                [cite_start]onClose: () => setMessageBox({ ...messageBox, show: false }) [cite: 271]
-            [cite_start]}); [cite: 271]
-            [cite_start]console.error("Error signing in:", error); [cite: 272]
+               onClose: () => setMessageBox({ ...messageBox, show: false }) 
+          }); 
+            console.error("Error signing in:", error); 
         } finally {
-            [cite_start]setLoading(false); [cite: 273]
+            setLoading(false); 
         }
     };
     const signOutUser = async () => {
         try {
-            [cite_start]await window.firebase.signOut(authRef.current); [cite: 274]
-            [cite_start]setUserId(null); [cite: 274]
-            [cite_start]setClasses([]); [cite: 274]
+           await window.firebase.signOut(authRef.current); 
+           setUserId(null); 
+            setClasses([]); 
         } catch (error) {
-            [cite_start]console.error("Error signing out:", error); [cite: 275]
+            console.error("Error signing out:", error); 
         }
     };
 
     const saveCustomPrices = async () => {
-        [cite_start]if (!dbRef.current || !userId) return; [cite: 276]
+        if (!dbRef.current || !userId) return; 
         try {
-            [cite_start]setLoading(true); [cite: 277]
-            [cite_start]const userDocRef = window.firebase.doc(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'config', 'prices'); [cite: 277]
-            [cite_start]await window.firebase.setDoc(userDocRef, { prices: customPrices }); [cite: 278]
+            setLoading(true); 
+            const userDocRef = window.firebase.doc(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'config', 'prices'); 
+           await window.firebase.setDoc(userDocRef, { prices: customPrices }); 
             setMessageBox({
                 show: true,
                 title: 'Precios guardados',
                 content: 'Los precios de las clases se han guardado exitosamente.',
                 type: 'success',
-                [cite_start]onClose: () => setMessageBox({ ...messageBox, show: false }) [cite: 278, 279]
-            [cite_start]}); [cite: 280]
+               onClose: () => setMessageBox({ ...messageBox, show: false }) 
+           }); 
         } catch (error) {
             setMessageBox({
                 show: true,
                 title: 'Error al guardar',
                 content: 'Hubo un error al guardar los precios.',
                 type: 'error',
-                [cite_start]onClose: () => setMessageBox({ ...messageBox, show: false }) [cite: 281]
-            [cite_start]}); [cite: 282]
-            [cite_start]console.error("Error saving custom prices:", error); [cite: 282]
+                onClose: () => setMessageBox({ ...messageBox, show: false }) 
+           });
+           console.error("Error saving custom prices:", error); 
         } finally {
-            [cite_start]setLoading(false); [cite: 283]
+            setLoading(false); 
         }
     };
 
     const loadCustomPrices = async () => {
-        [cite_start]if (!dbRef.current || !userId) return; [cite: 284]
+       if (!dbRef.current || !userId) return; 
         try {
-            [cite_start]const userDocRef = window.firebase.doc(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'config', 'prices'); [cite: 285]
-            [cite_start]const docSnap = await window.firebase.getDoc(userDocRef); [cite: 285]
+           const userDocRef = window.firebase.doc(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'config', 'prices'); 
+          const docSnap = await window.firebase.getDoc(userDocRef); 
             if (docSnap.exists()) {
-                [cite_start]setCustomPrices(docSnap.data().prices); [cite: 286]
+               setCustomPrices(docSnap.data().prices);
             }
         } catch (error) {
-            [cite_start]console.error("Error loading custom prices:", error); [cite: 287]
+           console.error("Error loading custom prices:", error); 
         }
     };
 
     const addClass = async () => {
-        [cite_start]if (!dbRef.current || !userId) return; [cite: 288]
+       if (!dbRef.current || !userId) return;
         // Validación básica
         if (newEntry.studentNames.some(name => name.trim() === '') || newEntry.price <= 0) {
             setMessageBox({
@@ -338,45 +338,45 @@ const App = () => {
                 title: 'Error de validación',
                 content: 'Por favor, completa todos los campos de los alumnos y el precio.',
                 type: 'error',
-                [cite_start]onClose: () => setMessageBox({ ...messageBox, show: false }) [cite: 288, 289]
-            [cite_start]}); [cite: 290]
+                onClose: () => setMessageBox({ ...messageBox, show: false }) 
+            }); 
             return;
         }
 
         try {
-            [cite_start]setLoading(true); [cite: 291]
-            [cite_start]const classesColRef = window.firebase.collection(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'classes'); [cite: 291]
+         setLoading(true); 
+           const classesColRef = window.firebase.collection(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'classes'); 
             
-            [cite_start]const dateObj = new Date(newEntry.date); [cite: 292]
-            [cite_start]const dayOfWeek = daysOfWeek[dateObj.getUTCDay()]; [cite: 292]
+          const dateObj = new Date(newEntry.date); 
+           const dayOfWeek = daysOfWeek[dateObj.getUTCDay()];
             const classData = {
                 ...newEntry,
                 day: dayOfWeek,
                 date: newEntry.date,
-                [cite_start]timestamp: window.firebase.Timestamp.fromDate(dateObj) [cite: 293]
+               timestamp: window.firebase.Timestamp.fromDate(dateObj) 
             };
 
             if (isEditing) {
-                [cite_start]const classDocRef = window.firebase.doc(classesColRef, editedClassId); [cite: 294]
-                [cite_start]await window.firebase.updateDoc(classDocRef, classData); [cite: 294]
-                [cite_start]setIsEditing(false); [cite: 295]
-                [cite_start]setEditedClassId(null); [cite: 295]
+               const classDocRef = window.firebase.doc(classesColRef, editedClassId); 
+             await window.firebase.updateDoc(classDocRef, classData);
+                setIsEditing(false); 
+               setEditedClassId(null); 
                 setMessageBox({
                     show: true,
                     title: 'Clase actualizada',
                     content: 'La clase se ha actualizado exitosamente.',
                     type: 'success',
-                    [cite_start]onClose: () => setMessageBox({ ...messageBox, show: false }) [cite: 295]
-                [cite_start]}); [cite: 296]
+                   onClose: () => setMessageBox({ ...messageBox, show: false })
+               }); 
             } else {
-                [cite_start]await window.firebase.addDoc(classesColRef, classData); [cite: 296]
+                await window.firebase.addDoc(classesColRef, classData); 
                 setMessageBox({
                     show: true,
                     title: 'Clase añadida',
                     content: 'La nueva clase se ha añadido exitosamente.',
                     type: 'success',
-                    [cite_start]onClose: () => setMessageBox({ ...messageBox, show: false }) [cite: 298]
-                [cite_start]}); [cite: 299]
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
+             }); 
             }
             
             setNewEntry({
@@ -384,20 +384,20 @@ const App = () => {
                 studentNames: [''],
                 date: new Date().toISOString().split('T')[0],
                 day: '',
-                [cite_start]time: timesOfDay[0], [cite: 300]
+                time: timesOfDay[0], 
                 price: 0,
-            [cite_start]}); [cite: 301]
+           }); 
         } catch (error) {
             setMessageBox({
                 show: true,
                 title: 'Error al guardar la clase',
                 content: 'Hubo un error al guardar los datos de la clase. Inténtalo de nuevo.',
                 type: 'error',
-                [cite_start]onClose: () => setMessageBox({ ...messageBox, show: false }) [cite: 302]
-            [cite_start]}); [cite: 303]
-            [cite_start]console.error("Error adding/updating class:", error); [cite: 303]
+               onClose: () => setMessageBox({ ...messageBox, show: false }) 
+           }); 
+            console.error("Error adding/updating class:", error); 
         } finally {
-            [cite_start]setLoading(false); [cite: 304]
+            [cite_start]setLoading(false); 
         }
     };
 
@@ -408,32 +408,32 @@ const App = () => {
             content: '¿Estás seguro de que quieres eliminar esta clase? Esta acción es irreversible.',
             type: 'confirm',
             onConfirm: async () => {
-                [cite_start]if (!dbRef.current || !userId) return; [cite: 305]
+           if (!dbRef.current || !userId) return; 
                 try {
-                    [cite_start]setLoading(true); [cite: 305]
-                    [cite_start]const classDocRef = window.firebase.doc(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'classes', id); [cite: 306]
-                    [cite_start]await window.firebase.deleteDoc(classDocRef); [cite: 306]
+                   setLoading(true); 
+                   const classDocRef = window.firebase.doc(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'classes', id); 
+                    await window.firebase.deleteDoc(classDocRef); 
                     setMessageBox({
                         show: true,
                         title: 'Clase eliminada',
-                        [cite_start]content: 'La clase ha sido eliminada exitosamente.', [cite: 307]
+                        content: 'La clase ha sido eliminada exitosamente.',
                         type: 'success',
-                        [cite_start]onClose: () => setMessageBox({ ...messageBox, show: false }) [cite: 307]
-                    [cite_start]}); [cite: 308]
+                       onClose: () => setMessageBox({ ...messageBox, show: false })
+                 }); 
                 } catch (error) {
                     setMessageBox({
                         show: true,
                         title: 'Error al eliminar',
-                        [cite_start]content: 'Hubo un error al eliminar la clase. Inténtalo de nuevo.', [cite: 309]
+                       content: 'Hubo un error al eliminar la clase. Inténtalo de nuevo.', 
                         type: 'error',
-                        [cite_start]onClose: () => setMessageBox({ ...messageBox, show: false }) [cite: 309]
-                    [cite_start]}); [cite: 310]
-                    [cite_start]console.error("Error deleting class:", error); [cite: 310]
+                    onClose: () => setMessageBox({ ...messageBox, show: false }) 
+                   }); 
+                   console.error("Error deleting class:", error); 
                 } finally {
-                    [cite_start]setLoading(false); [cite: 311]
+                    setLoading(false); 
                 }
             },
-            [cite_start]onClose: () => setMessageBox({ ...messageBox, show: false }) [cite: 312]
+           onClose: () => setMessageBox({ ...messageBox, show: false }) 
         });
     };
     
@@ -445,145 +445,144 @@ const App = () => {
             day: classToEdit.day,
             time: classToEdit.time,
             price: classToEdit.price,
-        [cite_start]}); [cite: 313]
-        [cite_start]setIsEditing(true); [cite: 313]
-        [cite_start]setEditedClassId(classToEdit.id); [cite: 313]
+       }); 
+        setIsEditing(true); 
+        setEditedClassId(classToEdit.id); 
     };
 
     const handleNewEntryChange = (e) => {
-        [cite_start]const { name, value } = e.target; [cite: 314]
+     const { name, value } = e.target; 
         if (name === 'studentCount') {
-            [cite_start]const count = parseInt(value); [cite: 315]
-            [cite_start]const newNames = Array(count).fill(''); [cite: 315]
-            const newPrice = customPrices[count] || [cite_start]0; [cite: 316]
+         const count = parseInt(value); 
+           const newNames = Array(count).fill(''); 
+            const newPrice = customPrices[count] || 
             setNewEntry(prev => ({
                 ...prev,
                 studentCount: count,
                 studentNames: newNames,
                 price: newPrice,
-            [cite_start]})); [cite: 317]
+          }));
         } else if (name.startsWith('studentName-')) {
-            [cite_start]const index = parseInt(name.split('-')[1]); [cite: 318]
-            [cite_start]const newNames = [...newEntry.studentNames]; [cite: 318]
+           const index = parseInt(name.split('-')[1]); 
+           const newNames = [...newEntry.studentNames]; 
             newNames[index] = value;
-            [cite_start]setNewEntry(prev => ({ ...prev, studentNames: newNames })); [cite: 319]
+           setNewEntry(prev => ({ ...prev, studentNames: newNames })); 
         } else {
-            [cite_start]setNewEntry(prev => ({ ...prev, [name]: value })); [cite: 320]
+           setNewEntry(prev => ({ ...prev, [name]: value }));
         }
     };
     
     const handlePriceChange = (e) => {
-        const newPrice = parseInt(e.target.value) || [cite_start]0; [cite: 321, 322]
-        [cite_start]setNewEntry(prev => ({ ...prev, price: newPrice })); [cite: 322]
+        const newPrice = parseInt(e.target.value) || 0; 
+        setNewEntry(prev => ({ ...prev, price: newPrice }));
     };
 
     const handleDateChange = (e) => {
-        [cite_start]const dateString = e.target.value; [cite: 322]
-        const dateObj = new Date(`${dateString}T00:00:00Z`); [cite_start]// Usamos T00:00:00Z para evitar problemas de zona horaria [cite: 323]
-        [cite_start]const dayOfWeek = daysOfWeek[dateObj.getUTCDay()]; [cite: 323]
-        [cite_start]setNewEntry(prev => ({ ...prev, date: dateString, day: dayOfWeek })); [cite: 324]
+      const dateString = e.target.value; 
+        const dateObj = new Date(`${dateString}T00:00:00Z`); // Usamos T00:00:00Z para evitar problemas de zona horaria 
+        const dayOfWeek = daysOfWeek[dateObj.getUTCDay()]; 
+       setNewEntry(prev => ({ ...prev, date: dateString, day: dayOfWeek })); 
     };
     const handleCustomPriceChange = (studentCount, price) => {
-        [cite_start]setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 })); [cite: 324, 325]
+       setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 })); 
     };
 
     const generatePDF = () => {
-        [cite_start]if (!tableRef.current) return; [cite: 326]
-        [cite_start]setLoading(true); [cite: 326]
-        [cite_start]const input = tableRef.current; [cite: 326]
+       if (!tableRef.current) return; 
+     setLoading(true);
+       const input = tableRef.current; 
         html2canvas(input, { scale: 2 }).then((canvas) => {
-            [cite_start]const imgData = canvas.toDataURL('image/png'); [cite: 327]
-            [cite_start]const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4'); [cite: 327]
-            [cite_start]const imgWidth = 210; [cite: 327]
-            [cite_start]const pageHeight = 295; [cite: 327]
-            [cite_start]const imgHeight = canvas.height * imgWidth / canvas.width; [cite: 327]
-            [cite_start]let heightLeft = imgHeight; [cite: 327]
-            [cite_start]let position = 0; [cite: 327]
-
-            [cite_start]pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight); [cite: 327]
-            [cite_start]heightLeft -= pageHeight; [cite: 328]
+          const imgData = canvas.toDataURL('image/png'); 
+           const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+           const imgWidth = 210;
+         const pageHeight = 295; 
+           const imgHeight = canvas.height * imgWidth / canvas.width; 
+           let heightLeft = imgHeight; 
+         let position = 0; 
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight); 
+        heightLeft -= pageHeight; 
 
             while (heightLeft >= 0) {
-                [cite_start]position = heightLeft - imgHeight; [cite: 328]
-                [cite_start]pdf.addPage(); [cite: 328]
-                [cite_start]pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight); [cite: 328]
-                [cite_start]heightLeft -= pageHeight; [cite: 328]
+               position = heightLeft - imgHeight; 
+               pdf.addPage(); 
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+              heightLeft -= pageHeight;
             }
-            [cite_start]pdf.save(`informe_clases_${selectedDate.getFullYear()}_${selectedDate.getMonth() + 1}.pdf`); [cite: 328]
-            [cite_start]setLoading(false); [cite: 329]
+     pdf.save(`informe_clases_${selectedDate.getFullYear()}_${selectedDate.getMonth() + 1}.pdf`); 
+            setLoading(false); 
         }).catch(err => {
-            [cite_start]console.error("Error generating PDF:", err); [cite: 329]
-            [cite_start]setLoading(false); [cite: 330]
+        console.error("Error generating PDF:", err); 
+          setLoading(false); 
         });
     };
 
     // Hooks de efecto
     useEffect(() => {
-        [cite_start]const { onAuthStateChanged } = window.firebase; [cite: 331]
-        [cite_start]if (!authRef.current) return; [cite: 331]
+     const { onAuthStateChanged } = window.firebase; 
+      if (!authRef.current) return; 
         
         const unsubscribe = onAuthStateChanged(authRef.current, (user) => {
             if (user) {
-                [cite_start]setUserId(user.uid); [cite: 331]
+               setUserId(user.uid); 
             } else {
-                [cite_start]setUserId(null); [cite: 331]
+           setUserId(null); 
             }
-            [cite_start]setLoading(false); [cite: 332]
+            setLoading(false); 
         });
 
         return () => unsubscribe();
-    [cite_start]}, [loading]); [cite: 332]
+}, [loading]); 
 
     useEffect(() => {
-        [cite_start]initializeFirebase(); [cite: 332, 333]
-    [cite_start]}, []); [cite: 333]
+      initializeFirebase(); 
+  }, []); 
 
     useEffect(() => {
         if (userId && dbRef.current) {
-            [cite_start]loadCustomPrices(); [cite: 333]
-            [cite_start]const classesColRef = window.firebase.collection(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'classes'); [cite: 333]
+           loadCustomPrices();
+          const classesColRef = window.firebase.collection(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'classes'); 
             
-            [cite_start]const q = window.firebase.query(classesColRef); [cite: 334]
+           const q = window.firebase.query(classesColRef); 
 
-            [cite_start]const unsubscribe = window.firebase.onSnapshot(q, (snapshot) => { [cite: 334]
+        const unsubscribe = window.firebase.onSnapshot(q, (snapshot) => { 
                 const fetchedClasses = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
-                [cite_start]})); [cite: 335]
-                [cite_start]const sortedClasses = fetchedClasses.sort((a, b) => new Date(a.date) - new Date(b.date)); [cite: 335]
-                [cite_start]setClasses(sortedClasses); [cite: 335]
+               })); 
+              const sortedClasses = fetchedClasses.sort((a, b) => new Date(a.date) - new Date(b.date)); 
+              setClasses(sortedClasses); 
             });
 
-            [cite_start]return () => unsubscribe(); [cite: 336]
+           return () => unsubscribe(); 
         } else {
-            [cite_start]setClasses([]); [cite: 336]
+          setClasses([]);
         }
-    [cite_start]}, [userId, dbRef.current]); [cite: 337]
+  }, [userId, dbRef.current]); 
 
     useEffect(() => {
-        [cite_start]const report = {}; [cite: 337]
+      const report = {};
         classes.forEach(cls => {
-            [cite_start]const date = new Date(cls.date); [cite: 338]
-            [cite_start]const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`; [cite: 338]
+           const date = new Date(cls.date); 
+          const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
             if (!report[monthYear]) {
-                [cite_start]report[monthYear] = { totalIncome: 0, classCount: 0, classDetails: [] }; [cite: 338, 339]
+              report[monthYear] = { totalIncome: 0, classCount: 0, classDetails: [] };
             }
-            [cite_start]report[monthYear].totalIncome += cls.price; [cite: 339]
-            [cite_start]report[monthYear].classCount += 1; [cite: 339]
-            [cite_start]report[monthYear].classDetails.push(cls); [cite: 339]
+           report[monthYear].totalIncome += cls.price; 
+           report[monthYear].classCount += 1; 
+           report[monthYear].classDetails.push(cls); 
         });
-        [cite_start]setMonthlyReports(report); [cite: 339]
-    [cite_start]}, [classes]); [cite: 340]
+        setMonthlyReports(report); 
+}, [classes]); 
 
     const filteredClassesForSelectedDate = useMemo(() => {
-        [cite_start]const selectedDateString = selectedDate.toISOString().split('T')[0]; [cite: 340]
+      const selectedDateString = selectedDate.toISOString().split('T')[0]; 
         
         const filtered = classes.filter(cls => {
-            [cite_start]const classDateString = cls.date; [cite: 340]
+            const classDateString = cls.date; 
             
-            [cite_start]const isMatchingDate = classDateString === selectedDateString; [cite: 340]
+          const isMatchingDate = classDateString === selectedDateString; 
             const isMatchingFilterText = filterText === '' || 
-                [cite_start]cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase())); [cite: 341]
+           cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase())); 
 
             return isMatchingDate && isMatchingFilterText;
         });
@@ -592,55 +591,55 @@ const App = () => {
             return classes.filter(cls =>
                 filterText === '' || 
                 cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()))
-            [cite_start]); [cite: 341]
+       );
         }
 
-        [cite_start]return filtered; [cite: 342]
-    [cite_start]}, [classes, selectedDate, view, filterText]); [cite: 342]
+        return filtered; 
+    }, [classes, selectedDate, view, filterText]); 
 
     return (
         <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
             {/* Componente de la caja de mensajes */}
             <MessageBox
                 show={messageBox.show}
-                [cite_start]title={messageBox.title} [cite: 343]
-                [cite_start]content={messageBox.content} [cite: 343]
-                [cite_start]type={messageBox.type} [cite: 343]
-                [cite_start]onConfirm={messageBox.onConfirm} [cite: 343]
-                [cite_start]onClose={messageBox.onClose} [cite: 343]
+               title={messageBox.title}
+            content={messageBox.content} 
+              type={messageBox.type}
+            onConfirm={messageBox.onConfirm} 
+              onClose={messageBox.onClose} 
             />
 
             {/* Modal de configuración */}
             {showConfigModal && (
-                [cite_start]<div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50"> [cite: 344]
-                    [cite_start]<div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg transform transition-all duration-300 ease-in-out"> [cite: 344]
-                        [cite_start]<h3 className="text-xl font-bold mb-4">Configuración de Precios</h3> [cite: 345]
+              <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50"> 
+                 <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg transform transition-all duration-300 ease-in-out"> 
+                    <h3 className="text-xl font-bold mb-4">Configuración de Precios</h3>
                         {peopleOptions.map(count => (
-                            [cite_start]<div key={count} className="mb-4"> [cite: 345]
-                                [cite_start]<label className="block text-gray-700 font-medium"> [cite: 346]
-                                    Precio para {count} {count === 1 ? [cite_start]'persona' : 'personas'} [cite: 346, 347]
+                           <div key={count} className="mb-4">
+                               <label className="block text-gray-700 font-medium"> 
+                                    Precio para {count} {count === 1 ? 'persona' : 'personas'} 
                                 </label>
                                 <input
-                                    [cite_start]type="number" [cite: 348]
-                                    value={customPrices[count] || [cite_start]''} [cite: 349]
-                                    [cite_start]onChange={(e) => handleCustomPriceChange(count, e.target.value)} [cite: 349]
+                                   type="number"
+                                    value={customPrices[count] || ''} 
+                                    onChange={(e) => handleCustomPriceChange(count, e.target.value)} 
                                     className="mt-1 p-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                    [cite_start]placeholder="Introduce el precio" [cite: 350]
+                                  placeholder="Introduce el precio" 
                                 />
                             </div>
-                        [cite_start]))} [cite: 351]
-                        [cite_start]<div className="flex justify-end mt-6"> [cite: 351]
+                 ))} 
+                       <div className="flex justify-end mt-6">
                             <button
-                                [cite_start]onClick={saveCustomPrices} [cite: 352]
+                               onClick={saveCustomPrices}
                                 className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors mr-2"
                             >
-                                [cite_start]Guardar [cite: 353]
+                                Guardar 
                             </button>
                             <button
-                                [cite_start]onClick={() => setShowConfigModal(false)} [cite: 354]
+                               onClick={() => setShowConfigModal(false)} 
                                 className="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition-colors"
                             >
-                                [cite_start]Cancelar [cite: 355]
+                               Cancelar 
                             </button>
                         </div>
                     </div>
@@ -648,23 +647,23 @@ const App = () => {
             )}
 
             {loading && (
-                [cite_start]<div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50"> [cite: 356]
-                    [cite_start]<div className="animate-spin rounded-full h-12 w-12 border-4 border-t-4 border-blue-500 border-opacity-25"></div> [cite: 356]
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-4 border-blue-500 border-opacity-25"></div> 
                 </div>
             )}
 
             {/* Tarjeta principal */}
-            [cite_start]<div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-4xl transition-all duration-300"> [cite: 357]
-                [cite_start]<div className="flex justify-between items-center mb-6"> [cite: 357]
-                    [cite_start]<h1 className="text-3xl font-extrabold text-gray-800">Informe de Clases de Padel</h1> [cite: 357]
-                    [cite_start]<div className="flex space-x-2"> [cite: 358]
+        <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-4xl transition-all duration-300"> 
+               <div className="flex justify-between items-center mb-6"> 
+                   <h1 className="text-3xl font-extrabold text-gray-800">Informe de Clases de Padel</h1> 
+                   <div className="flex space-x-2"> 
                         {userId ? (
                             <button
-                                [cite_start]onClick={signOutUser} [cite: 359]
+                               onClick={signOutUser} 
                                 className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-colors"
-                                [cite_start]title="Cerrar sesión" [cite: 359]
+                          title="Cerrar sesión" 
                             >
-                                [cite_start]<i className="fas fa-sign-out-alt"></i> [cite: 360]
+                            <i className="fas fa-sign-out-alt"></i> 
                             </button>
                         ) : null}
                     </div>
@@ -672,27 +671,27 @@ const App = () => {
 
                 {/* Login */}
                 {!userId && (
-                    [cite_start]<div className="flex flex-col space-y-4"> [cite: 361]
-                        [cite_start]<h2 className="text-2xl font-bold text-gray-800">Iniciar Sesión</h2> [cite: 362]
+                  <div className="flex flex-col space-y-4"> 
+                        <h2 className="text-2xl font-bold text-gray-800">Iniciar Sesión</h2> 
                         <input
                             type="email"
                             placeholder="Email"
                             value={email}
-                            [cite_start]onChange={(e) => setEmail(e.target.value)} [cite: 363]
+                           onChange={(e) => setEmail(e.target.value)} 
                             className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                         />
                         <input
-                            [cite_start]type="password" [cite: 364]
+                           type="password"
                             placeholder="Contraseña"
                             value={password}
-                            [cite_start]onChange={(e) => setPassword(e.target.value)} [cite: 365]
+                            onChange={(e) => setPassword(e.target.value)} 
                             className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                         />
                         <button
-                            [cite_start]onClick={signIn} [cite: 366]
+                          onClick={signIn} 
                             className="bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
                         >
-                            [cite_start]Ingresar [cite: 367]
+                           Ingresar 
                         </button>
                     </div>
                 )}
@@ -700,74 +699,74 @@ const App = () => {
                 {/* Contenido principal si el usuario está autenticado */}
                 {userId && (
                     <>
-                        [cite_start]<div className="flex justify-between items-center mb-6"> [cite: 368, 369]
+                       <div className="flex justify-between items-center mb-6"> 
                             <h2 className="text-2xl font-bold text-gray-800">
-                                {view === 'list' ? [cite_start]'Gestión de Clases' : 'Reporte Mensual'} [cite: 370]
+                                {view === 'list' ? 'Gestión de Clases' : 'Reporte Mensual'} 
                             </h2>
-                            [cite_start]<div className="flex items-center space-x-2"> [cite: 370]
+                           <div className="flex items-center space-x-2"> 
                                 <button
-                                    [cite_start]onClick={() => setView(view === 'list' ? 'report' : 'list')} [cite: 371]
+                                 onClick={() => setView(view === 'list' ? 'report' : 'list')} 
                                     className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-600 transition-colors"
-                                    title={view === 'list' ? [cite_start]'Ver Reporte' : 'Volver a la lista'} [cite: 372, 373]
+                                    title={view === 'list' ?'Ver Reporte' : 'Volver a la lista'} 
                                 >
-                                    <i className={view === 'list' ? [cite_start]'fas fa-chart-bar' : 'fas fa-list'}></i> [cite: 374]
+                                    <i className={view === 'list' ?'fas fa-chart-bar' : 'fas fa-list'}></i> 
                                 </button>
                                 <button
-                                    [cite_start]onClick={() => setShowConfigModal(true)} [cite: 375]
+                                 onClick={() => setShowConfigModal(true)} 
                                     className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors"
                                     title="Configurar precios"
                                 >
-                                    [cite_start]<i className="fas fa-cog"></i> [cite: 376]
+                                    <i className="fas fa-cog"></i> 
                                 </button>
                             </div>
                         </div>
 
                         {/* Controles de filtro y fecha */}
-                        [cite_start]<div className="mb-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4"> [cite: 377, 378]
+                      <div className="mb-6 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4"> 
                             <input
                                 type="date"
-                                [cite_start]value={selectedDate.toISOString().split('T')[0]} [cite: 379]
-                                [cite_start]onChange={(e) => setSelectedDate(new Date(e.target.value))} [cite: 379]
+                                value={selectedDate.toISOString().split('T')[0]} 
+                          onChange={(e) => setSelectedDate(new Date(e.target.value))}
                                 className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full md:w-auto"
                             />
                             <input
-                                [cite_start]type="text" [cite: 380]
+                              type="text" 
                                 placeholder="Buscar por alumno..."
-                                [cite_start]value={filterText} [cite: 381]
-                                [cite_start]onChange={(e) => setFilterText(e.target.value)} [cite: 381]
+                                value={filterText} 
+                               onChange={(e) => setFilterText(e.target.value)}
                                 className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full md:flex-1"
                             />
                         </div>
 
                         {/* Vista de lista de clases */}
                         {view === 'list' && (
-                            [cite_start]<div className="overflow-x-auto"> [cite: 383]
-                                [cite_start]<div className="space-y-4"> [cite: 383]
-                                    {filteredClassesForSelectedDate.length > 0 ? [cite_start]( [cite: 384]
+                           <div className="overflow-x-auto"> 
+                               <div className="space-y-4"> 
+                                    {filteredClassesForSelectedDate.length > 0 ? ( 
                                         filteredClassesForSelectedDate.map(cls => (
-                                            [cite_start]<div key={cls.id} className={`p-4 rounded-xl shadow-md ${colorMap[cls.studentCount]}`}> [cite: 384]
-                                                [cite_start]<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center"> [cite: 385]
-                                                    [cite_start]<div> [cite: 386]
-                                                        [cite_start]<h4 className="text-xl font-bold">{cls.studentNames.join(', ')}</h4> [cite: 386]
-                                                        [cite_start]<p className="text-sm text-gray-600">{cls.day}, {cls.date}</p> [cite: 387]
-                                                        [cite_start]<p className="text-sm text-gray-600">{cls.time}</p> [cite: 387]
+                                           <div key={cls.id} className={`p-4 rounded-xl shadow-md ${colorMap[cls.studentCount]}`}> 
+                                               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center"> 
+                                                  <div> 
+                                                     <h4 className="text-xl font-bold">{cls.studentNames.join(', ')}</h4> 
+                                                      <p className="text-sm text-gray-600">{cls.day}, {cls.date}</p> 
+                                                    <p className="text-sm text-gray-600">{cls.time}</p> 
                                                     </div>
-                                                    [cite_start]<div className="mt-2 sm:mt-0 text-right"> [cite: 388]
-                                                        [cite_start]<p className="text-2xl font-bold">{formatPrice(cls.price)}</p> [cite: 389]
-                                                        [cite_start]<div className="flex space-x-2 mt-2"> [cite: 390]
+                                                   <div className="mt-2 sm:mt-0 text-right"> 
+                                                      <p className="text-2xl font-bold">{formatPrice(cls.price)}</p> 
+                                                      <div className="flex space-x-2 mt-2"> 
                                                             <button
-                                                                [cite_start]onClick={() => editClass(cls)} [cite: 391]
+                                                              onClick={() => editClass(cls)} 
                                                                 className="text-blue-600 hover:text-blue-800 transition-colors"
-                                                                [cite_start]title="Editar clase" [cite: 392]
+                                                                title="Editar clase" 
                                                             >
-                                                                [cite_start]<i className="fas fa-edit"></i> [cite: 393]
+                                                             <i className="fas fa-edit"></i> 
                                                             </button>
                                                             <button
-                                                                [cite_start]onClick={() => deleteClass(cls.id)} [cite: 395]
+                                                              onClick={() => deleteClass(cls.id)} 
                                                                 className="text-red-600 hover:text-red-800 transition-colors"
-                                                                [cite_start]title="Eliminar clase" [cite: 397]
+                                                              title="Eliminar clase" 
                                                             >
-                                                                [cite_start]<i className="fas fa-trash-alt"></i> [cite: 398]
+                                                             <i className="fas fa-trash-alt"></i> 
                                                             </button>
                                                         </div>
                                                     </div>
@@ -775,7 +774,7 @@ const App = () => {
                                             </div>
                                         ))
                                     ) : (
-                                        [cite_start]<p className="text-center text-gray-500">No hay clases para la fecha seleccionada.</p> [cite: 402]
+                                    <p className="text-center text-gray-500">No hay clases para la fecha seleccionada.</p> 
                                     )}
                                 </div>
                             </div>
@@ -783,69 +782,69 @@ const App = () => {
 
                         {/* Vista de Reporte Mensual */}
                         {view === 'report' && (
-                            [cite_start]<div> [cite: 404]
-                                [cite_start]<div className="flex justify-end mb-4"> [cite: 404]
+                     <div>
+                                <div className="flex justify-end mb-4"> 
                                     <button
-                                        [cite_start]onClick={generatePDF} [cite: 405]
+                                      onClick={generatePDF} 
                                         className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors"
                                     >
-                                        [cite_start]Generar PDF [cite: 406]
+                                       Generar PDF 
                                     </button>
                                 </div>
-                                [cite_start]<div ref={tableRef} className="bg-white p-4 rounded-xl shadow-lg"> [cite: 407]
-                                    [cite_start]<h3 className="text-2xl font-bold mb-4">Reporte Mensual</h3> [cite: 408]
-                                    {Object.keys(monthlyReports).length > 0 ? [cite_start]( [cite: 409]
-                                        [cite_start]<div className="space-y-6"> [cite: 409]
+                                <div ref={tableRef} className="bg-white p-4 rounded-xl shadow-lg"> 
+                           <h3 className="text-2xl font-bold mb-4">Reporte Mensual</h3> 
+                                    {Object.keys(monthlyReports).length > 0 ? [cite_start]( 
+                                      <div className="space-y-6"> 
                                             {Object.keys(monthlyReports).sort().map(monthYear => (
-                                                [cite_start]<div key={monthYear} className="border-b pb-4"> [cite: 410]
+                                              <div key={monthYear} className="border-b pb-4"> 
                                                     <h4 className="text-xl font-bold text-gray-700 mb-2">
-                                                        [cite_start]{new Date(monthYear).toLocaleString('es-AR', { year: 'numeric', month: 'long' })} [cite: 411]
+                                                      {new Date(monthYear).toLocaleString('es-AR', { year: 'numeric', month: 'long' })} 
                                                     </h4>
-                                                    [cite_start]<p className="text-gray-600"> [cite: 412, 413]
-                                                        [cite_start]Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span> [cite: 413]
+                                                  <p className="text-gray-600"> 
+                                                   Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span> 
                                                     </p>
-                                                    [cite_start]<p className="text-gray-600"> [cite: 414]
-                                                        [cite_start]Ingreso total: <span className="font-bold text-green-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span> [cite: 414, 415]
+                                                  <p className="text-gray-600"> 
+                                                      Ingreso total: <span className="font-bold text-green-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span> 
                                                     </p>
-                                                    [cite_start]<ul className="mt-2 text-sm text-gray-500 space-y-1"> [cite: 415]
+                                                   <ul className="mt-2 text-sm text-gray-500 space-y-1"> 
                                                         {monthlyReports[monthYear].classDetails.map((cls, index) => (
-                                                            [cite_start]<li key={index}>{cls.date}: {cls.studentNames.join(', ')} - {formatPrice(cls.price)}</li> [cite: 416, 417]
+                                                            <li key={index}>{cls.date}: {cls.studentNames.join(', ')} - {formatPrice(cls.price)}</li> 
                                                         ))}
                                                     </ul>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        [cite_start]<p className="text-center text-gray-500">No hay reportes disponibles.</p> [cite: 420]
+                                        <p className="text-center text-gray-500">No hay reportes disponibles.</p> 
                                     )}
                                 </div>
                             </div>
                         )}
 
                         {/* Formulario de entrada */}
-                        [cite_start]<div className="mt-8"> [cite: 422]
+                        <div className="mt-8"> 
                             <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                                {isEditing ? [cite_start]'Editar Clase' : 'Añadir Nueva Clase'} [cite: 423]
+                                {isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'} 
                             </h2>
-                            [cite_start]<div className="flex flex-col space-y-4"> [cite: 423]
-                                [cite_start]<label className="block text-gray-700 font-medium">Fecha:</label> [cite: 424]
+                           <div className="flex flex-col space-y-4">
+                            <label className="block text-gray-700 font-medium">Fecha:</label> 
                                 <input
                                     type="date"
-                                    [cite_start]name="date" [cite: 425]
+                               name="date" 
                                     value={newEntry.date}
-                                    [cite_start]onChange={handleDateChange} [cite: 426]
+                                    onChange={handleDateChange} 
                                     className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                                 />
 
-                                [cite_start]<label className="block text-gray-700 font-medium">Número de personas:</label> [cite: 427]
+                             <label className="block text-gray-700 font-medium">Número de personas:</label> 
                                 <select
                                     name="studentCount"
                                     value={newEntry.studentCount}
-                                    [cite_start]onChange={handleNewEntryChange} [cite: 428]
+                                onChange={handleNewEntryChange} 
                                     className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                                 >
                                     {peopleOptions.map(count => (
-                                        [cite_start]<option key={count} value={count}>{count}</option> [cite: 429, 430]
+                                      <option key={count} value={count}>{count}</option> 
                                     ))}
                                 </select>
 
@@ -853,47 +852,47 @@ const App = () => {
                                     <input
                                         key={index}
                                         type="text"
-                                        [cite_start]name={`studentName-${index}`} [cite: 432]
+                                       name={`studentName-${index}`} 
                                         placeholder={`Nombre del alumno ${index + 1}`}
-                                        [cite_start]value={name} [cite: 433]
-                                        [cite_start]onChange={handleNewEntryChange} [cite: 434]
+                                       value={name}
+                                   onChange={handleNewEntryChange} 
                                         className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                                     />
                                 ))}
 
-                                [cite_start]<label className="block text-gray-700 font-medium">Hora:</label> [cite: 435]
+                               <label className="block text-gray-700 font-medium">Hora:</label> 
                                 <select
                                     name="time"
-                                    [cite_start]value={newEntry.time} [cite: 436]
+                                 value={newEntry.time}
                                     onChange={handleNewEntryChange}
                                     className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                                 >
                                     {timesOfDay.map(time => (
-                                        [cite_start]<option key={time} value={time}>{time}</option> [cite: 438]
+                                       <option key={time} value={time}>{time}</option> 
                                     ))}
                                 </select>
 
-                                [cite_start]<label className="block text-gray-700 font-medium">Precio:</label> [cite: 439]
+                              <label className="block text-gray-700 font-medium">Precio:</label> 
                                 <input
                                     type="number"
-                                    [cite_start]name="price" [cite: 440]
+                                    name="price" 
                                     value={newEntry.price}
-                                    [cite_start]onChange={handlePriceChange} [cite: 441]
+                                   onChange={handlePriceChange} 
                                     className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                                 />
                                 
                                 <button
-                                    [cite_start]onClick={addClass} [cite: 442]
+                                    onClick={addClass} 
                                     className="bg-green-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-green-700 transition-colors"
                                 >
-                                    {isEditing ? [cite_start]'Guardar Cambios' : 'Añadir Clase'} [cite: 444]
+                                    {isEditing ? 'Guardar Cambios' : 'Añadir Clase'} 
                                 </button>
                                 {isEditing && (
                                     <button
-                                        [cite_start]onClick={() => { setIsEditing(false); setNewEntry({ studentCount: 1, studentNames: [''], date: new Date().toISOString().split('T')[0], day: '', time: timesOfDay[0], price: 0 }); }} [cite: 445]
+                                      onClick={() => { setIsEditing(false); setNewEntry({ studentCount: 1, studentNames: [''], date: new Date().toISOString().split('T')[0], day: '', time: timesOfDay[0], price: 0 }); }} 
                                         className="bg-gray-300 text-gray-800 font-bold py-3 rounded-lg shadow-md hover:bg-gray-400 transition-colors"
                                     >
-                                        [cite_start]Cancelar [cite: 447]
+                                       Cancelar
                                     </button>
                                 )}
                             </div>
@@ -903,13 +902,14 @@ const App = () => {
             </div>
             {/* Pie de página con el ID de usuario */}
             {userId && (
-                [cite_start]<div className="mt-8 text-center text-gray-500"> [cite: 449]
-                    [cite_start]ID de Usuario: <span className="font-mono">{userId}</span> [cite: 449]
+                <div className="mt-8 text-center text-gray-500"> 
+                 ID de Usuario: <span className="font-mono">{userId}</span> 
                 </div>
             )}
         </div>
     );
-[cite_start]}; [cite: 450]
+}; 
 
-[cite_start]ReactDOM.render(<App />, document.getElementById('root')); [cite: 450]
+ReactDOM.render(<App />, document.getElementById('root')); 
+
 
