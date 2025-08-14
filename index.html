@@ -151,21 +151,21 @@ const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
             <div className={`p-6 rounded-xl shadow-xl w-full max-w-sm text-center ${bgColor} transform transition-all duration-300 ease-in-out scale-100`}>
                 <div className="mb-4">{icon}</div>
                 <h3 className={`text-lg font-bold mb-2 ${titleColor}`}>{title}</h3>
-                [cite_start]<p className="text-sm text-gray-500 mb-4">{content}</p> [cite: 242]
+               <p className="text-sm text-gray-500 mb-4">{content}</p>
                 <div className="mt-4">
                     {type === 'confirm' && (
                         <button
                             onClick={() => { onConfirm(); onClose(); }} 
                             className={`py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-600 hover:bg-blue-700 shadow-md mr-2`}
                         >
-                            [cite_start]Aceptar [cite: 244]
+                            Aceptar 
                         </button>
                     )}
-                    <button
-                        onClick={onClose}
-                        className={`py-2 px-4 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ? 'bg-gray-400 hover:bg-gray-500' : type === 'success' ? [cite_start]'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} shadow-md`} [cite: 245, 246]
-                    >
-                        {type === 'confirm' ? 'Cancelar' : 'Cerrar'} 
+                   <button
+    onClick={onClose}
+    className={`py-2 px-4 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ? 'bg-gray-400 hover:bg-gray-500' : type === 'success' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} shadow-md`}
+>
+    {type === 'confirm' ? 'Cancelar' : 'Cerrar'}
                     </button>
                 </div>
             </div>
@@ -911,6 +911,7 @@ const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
 }; 
 
 ReactDOM.render(<App />, document.getElementById('root')); 
+
 
 
 
