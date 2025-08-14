@@ -24,7 +24,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, query, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, query, Timestamp, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         window.initializeApp = initializeApp;
         window.getAuth = getAuth;
@@ -44,6 +44,8 @@
         window.addDoc = addDoc;
         window.query = query;
         window.Timestamp = Timestamp;
+        window.getDocs = getDocs;
+        window.writeBatch = writeBatch;
     </script>
 </head>
 <body>
@@ -164,6 +166,7 @@
 
             const dbRef = useRef(null);
             const authRef = useRef(null);
+            const fileInputRef = useRef(null);
             
             const formatPrice = (price) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price);
             const formatMonthYear = (monthYearString) => {
@@ -533,6 +536,96 @@
             };
 
             const reportTableRef = useRef(null);
+            
+            const exportData = () => {
+                const data = JSON.stringify(classes, null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `padel_classes_export_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+
+            const handleFileChange = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        setMessageBox({
+                            show: true,
+                            title: 'Confirmar importación',
+                            content: `Se reemplazarán los datos actuales con ${importedData.length} nuevas clases. ¿Estás seguro?`,
+                            type: 'confirm',
+                            onConfirm: () => importData(importedData),
+                            onClose: () => setMessageBox({ ...messageBox, show: false })
+                        });
+                    } catch (error) {
+                        setMessageBox({
+                            show: true,
+                            title: 'Error de archivo',
+                            content: 'El archivo no es un JSON válido. Por favor, revisa el formato.',
+                            type: 'error',
+                            onClose: () => setMessageBox({ ...messageBox, show: false })
+                        });
+                        console.error("Error parsing JSON:", error);
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            const importData = async (data) => {
+                if (!dbRef.current || !userId) return;
+                setLoading(true);
+                try {
+                    // Start a new batch
+                    const batch = window.writeBatch(dbRef.current);
+                    const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
+                    
+                    // Delete all existing documents
+                    const existingDocs = await window.getDocs(classesColRef);
+                    existingDocs.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+                    
+                    // Add new documents from the imported data
+                    data.forEach(cls => {
+                        const newDocRef = window.doc(classesColRef);
+                        const { id, ...classData } = cls; // Exclude the old ID
+                        batch.set(newDocRef, { ...classData, timestamp: window.Timestamp.fromDate(new Date(classData.date)) });
+                    });
+
+                    // Commit the batch
+                    await batch.commit();
+
+                    setMessageBox({
+                        show: true,
+                        title: 'Importación exitosa',
+                        content: 'Los datos se han importado correctamente.',
+                        type: 'success',
+                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                    });
+                    addLogEntry('Datos importados', 'Se han reemplazado los datos con un archivo JSON.');
+                } catch (error) {
+                    setMessageBox({
+                        show: true,
+                        title: 'Error de importación',
+                        content: 'Hubo un error al importar los datos. Inténtalo de nuevo.',
+                        type: 'error',
+                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                    });
+                    console.error("Error importing data:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
 
             return (
                 <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
@@ -544,6 +637,15 @@
                         type={messageBox.type}
                         onConfirm={messageBox.onConfirm}
                         onClose={() => setMessageBox({ ...messageBox, show: false })}
+                    />
+                    
+                    {/* Hidden file input for import */}
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept=".json"
                     />
 
                     {/* Custom Price Configuration Modal */}
@@ -688,7 +790,7 @@
                                 <div className="mt-8">
                                     <div className="flex flex-col md:flex-row justify-between items-center mb-6">
                                         <h2 className="text-2xl font-bold text-gray-800">Sección de {view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : 'Calendario'}</h2>
-                                        <div className="flex items-center space-x-2 mt-4 md:mt-0">
+                                        <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
                                             <button onClick={() => setView('list')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de clases">
                                                 <i className="fas fa-list"></i>
                                             </button>
@@ -700,6 +802,12 @@
                                             </button>
                                             <button onClick={() => setShowConfigModal(true)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Configurar precios">
                                                 <i className="fas fa-dollar-sign"></i>
+                                            </button>
+                                            <button onClick={exportData} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Exportar datos a JSON">
+                                                <i className="fas fa-file-export"></i>
+                                            </button>
+                                            <button onClick={() => fileInputRef.current.click()} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Importar datos desde JSON">
+                                                <i className="fas fa-file-import"></i>
                                             </button>
                                         </div>
                                     </div>
