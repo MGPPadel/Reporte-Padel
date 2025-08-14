@@ -354,8 +354,9 @@
             useEffect(() => {
                 const report = {};
                 classes.forEach(cls => {
-                    const date = new Date(cls.date);
-                    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                    // Fix: Use UTC methods to prevent timezone issues
+                    const date = new Date(`${cls.date}T00:00:00Z`);
+                    const monthYear = `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
                     if (!report[monthYear]) {
                         report[monthYear] = { totalIncome: 0, classCount: 0, classCountByStudent: {} };
                     }
