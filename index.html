@@ -1,21 +1,15 @@
-
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Informe de Clases de Padel</title>
-  <!-- CDN links for React, ReactDOM, Babel, Tailwind CSS and Font Awesome -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   
-  <!-- Libraries for PDF generation -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-  <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -41,28 +35,19 @@
   </script>
 </head>
 <body class="bg-gray-100 font-sans">
-  <!-- The container where the React app will be mounted -->
   <div id="root"></div>
 
-  <!-- The React app script, wrapped in a Babel tag -->
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
-    const { jsPDF } = window.jspdf;
 
-    // TODO: ***POR FAVOR, PEGA AQUÍ TU OBJETO DE CONFIGURACIÓN DE FIREBASE***
-    // Reemplaza los puntos suspensivos (...) con tu configuración real.
-    // Ejemplo:
-    // const firebaseConfig = {
-    //   apiKey: "YOUR_API_KEY",
-    //   authDomain: "YOUR_AUTH_DOMAIN",
-    //   projectId: "YOUR_PROJECT_ID",
-    //   storageBucket: "YOUR_STORAGE_BUCKET",
-    //   messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    //   appId: "YOUR_APP_ID"
-    // };
-    const firebaseConfig = {
-      // Pega aquí tu configuración. No te olvides de las comas entre las propiedades.
-    };
+    {
+  apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+  authDomain: "app-de-padel.firebaseapp.com",
+  projectId: "app-de-padel",
+  storageBucket: "app-de-padel.firebasestorage.app",
+  messagingSenderId: "731771747398",
+  appId: "1:731771747398:web:ebc8b723fe220869fade47"
+};
 
     // Valores por defecto para las ganancias de la clase según el número de alumnos
     const defaultValueMap = {
@@ -74,9 +59,9 @@
 
     // Colores de fondo para las filas de la tabla
     const colorMap = {
-      1: 'bg-green-100',
-      2: 'bg-blue-100',
-      3: 'bg-yellow-100',
+      1: 'bg-orange-100',
+      2: 'bg-green-100',
+      3: 'bg-blue-100',
       4: 'bg-red-100',
     };
 
@@ -84,8 +69,8 @@
     const App = () => {
       const [classes, setClasses] = useState([]);
       const [newEntry, setNewEntry] = useState({
-        studentNames: [''], // Ahora es un array para múltiples nombres
-        studentCount: 1, // Nuevo estado para la cantidad de alumnos
+        studentNames: [''], 
+        studentCount: 1, 
         day: 'Lunes',
         time: '8:00 a. m.',
         date: new Date().toISOString().slice(0, 10),
@@ -98,11 +83,9 @@
       const [message, setMessage] = useState(null);
       const [editableValues, setEditableValues] = useState(defaultValueMap);
       const [groupedClasses, setGroupedClasses] = useState([]);
-      
       const dbRef = useRef(null);
       const authRef = useRef(null);
-      const monthlyReportsRef = useRef(null); // Referencia para los informes mensuales
-
+      
       const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
       const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
       const studentCountOptions = [1, 2, 3, 4];
@@ -122,12 +105,11 @@
                   id: doc.id,
                   ...doc.data()
               }));
-              
               updateClassesAndReports(fetchedClasses, currentValues);
           } catch (error) {
               console.error("Error al cargar las clases:", error);
               const errorMessage = error.message.includes('permission-denied') 
-                ? 'Error de permisos: Las reglas de seguridad de Firestore no permiten la lectura de clases. Por favor, revisa tus reglas.' 
+                ? 'Error de permisos: Las reglas de seguridad de Firestore no permiten la lectura de clases. Por favor, revisa tus reglas.'
                 : `Error al cargar las clases: ${error.message}.`;
               setMessage({ type: 'error', text: errorMessage });
           } finally {
@@ -160,7 +142,6 @@
 
             dbRef.current = db;
             authRef.current = auth;
-
             await new Promise((resolve, reject) => {
               const unsubscribe = firebase.onAuthStateChanged(auth, async (user) => {
                 if (user) {
@@ -180,7 +161,6 @@
                 }
               });
             });
-
             const currentUserId = auth.currentUser?.uid || crypto.randomUUID();
             setUserId(currentUserId);
             
@@ -207,10 +187,8 @@
                 setMessage({ type: 'error', text: 'Error de permisos: Las reglas de seguridad de Firestore no permiten la lectura de precios. Por favor, revisa tus reglas.' });
               }
             });
-
             // Cargar los datos iniciales de las clases
             await fetchClasses(db, currentAppId, currentUserId, editableValues);
-
           } catch (error) {
             console.error("Error al inicializar Firebase:", error);
             setMessage({ type: 'error', text: `Error al conectar a Firebase: ${error.message}. Por favor, revisa la configuración en el código.` });
@@ -220,7 +198,6 @@
         
         initFirebase();
       }, []);
-
       const updateClassesAndReports = (currentClasses, currentValues) => {
         // Agrupar clases por sesión única (fecha, día, hora)
         const classesBySession = currentClasses.reduce((acc, curr) => {
@@ -238,10 +215,8 @@
           acc[key].ids.push(curr.id);
           return acc;
         }, {});
-
         // Convertir el objeto agrupado a un array para renderizarlo
         const groupedClassesArray = Object.values(classesBySession);
-
         // Calcular la ganancia y la cantidad de alumnos para cada sesión
         const finalClasses = groupedClassesArray.map(cls => {
             const studentCount = cls.students.length;
@@ -250,10 +225,9 @@
                 ...cls,
                 studentCount,
                 value,
-                color: colorMap[studentCount] || 'bg-white', // Default color
+                color: colorMap[studentCount] || '',
             };
         });
-
         // Ordenar las clases por fecha y hora
         finalClasses.sort((a, b) => {
           const dateA = new Date(a.date);
@@ -270,7 +244,6 @@
           const timeIndexB = timeOptions.indexOf(b.time);
           return timeIndexA - timeIndexB;
         });
-
         setGroupedClasses(finalClasses);
         calculateReports(finalClasses);
       };
@@ -280,7 +253,6 @@
         const monthlyReportMap = new Map();
 
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
         finalClasses.forEach(cls => {
           const date = new Date(cls.date + 'T00:00:00'); // Normalize to avoid timezone issues
           const year = date.getFullYear();
@@ -322,7 +294,6 @@
         setWeeklyReports(weeklyReportsArray);
         setMonthlyReports(monthlyReportsArray);
       };
-
       const handleInputChange = (e) => {
         const { name, value } = e.target;
         setNewEntry(prev => ({ ...prev, [name]: value }));
@@ -334,7 +305,6 @@
         newStudentNames[index] = e.target.value;
         setNewEntry(prev => ({ ...prev, studentNames: newStudentNames }));
       };
-      
       // Nuevo manejador para la cantidad de alumnos
       const handleStudentCountChange = (e) => {
         const count = parseInt(e.target.value, 10);
@@ -352,22 +322,15 @@
         try {
           const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
           await firebase.setDoc(userValuesDocRef, newValues);
-          setMessage({ type: 'success', text: 'Precios de clase actualizados correctamente.' });
-          setTimeout(() => setMessage(null), 3000);
         } catch (error) {
           console.error("Error updating values in Firestore:", error);
           if (error.code === 'permission-denied') {
             setMessage({ type: 'error', text: 'Error de permisos: No se puede actualizar los precios. Revisa tus reglas de seguridad de Firestore.' });
-          } else {
-            setMessage({ type: 'error', text: 'Ocurrió un error al intentar actualizar los precios.' });
           }
-          setTimeout(() => setMessage(null), 5000);
         }
       };
-      
       const handleAddClass = async (e) => {
         e.preventDefault();
-        
         if (newEntry.studentNames.some(name => name.trim() === '')) {
           setMessage({ type: 'error', text: 'Por favor, introduce todos los nombres de los alumnos.' });
           return;
@@ -392,7 +355,6 @@
               studentName: studentName.trim(),
             });
           });
-
           await Promise.all(addPromises);
           
           console.log("Classes added successfully.");
@@ -412,426 +374,6 @@
         } catch (error) {
           console.error("Error adding class to Firestore:", error);
           const errorMessage = error.message.includes('permission-denied') 
-            ? 'Error de permisos: Las reglas de seguridad de Firestore no permiten la escritura. Por favor, revisa tus reglas.' 
+            ? 'Error de permisos: Las reglas de seguridad de Firestore no permiten la escritura. Por favor, revisa tus reglas.'
             : `Error al añadir la clase: ${error.message}. Verifica tu configuración de Firebase.`;
-          setMessage({ type: 'error', text: errorMessage });
-          setTimeout(() => setMessage(null), 5000);
-        }
-      };
-
-      const handleDeleteSession = async (date, day, time) => {
-        try {
-          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-          const q = firebase.query(userClassesRef, 
-            firebase.where("date", "==", date),
-            firebase.where("day", "==", day),
-            firebase.where("time", "==", time)
-          );
-          const snapshot = await firebase.getDocs(q);
-          
-          if (!snapshot.empty) {
-            const deletePromises = snapshot.docs.map(doc => firebase.deleteDoc(doc.ref));
-            await Promise.all(deletePromises);
-            setMessage({ type: 'success', text: 'Sesión de clase eliminada con éxito! Recargando datos...' });
-            setTimeout(() => {
-              setMessage(null);
-              fetchClasses(dbRef.current, appId, userId, editableValues);
-            }, 3000);
-          } else {
-            console.warn("No se encontraron documentos para la sesión a eliminar.");
-            setMessage({ type: 'error', text: 'No se encontraron documentos para la sesión a eliminar.' });
-          }
-        } catch (error) {
-          console.error("Error deleting class session from Firestore:", error);
-          if (error.code === 'permission-denied') {
-            setMessage({ type: 'error', text: 'Error de permisos: No se puede eliminar la sesión. Revisa tus reglas de seguridad de Firestore.' });
-          } else {
-             setMessage({ type: 'error', text: 'Ocurrió un error al intentar eliminar la sesión de clase. Por favor, revisa tus reglas de seguridad.' });
-          }
-        }
-      };
-      
-      const handleDownloadMonthlyReport = (report) => {
-        const doc = new jsPDF();
-        let y = 15;
-
-        // Title
-        doc.setFontSize(22);
-        doc.text(`Informe Mensual - ${report.month}`, 15, y);
-        y += 10;
-        
-        doc.setFontSize(14);
-        doc.text(`Ganancia Total: ${formatCurrency(report.totalEarnings)}`, 15, y);
-        y += 7;
-        doc.text(`Total de Clases: ${report.totalClasses}`, 15, y);
-        y += 15;
-
-        // Subtitle
-        doc.setFontSize(16);
-        doc.text("Clases por Cantidad de Alumnos", 15, y);
-        y += 10;
-
-        // Content
-        doc.setFontSize(12);
-        Object.entries(report.countsByStudent).forEach(([count, total]) => {
-          doc.text(`- ${total} clases con ${count} alumno${count > 1 ? 's' : ''}`, 20, y);
-          y += 7;
-        });
-
-        doc.save(`Informe_Padel_${report.month.replace(/ /g, '_')}.pdf`);
-      };
-
-      const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
-
-      return (
-        <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
-          <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
-            <h1 className="text-3xl font-bold mb-2 text-center text-gray-900">
-              Informe de Clases de Padel
-            </h1>
-            <p className="text-center text-sm mb-6 text-gray-500 italic">
-              {userIdDisplay}
-            </p>
-            
-            {loading ? (
-              <div className="flex justify-center items-center h-48">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                <p className="ml-4 text-gray-600">Conectando a la nube y cargando datos...</p>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-end mb-4">
-                  <button
-                    onClick={() => fetchClasses(dbRef.current, appId, userId, editableValues)}
-                    className="bg-green-500 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors flex items-center"
-                  >
-                    <i className="fas fa-sync-alt mr-2"></i> Recargar Datos
-                  </button>
-                </div>
-
-                {/* Editable Values Section */}
-                <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
-                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                    <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
-                  </h2>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Edita el valor de las clases según la cantidad de alumnos. Los cambios se guardarán automáticamente en la nube.
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {Object.entries(editableValues).map(([count, value]) => (
-                      <div key={count} className="p-4 bg-white rounded-lg shadow-md flex flex-col items-center">
-                        <label htmlFor={`value-${count}`} className="text-sm font-medium text-gray-700 mb-1">
-                          Clase con {count} Alumno{count > 1 ? 's' : ''}
-                        </label>
-                        <div className="relative mt-1 rounded-md shadow-sm">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-gray-500 sm:text-sm">
-                              $
-                            </span>
-                          </div>
-                          <input
-                            id={`value-${count}`}
-                            name={count}
-                            type="number"
-                            value={value}
-                            onChange={handleValueChange}
-                            className="block w-full pl-7 pr-12 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2 text-center text-lg font-bold"
-                            min="0"
-                          />
-                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                            <span className="text-gray-500 sm:text-sm" id="price-currency">
-                              ARS
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Reports Section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  {/* Weekly Reports */}
-                  <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                      <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
-                    </h2>
-                    {weeklyReports.length > 0 ? (
-                      weeklyReports.map(report => (
-                        <div key={report.week} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">{report.week}</h3>
-                          <div className="grid grid-cols-2 gap-4 text-center">
-                            <div>
-                              <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
-                              <p className="text-xs font-medium text-gray-600">Total Clases</p>
-                            </div>
-                            <div>
-                              <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
-                              <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">No hay informes semanales disponibles.</p>
-                    )}
-                  </div>
-                  
-                  {/* Monthly Reports */}
-                  <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                      <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
-                    </h2>
-                    {monthlyReports.length > 0 ? (
-                      monthlyReports.map(report => (
-                        <div key={report.month} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                          <div className="flex justify-between items-center mb-2">
-                              <h3 className="text-lg font-bold text-gray-900">{report.month}</h3>
-                              <button
-                                onClick={() => handleDownloadMonthlyReport(report)}
-                                className="bg-blue-500 text-white font-bold py-1 px-3 text-xs rounded-md shadow-md hover:bg-blue-600 transition-colors flex items-center"
-                              >
-                                <i className="fas fa-file-pdf mr-2"></i> Descargar PDF
-                              </button>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4 text-center">
-                            <div>
-                              <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
-                              <p className="text-xs font-medium text-gray-600">Total Clases</p>
-                            </div>
-                            <div>
-                              <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
-                              <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
-                            </div>
-                          </div>
-                          <div className="mt-4 pt-4 border-t border-gray-200">
-                            <p className="text-sm font-semibold text-gray-700 mb-2">Clases por Alumno:</p>
-                            <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                              {Object.entries(report.countsByStudent).map(([count, total]) => (
-                                <div key={count} className="p-2 bg-gray-50 rounded-lg shadow-sm">
-                                  <span className="font-bold text-gray-900">{total}</span>
-                                  <span className="text-gray-600 ml-1">con {count} alumno{count > 1 ? 's' : ''}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">No hay informes mensuales disponibles.</p>
-                    )}
-                  </div>
-                </div>
-                
-                {message && (
-                  <div className={`p-4 rounded-lg mb-6 ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {message.text}
-                  </div>
-                )}
-
-                {/* Form to add new classes */}
-                <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
-                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
-                    <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-4">
-                    <div className="md:col-span-1">
-                      <label htmlFor="date" className="block text-sm font-medium text-gray-600">
-                        Fecha
-                      </label>
-                      <input
-                        id="date"
-                        name="date"
-                        type="date"
-                        value={newEntry.date}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                      />
-                    </div>
-                    <div className="md:col-span-1">
-                      <label htmlFor="day" className="block text-sm font-medium text-gray-600">
-                        Día
-                      </label>
-                      <select
-                        id="day"
-                        name="day"
-                        value={newEntry.day}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                      >
-                        {dayOptions.map(day => (
-                          <option key={day} value={day}>{day}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="md:col-span-1">
-                      <label htmlFor="time" className="block text-sm font-medium text-gray-600">
-                        Horario
-                      </label>
-                      <select
-                        id="time"
-                        name="time"
-                        value={newEntry.time}
-                        onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                      >
-                        {timeOptions.map(time => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="md:col-span-1">
-                      <label htmlFor="studentCount" className="block text-sm font-medium text-gray-600">
-                        Cantidad de Alumnos
-                      </label>
-                      <select
-                        id="studentCount"
-                        name="studentCount"
-                        value={newEntry.studentCount}
-                        onChange={handleStudentCountChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                      >
-                        {studentCountOptions.map(count => (
-                          <option key={count} value={count}>{count} alumno{count > 1 ? 's' : ''}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    {newEntry.studentNames.map((name, index) => (
-                      <div key={index} className="md:col-span-1">
-                        <label htmlFor={`studentName-${index}`} className="block text-sm font-medium text-gray-600">
-                          Nombre del Alumno {index + 1}
-                        </label>
-                        <input
-                          id={`studentName-${index}`}
-                          name={`studentName-${index}`}
-                          type="text"
-                          value={name}
-                          onChange={(e) => handleStudentNameChange(index, e)}
-                          placeholder={`Ej: ALUMNO ${index + 1}`}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
-                        />
-                      </div>
-                    ))}
-                    <div className="md:col-span-1">
-                      <button
-                        type="submit"
-                        className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                      >
-                        Añadir Clase
-                      </button>
-                    </div>
-                  </div>
-                </form>
-
-                {/* Legend for colors */}
-                <div className="flex justify-center flex-wrap gap-4 mb-4">
-                  <span className="flex items-center text-sm text-gray-600">
-                    <span className="w-4 h-4 rounded mr-2 bg-green-100"></span>
-                    1 Alumno
-                  </span>
-                  <span className="flex items-center text-sm text-gray-600">
-                    <span className="w-4 h-4 rounded mr-2 bg-blue-100"></span>
-                    2 Alumnos
-                  </span>
-                  <span className="flex items-center text-sm text-gray-600">
-                    <span className="w-4 h-4 rounded mr-2 bg-yellow-100"></span>
-                    3 Alumnos
-                  </span>
-                  <span className="flex items-center text-sm text-gray-600">
-                    <span className="w-4 h-4 rounded mr-2 bg-red-100"></span>
-                    4 Alumnos
-                  </span>
-                </div>
-
-                {/* Table to display classes */}
-                <div className="overflow-x-auto rounded-lg shadow-md">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Fecha
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Día
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Horario
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Alumnos
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Cantidad
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          Valor de la Clase
-                        </th>
-                        <th scope="col" className="relative px-6 py-3">
-                          <span className="sr-only">Eliminar</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {groupedClasses.length > 0 ? (
-                        groupedClasses.map((cls, index) => {
-                          const displayValue = !isNaN(cls.value) && cls.value !== 0;
-                          return (
-                            <tr key={`${cls.date}-${cls.day}-${cls.time}`} className={`${cls.color} hover:bg-gray-50 transition-colors`}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {cls.date}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {cls.day}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-500">
-                                {cls.students.map((student, studentIndex) => (
-                                  <div key={studentIndex} className="flex items-center gap-2">
-                                    <i className="fas fa-user-circle text-blue-500"></i>
-                                    <span>{student}</span>
-                                  </div>
-                                ))}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                                {cls.studentCount}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
-                                {displayValue
-                                  ? formatCurrency(cls.value)
-                                  : ''}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button
-                                  onClick={() => handleDeleteSession(cls.date, cls.day, cls.time)}
-                                  className="text-red-600 hover:text-red-900 transition-colors"
-                                >
-                                  <i className="fas fa-trash-alt"></i>
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      ) : (
-                        <tr>
-                          <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500 italic">
-                            No hay clases registradas. ¡Añade una para empezar!
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      );
-    };
-
-    const container = document.getElementById('root');
-    const root = ReactDOM.createRoot(container);
-    root.render(<App />);
-  </script>
-</body>
-</html>
+          setMessage({ type: 'error
