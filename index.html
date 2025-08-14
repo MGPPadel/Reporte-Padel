@@ -89,13 +89,14 @@
     time: timesOfDay[0],
     price: 0,
 });
+      const [monthlyReports, setMonthlyReports] = useState({});
+      const [selectedDate, setSelectedDate] = useState(new Date());
       const [monthlyReports, setMonthlyReports] = useState([]);
       const [isEditing, setIsEditing] = useState(false);
       const [editedClassId, setEditedClassId] = useState(null);
       const [showConfigModal, setShowConfigModal] = useState(false);
       const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
       const [configError, setConfigError] = useState('');
-
       const [view, setView] = useState('list');
       const [selectedDate, setSelectedDate] = useState(new Date());
       const [filterText, setFilterText] = useState('');
@@ -215,26 +216,18 @@ const dateObj = new Date(year, month - 1, day);
 }, [newEntry.date]);
 
 // Código para el Informe Mensual
-    const getMonthlyReportData = () => {
-        const currentMonthClasses = classes.filter(entry => {
-            const [year, month] = entry.date.split('-').map(Number);
-            return year === selectedDate.getFullYear() && month === selectedDate.getMonth() + 1;
-        });
+const getMonthlyReportData = () => {
+    const monthKey = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}`;
+    const report = monthlyReports[monthKey];
+    
+    const monthTitle = selectedDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
 
-        const classCountByStudents = { 1: 0, 2: 0, 3: 0, 4: 0 };
-        let totalEarnings = 0;
-
-        currentMonthClasses.forEach(entry => {
-            if (entry.studentCount >= 1 && entry.studentCount <= 4) {
-                classCountByStudents[entry.studentCount]++;
-            }
-            totalEarnings += entry.price;
-        });
-
-        const monthTitle = selectedDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
-
-        return { classCountByStudents, totalEarnings, monthTitle };
+    return {
+        classCountByStudents: report ? report.classCountByStudents : { 1: 0, 2: 0, 3: 0, 4: 0 },
+        totalEarnings: report ? report.totalEarnings : 0,
+        monthTitle
     };
+};
 
     const monthlyReport = getMonthlyReportData();
 
@@ -312,11 +305,17 @@ const dateObj = new Date(year, month - 1, day);
         const monthKey = `${year}-${month}`;
 
         if (!monthly[monthKey]) {
-            monthly[monthKey] = { count: 0, total: 0 };
+            monthly[monthKey] = { 
+                classCountByStudents: { 1: 0, 2: 0, 3: 0, 4: 0 },
+                totalEarnings: 0
+            };
         }
-        monthly[monthKey].count++;
-        monthly[monthKey].total += entry.price;
+        monthly[monthKey].classCountByStudents[entry.studentCount]++;
+        monthly[monthKey].totalEarnings += entry.price;
     });
+
+    setMonthlyReports(monthly);
+};
 
     const monthlyReportsData = Object.keys(monthly).map(monthKey => ({
         month: new Date(monthKey + '-01').toLocaleString('es-ES', { year: 'numeric', month: 'long' }),
@@ -369,9 +368,8 @@ const handleAddEntry = async () => {
             const classesCollectionRef = firebase.collection(db, `artifacts/${appIdRef.current}/users/${userId}/classes`);
             await firebase.addDoc(classesCollectionRef, entryToSave);
             showMessageBox('Éxito', 'Clase registrada con éxito.', 'success');
-        }
-        
-        // Limpiar el formulario y salir del modo edición
+        } 
+          // Limpiar el formulario y salir del modo edición
         setNewEntry({
             studentCount: 1,
             studentNames: [''],
@@ -385,6 +383,22 @@ const handleAddEntry = async () => {
         console.error("Error al guardar la clase:", error);
         showMessageBox('Error', 'Error al guardar la clase en la base de datos.', 'error');
     }
+}; 
+    // Funciones para navegar entre los meses del informe
+const handlePreviousMonth = () => {
+    setSelectedDate(prevDate => {
+        const newDate = new Date(prevDate);
+        newDate.setMonth(newDate.getMonth() - 1);
+        return newDate;
+    });
+};
+
+const handleNextMonth = () => {
+    setSelectedDate(prevDate => {
+        const newDate = new Date(prevDate);
+        newDate.setMonth(newDate.getMonth() + 1);
+        return newDate;
+    });
 };
       const handleDeleteEntry = async (id) => {
         try {
@@ -864,7 +878,38 @@ const handleAddEntry = async () => {
                       />
                   )}
               </div>
-              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
+    <h3 style={{ fontSize: '1.2em', margin: 0, display: 'flex', alignItems: 'center' }}>
+        <span role="img" aria-label="report" style={{ marginRight: '10px' }}>📄</span>
+        Informe Mensual
+    </h3>
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+        <button onClick={handlePreviousMonth} style={{ background: 'none', border: 'none', fontSize: '1.5em', cursor: 'pointer', marginRight: '10px' }}>
+            &#8249;
+        </button>
+        <span style={{ fontSize: '1em', fontWeight: 'bold' }}>{monthlyReport.monthTitle}</span>
+        <button onClick={handleNextMonth} style={{ background: 'none', border: 'none', fontSize: '1.5em', cursor: 'pointer', marginLeft: '10px' }}>
+            &#8250;
+        </button>
+    </div>
+</div>
+<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', border: '1px solid #ccc', borderRadius: '8px', padding: '15px' }}>
+    <div style={{ flex: 1, paddingRight: '20px', borderRight: '1px solid #eee' }}>
+        <p style={{ fontWeight: 'bold', margin: '0 0 10px 0' }}>Clases por Alumnos:</p>
+        <ul style={{ listStyleType: 'none', padding: 0 }}>
+            <li style={{ marginBottom: '5px' }}>1 alumno: {monthlyReport.classCountByStudents[1]}</li>
+            <li style={{ marginBottom: '5px' }}>2 alumnos: {monthlyReport.classCountByStudents[2]}</li>
+            <li style={{ marginBottom: '5px' }}>3 alumnos: {monthlyReport.classCountByStudents[3]}</li>
+            <li style={{ marginBottom: '5px' }}>4 alumnos: {monthlyReport.classCountByStudents[4]}</li>
+        </ul>
+    </div>
+    <div style={{ flex: 1, paddingLeft: '20px' }}>
+        <p style={{ fontWeight: 'bold', margin: '0 0 10px 0' }}>Ganancias del Mes:</p>
+        <p style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#28a745', margin: 0 }}>
+            ${monthlyReport.totalEarnings.toLocaleString()}
+        </p>
+    </div>
+</div>
               {view === 'list' ? (
                 <div ref={tableRef} className="bg-white rounded-xl shadow-md mb-6">
                   {Object.keys(groupedClasses).length > 0 ? (
@@ -1068,6 +1113,7 @@ const handleAddEntry = async () => {
   </script>
 </body>
 </html>
+
 
 
 
