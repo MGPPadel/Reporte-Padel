@@ -1,155 +1,240 @@
 <!DOCTYPE html>
+
 <html lang="es">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Informe de Clases de Padel</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
-  <!-- Librerías para exportar a PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-  </style>
+
+  <meta charset="UTF-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Informe de Clases de Padel</title>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
+
+  <!-- Librerías para exportar a PDF -->
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  
+
+  <style>
+
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    body {
+
+      font-family: 'Inter', sans-serif;
+
+    }
+
+  </style>
+
 </head>
+
 <body class="bg-gray-100">
-  <div id="root"></div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, deleteDoc, updateDoc, writeBatch, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+  <div id="root"></div>
 
-    window.firebase = {
-      initializeApp,
-      getAuth,
-      onAuthStateChanged,
-      signInWithEmailAndPassword,
-      createUserWithEmailAndPassword,
-      signOut,
-      getFirestore,
-      doc,
-      setDoc,
-      onSnapshot,
-      collection,
-      query,
-      addDoc,
-      deleteDoc,
-      updateDoc,
-      writeBatch,
-      where,
-      getDocs,
-      orderBy
-    };
-  </script>
-  
-  <script type="text/babel">
-    const { useState, useEffect, useRef, useMemo } = React;
 
-    const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    const timesOfDay = [
-      '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
-    ];
-    
-    const defaultClassPrices = {
-      1: 5000,
-      2: 3000,
-      3: 2500,
-      4: 2000,
-    };
-    const peopleOptions = [1, 2, 3, 4]; 
 
-    const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
-          if (!show) return null;
+  <script type="module">
 
-          let icon, bgColor, buttonColor, titleColor;
-          switch (type) {
-              case 'success':
-                  icon = <i className="fas fa-check-circle text-4xl text-green-500"></i>;
-                  bgColor = 'bg-white';
-                  titleColor = 'text-green-600';
-                  break;
-              case 'error':
-                  icon = <i className="fas fa-times-circle text-4xl text-red-500"></i>;
-                  bgColor = 'bg-white';
-                  titleColor = 'text-red-600';
-                  break;
-              case 'confirm':
-                  icon = <i className="fas fa-question-circle text-4xl text-blue-500"></i>;
-                  bgColor = 'bg-white';
-                  titleColor = 'text-blue-600';
-                  break;
-              default:
-                  icon = null;
-          }
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 
-          return (
-    
-    const colorMap = {
-        1: 'bg-yellow-100',
-        2: 'bg-green-100',
-        3: 'bg-blue-100',
-        4: 'bg-purple-100',
-    };
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-    const App = () => {
-      const [email, setEmail] = useState('');
-      const [password, setPassword] = useState('');
-      const [userId, setUserId] = useState(null);
-      const [loading, setLoading] = useState(true);
-      const [classes, setClasses] = useState([]);
-      const [customPrices, setCustomPrices] = useState(defaultClassPrices); 
-      const [newEntry, setNewEntry] = useState({
-    studentCount: 1,
-    studentNames: [''], // <-- ¡Importante! Inicializar como un array de strings.
-    date: new Date().toISOString().split('T')[0],
-    day: '',
-    time: timesOfDay[0],
-    price: 0,
-});
-      const [monthlyReports, setMonthlyReports] = useState({});
-      const [selectedDate, setSelectedDate] = useState(new Date());
-      const [isEditing, setIsEditing] = useState(false);
-      const [editedClassId, setEditedClassId] = useState(null);
-      const [showConfigModal, setShowConfigModal] = useState(false);
-      const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
-      const [configError, setConfigError] = useState('');
-      const [view, setView] = useState('list');
-      const [filterText, setFilterText] = useState('');
-      
-      const [messageBox, setMessageBox] = useState({
+    import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, deleteDoc, updateDoc, writeBatch, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+
+
+    window.firebase = {
+
+      initializeApp,
+
+      getAuth,
+
+      onAuthStateChanged,
+
+      signInWithEmailAndPassword,
+
+      createUserWithEmailAndPassword,
+
+      signOut,
+
+      getFirestore,
+
+      doc,
+
+      setDoc,
+
+      onSnapshot,
+
+      collection,
+
+      query,
+
+      addDoc,
+
+      deleteDoc,
+
+      updateDoc,
+
+      writeBatch,
+
+      where,
+
+      getDocs,
+
+      orderBy
+
+    };
+
+  </script>
+
+  
+
+  <script type="text/babel">
+
+const { useState, useEffect, useRef, useMemo } = React;
+
+const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+const defaultClassPrices = {
+    1: 5000,
+    2: 3000,
+    3: 2500,
+    4: 2000,
+};
+
+const peopleOptions = [1, 2, 3, 4];
+
+const timesOfDay = [
+    '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
+];
+
+// <<<<<<<<<< PRIMERO, el componente MessageBox, COMPLETO y AFUERA >>>>>>>>>>
+const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
+    if (!show) return null;
+
+    let icon, bgColor, buttonColor, titleColor;
+    switch (type) {
+        case 'success':
+            icon = <i className="fas fa-check-circle text-4xl text-green-500"></i>;
+            bgColor = 'bg-white';
+            titleColor = 'text-green-600';
+            break;
+        case 'error':
+            icon = <i className="fas fa-times-circle text-4xl text-red-500"></i>;
+            bgColor = 'bg-white';
+            titleColor = 'text-red-600';
+            break;
+        case 'confirm':
+            icon = <i className="fas fa-question-circle text-4xl text-blue-500"></i>;
+            bgColor = 'bg-white';
+            titleColor = 'text-blue-600';
+            break;
+        default:
+            icon = null;
+    }
+
+    return (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+            <div className={`p-6 rounded-xl shadow-xl w-full max-w-sm text-center ${bgColor} transform transition-all duration-300 ease-in-out scale-100`}>
+                <div className="mb-4">{icon}</div>
+                <h3 className={`text-lg font-bold mb-2 ${titleColor}`}>{title}</h3>
+                <p className="text-sm text-gray-500 mb-4">{content}</p>
+                <div className="mt-4">
+                    {type === 'confirm' && (
+                        <button
+                            onClick={() => { onConfirm(); onClose(); }}
+                            className={`py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-600 hover:bg-blue-700 shadow-md mr-2`}
+                        >
+                            Aceptar
+                        </button>
+                    )}
+                    <button
+                        onClick={onClose}
+                        className={`py-2 px-4 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ? 'bg-gray-400 hover:bg-gray-500' : type === 'success' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} shadow-md`}
+                    >
+                        {type === 'confirm' ? 'Cancelar' : 'Cerrar'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}; // <<<<<<< ¡Aquí está la llave que faltaba!
+
+// <<<<<<<<<< DESPUÉS, el componente App >>>>>>>>>>
+const App = () => {
+    // Aquí van tus estados (useState)
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [userId, setUserId] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [classes, setClasses] = useState([]);
+    const [customPrices, setCustomPrices] = useState(defaultClassPrices);
+    const [newEntry, setNewEntry] = useState({
+        studentCount: 1,
+        studentNames: [''],
+        date: new Date().toISOString().split('T')[0],
+        day: '',
+        time: timesOfDay[0],
+        price: 0,
+    });
+    const [monthlyReports, setMonthlyReports] = useState({});
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedClassId, setEditedClassId] = useState(null);
+    const [showConfigModal, setShowConfigModal] = useState(false);
+    const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
+    const [configError, setConfigError] = useState('');
+    const [view, setView] = useState('list');
+    const [filterText, setFilterText] = useState('');
+    const [messageBox, setMessageBox] = useState({
         show: false,
         title: '',
         content: '',
-        type: 'confirm', // 'confirm', 'success', 'error'
+        type: 'confirm',
         onConfirm: null,
-      });
-
-      const dbRef = useRef(null);
-      const authRef = useRef(null);
-      const userRef = useRef(null);
-      const firebaseConfigRef = useRef(null);
-      const appIdRef = useRef(null);
-      const tableRef = useRef(null);
-      
-      const __app_id = "default-app-id";
-      const __firebase_config = `{
+    });
+    
+    // Aquí van tus referencias (useRef)
+    const dbRef = useRef(null);
+    const authRef = useRef(null);
+    const userRef = useRef(null);
+    const firebaseConfigRef = useRef(null);
+    const appIdRef = useRef(null);
+    const tableRef = useRef(null);
+    
+    // Aquí van tus constantes y otras funciones
+    const __app_id = "default-app-id";
+    const __firebase_config = `{
         "apiKey": "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
         "authDomain": "app-de-padel.firebaseapp.com",
         "projectId": "app-de-padel",
         "storageBucket": "app-de-padel.firebasestorage.app",
         "messagingSenderId": "731771747398",
         "appId": "1:731771747398:web:ebc8b723fe220869fade47"
-      }`;
+    }`;
 
+    // La constante `colorMap` va aquí adentro
+    const colorMap = {
+        1: 'bg-yellow-100',
+        2: 'bg-green-100',
+        3: 'bg-blue-100',
+        4: 'bg-purple-100',
+    };
       const showMessageBox = (title, content, type, onConfirm = null) => {
         setMessageBox({ show: true, title, content, type, onConfirm });
       };
@@ -1120,6 +1205,7 @@ const handleNextMonth = () => {
   </script>
 </body>
 </html>
+
 
 
 
