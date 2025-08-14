@@ -286,20 +286,24 @@ const dateObj = new Date(year, month - 1, day);
       };
 
       useEffect(() => {
-        let unsubscribePrices;
-        let unsubscribeClasses;
-        if (dbRef.current && userId) {
-          unsubscribePrices = fetchPrices(dbRef.current, userId);
-          unsubscribeClasses = fetchClasses(dbRef.current, userId);
-        } else if (!userId) {
-          setClasses([]);
-          setMonthlyReports([]);
+    let unsubscribePrices;
+    let unsubscribeClasses;
+    if (dbRef.current && userId) {
+        unsubscribePrices = fetchPrices(dbRef.current, userId);
+        unsubscribeClasses = fetchClasses(dbRef.current, userId);
+    } else if (!userId) {
+        setClasses([]);
+        setMonthlyReports([]);
+    }
+    return () => {
+        if (typeof unsubscribePrices === 'function') {
+            unsubscribePrices();
         }
-        return () => {
-          if (unsubscribePrices) unsubscribePrices();
-          if (unsubscribeClasses) unsubscribeClasses();
-        };
-      }, [userId]);
+        if (typeof unsubscribeClasses === 'function') {
+            unsubscribeClasses();
+        }
+    };
+}, [userId]);
 
       const generateReports = (fetchedClasses) => {
     const monthly = {};
@@ -394,20 +398,27 @@ const handleAddEntry = async () => {
           closeMessageBox();
         }
       };
-      
+      const confirmDeletion = (entry) => {
+    showMessageBox(
+        '¿Estás seguro?',
+        `¿Estás seguro de que quieres eliminar la clase de ${entry.studentNames.join(', ')} del día ${entry.day} a las ${entry.time}?`,
+        'confirm',
+        () => handleDeleteEntry(entry.id)
+    );
+};
       const handleEditEntry = (entry) => {
-        setIsEditing(true);
-        setEditedClassId(entry.id);
-        setNewEntry({
-          studentName: entry.studentNames.join(', '), 
-          day: entry.day,
-          time: entry.time,
-          date: entry.date,
-          studentCount: entry.studentCount,
-          price: entry.price,
-        });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      };
+  setIsEditing(true);
+  setNewEntry({
+    studentNames: entry.studentNames || [''], // <-- CAMBIO AQUÍ
+    day: entry.day,
+    time: entry.time,
+    date: entry.date,
+    studentCount: entry.studentCount,
+    price: entry.price,
+    id: entry.id, // <-- Se añade el ID para poder editar
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
       
       const handleCancelEdit = () => {
           setIsEditing(false);
@@ -1057,6 +1068,7 @@ const handleAddEntry = async () => {
   </script>
 </body>
 </html>
+
 
 
 
