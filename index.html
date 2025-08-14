@@ -11,61 +11,68 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Configuración y librerías de Firebase -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+      import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+      import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, query, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+      window.firebase = {
+          initializeApp,
+          getAuth,
+          signInWithEmailAndPassword,
+          signOut,
+          onAuthStateChanged,
+          getFirestore,
+          doc,
+          getDoc,
+          setDoc,
+          updateDoc,
+          deleteDoc,
+          onSnapshot,
+          collection,
+          addDoc,
+          query,
+          Timestamp
+      };
+    </script>
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         body {
             font-family: 'Inter', sans-serif;
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body>
     <div id="root"></div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, deleteDoc, updateDoc, writeBatch, where, getDocs, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        window.firebase = {
-            initializeApp,
-            getAuth,
-            onAuthStateChanged,
-            signInWithEmailAndPassword,
-            createUserWithEmailAndPassword,
-            signOut,
-            signInAnonymously,
-            getFirestore,
-            doc,
-            setDoc,
-            onSnapshot,
-            collection,
-            query,
-            addDoc,
-            deleteDoc,
-            updateDoc,
-            writeBatch,
-            where,
-            getDocs,
-            orderBy,
-            getDoc
-        };
-    </script>
-  
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
+
+        // Variables de configuración y datos estáticos
         const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
         const defaultClassPrices = {
             1: 5000,
             2: 3000,
-            3: 24000,
-            4: 26000,
+            3: 2500,
+            4: 2000,
         };
         const peopleOptions = [1, 2, 3, 4];
-
         const timesOfDay = [
-            '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.'
+            '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
         ];
+        const colorMap = {
+            1: 'bg-yellow-100',
+            2: 'bg-green-100',
+            3: 'bg-blue-100',
+            4: 'bg-purple-100',
+        };
+
+        // Componente de mensaje (modal) para reemplazar alert()
         const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
             if (!show) return null;
+
             let icon, bgColor, titleColor;
             switch (type) {
                 case 'success':
@@ -113,25 +120,21 @@
                 </div>
             );
         };
+
         const App = () => {
-            // Definición de las constantes de configuración dentro del componente
+            // Variables de configuración de Firebase
             const __app_id = "default-app-id";
-            const __firebase_config = {
+            const __firebase_config = `{
                 "apiKey": "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
                 "authDomain": "app-de-padel.firebaseapp.com",
                 "projectId": "app-de-padel",
                 "storageBucket": "app-de-padel.firebasestorage.app",
                 "messagingSenderId": "731771747398",
                 "appId": "1:731771747398:web:ebc8b723fe220869fade47"
-            };
+            }`;
+            const __initial_auth_token = null; // Asumimos que no hay token inicial para esta app
 
-            const colorMap = {
-                1: 'bg-yellow-100',
-                2: 'bg-green-100',
-                3: 'bg-blue-100',
-                4: 'bg-purple-100',
-            };
-            // Definición de estados
+            // Estado de la aplicación
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
             const [userId, setUserId] = useState(null);
@@ -144,15 +147,13 @@
                 date: new Date().toISOString().split('T')[0],
                 day: '',
                 time: timesOfDay[0],
-                price: 0,
+                price: defaultClassPrices[1] || 0,
             });
             const [monthlyReports, setMonthlyReports] = useState({});
             const [selectedDate, setSelectedDate] = useState(new Date());
             const [isEditing, setIsEditing] = useState(false);
             const [editedClassId, setEditedClassId] = useState(null);
             const [showConfigModal, setShowConfigModal] = useState(false);
-            const [firebaseConfigInput, setFirebaseConfigInput] = useState('');
-            const [configError, setConfigError] = useState('');
             const [view, setView] = useState('list');
             const [filterText, setFilterText] = useState('');
             const [messageBox, setMessageBox] = useState({
@@ -162,11 +163,10 @@
                 type: 'confirm',
                 onConfirm: null,
             });
-            // Referencias
+
+            // Referencias para Firebase y otros elementos
             const dbRef = useRef(null);
             const authRef = useRef(null);
-            const userRef = useRef(null);
-            const firebaseConfigRef = useRef(null);
             const appIdRef = useRef(null);
             const tableRef = useRef(null);
 
@@ -175,36 +175,52 @@
                 return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price);
             };
 
-            // Funciones de Firebase
+            // Funciones para manejar Firebase
             const initializeFirebase = async () => {
                 try {
-                    const firebaseConfig = __firebase_config;
+                    const firebaseConfig = JSON.parse(__firebase_config);
                     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                    const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, getFirestore } = window.firebase;
-
-                    const app = initializeApp(firebaseConfig);
-                    dbRef.current = getFirestore(app);
-                    authRef.current = getAuth(app);
-                    appIdRef.current = appId;
-
-                    const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                    if (authToken) {
-                        await signInWithCustomToken(authRef.current, authToken);
-                    } else {
-                        await signInAnonymously(authRef.current);
+                    
+                    if (!window.firebase) {
+                        console.error("Firebase no está disponible. Asegúrate de que los scripts se carguen correctamente.");
+                        return;
                     }
 
-                    userRef.current = authRef.current.currentUser?.uid || 'anonymous';
+                    const app = window.firebase.initializeApp(firebaseConfig);
+                    dbRef.current = window.firebase.getFirestore(app);
+                    authRef.current = window.firebase.getAuth(app);
+                    appIdRef.current = appId;
+
+                    // Manejo del estado de autenticación
+                    const unsubscribe = window.firebase.onAuthStateChanged(authRef.current, (user) => {
+                        if (user) {
+                            setUserId(user.uid);
+                        } else {
+                            setUserId(null);
+                        }
+                        setLoading(false);
+                    });
+                    
+                    return () => unsubscribe();
                 } catch (error) {
-                    console.error("Error initializing Firebase:", error);
-                    setConfigError("Error al inicializar Firebase. Revisa tu configuración.");
-                } finally {
+                    console.error("Error al inicializar Firebase:", error);
+                    setMessageBox({
+                        show: true,
+                        title: 'Error de configuración',
+                        content: 'Error al inicializar Firebase. Revisa tu configuración.',
+                        type: 'error',
+                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                    });
                     setLoading(false);
                 }
             };
+
             const signIn = async () => {
                 try {
                     setLoading(true);
+                    if (!authRef.current) {
+                        throw new Error("Auth no inicializado");
+                    }
                     await window.firebase.signInWithEmailAndPassword(authRef.current, email, password);
                 } catch (error) {
                     setMessageBox({
@@ -219,8 +235,10 @@
                     setLoading(false);
                 }
             };
+
             const signOutUser = async () => {
                 try {
+                    if (!authRef.current) return;
                     await window.firebase.signOut(authRef.current);
                     setUserId(null);
                     setClasses([]);
@@ -268,10 +286,42 @@
                     console.error("Error loading custom prices:", error);
                 }
             };
+            
+            const handleNewEntryChange = (e) => {
+                const { name, value } = e.target;
+                if (name === 'studentCount') {
+                    const count = parseInt(value);
+                    const newNames = Array(count).fill('');
+                    const newPrice = customPrices[count] || 0;
+                    setNewEntry(prev => ({
+                        ...prev,
+                        studentCount: count,
+                        studentNames: newNames,
+                        price: newPrice,
+                    }));
+                } else if (name.startsWith('studentName-')) {
+                    const index = parseInt(name.split('-')[1]);
+                    const newNames = [...newEntry.studentNames];
+                    newNames[index] = value;
+                    setNewEntry(prev => ({ ...prev, studentNames: newNames }));
+                } else {
+                    setNewEntry(prev => ({ ...prev, [name]: value }));
+                }
+            };
+            
+            const handleDateChange = (e) => {
+                const dateString = e.target.value;
+                const dateObj = new Date(`${dateString}T00:00:00Z`);
+                const dayOfWeek = daysOfWeek[dateObj.getUTCDay()];
+                setNewEntry(prev => ({ ...prev, date: dateString, day: dayOfWeek }));
+            };
+
+            const handleCustomPriceChange = (studentCount, price) => {
+                setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 }));
+            };
 
             const addClass = async () => {
                 if (!dbRef.current || !userId) return;
-                // Validación básica
                 if (newEntry.studentNames.some(name => name.trim() === '') || newEntry.price <= 0) {
                     setMessageBox({
                         show: true,
@@ -295,6 +345,7 @@
                         date: newEntry.date,
                         timestamp: window.firebase.Timestamp.fromDate(dateObj)
                     };
+
                     if (isEditing) {
                         const classDocRef = window.firebase.doc(classesColRef, editedClassId);
                         await window.firebase.updateDoc(classDocRef, classData);
@@ -317,14 +368,14 @@
                             onClose: () => setMessageBox({ ...messageBox, show: false })
                         });
                     }
-
+                    
                     setNewEntry({
                         studentCount: 1,
                         studentNames: [''],
                         date: new Date().toISOString().split('T')[0],
                         day: '',
                         time: timesOfDay[0],
-                        price: 0,
+                        price: customPrices[1] || 0,
                     });
                 } catch (error) {
                     setMessageBox({
@@ -339,7 +390,7 @@
                     setLoading(false);
                 }
             };
-
+            
             const deleteClass = (id) => {
                 setMessageBox({
                     show: true,
@@ -375,7 +426,7 @@
                     onClose: () => setMessageBox({ ...messageBox, show: false })
                 });
             };
-    
+
             const editClass = (classToEdit) => {
                 setNewEntry({
                     studentCount: classToEdit.studentCount,
@@ -387,43 +438,6 @@
                 });
                 setIsEditing(true);
                 setEditedClassId(classToEdit.id);
-            };
-
-            const handleNewEntryChange = (e) => {
-                const { name, value } = e.target;
-                if (name === 'studentCount') {
-                    const count = parseInt(value);
-                    const newNames = Array(count).fill('');
-                    const newPrice = customPrices[count] || 0;
-                    setNewEntry(prev => ({
-                        ...prev,
-                        studentCount: count,
-                        studentNames: newNames,
-                        price: newPrice,
-                    }));
-                } else if (name.startsWith('studentName-')) {
-                    const index = parseInt(name.split('-')[1]);
-                    const newNames = [...newEntry.studentNames];
-                    newNames[index] = value;
-                    setNewEntry(prev => ({ ...prev, studentNames: newNames }));
-                } else {
-                    setNewEntry(prev => ({ ...prev, [name]: value }));
-                }
-            };
-    
-            const handlePriceChange = (e) => {
-                const newPrice = parseInt(e.target.value) || 0;
-                setNewEntry(prev => ({ ...prev, price: newPrice }));
-            };
-
-            const handleDateChange = (e) => {
-                const dateString = e.target.value;
-                const dateObj = new Date(`${dateString}T00:00:00Z`); // Usamos T00:00:00Z para evitar problemas de zona horaria;
-                const dayOfWeek = daysOfWeek[dateObj.getUTCDay()];
-                setNewEntry(prev => ({ ...prev, date: dateString, day: dayOfWeek }));
-            };
-            const handleCustomPriceChange = (studentCount, price) => {
-                setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 }));
             };
 
             const generatePDF = () => {
@@ -438,8 +452,10 @@
                     const imgHeight = canvas.height * imgWidth / canvas.width;
                     let heightLeft = imgHeight;
                     let position = 0;
+
                     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
                     heightLeft -= pageHeight;
+
                     while (heightLeft >= 0) {
                         position = heightLeft - imgHeight;
                         pdf.addPage();
@@ -456,23 +472,10 @@
 
             // Hooks de efecto
             useEffect(() => {
-                const { onAuthStateChanged } = window.firebase;
-                if (!authRef.current) return;
-                
-                const unsubscribe = onAuthStateChanged(authRef.current, (user) => {
-                    if (user) {
-                        setUserId(user.uid);
-                    } else {
-                        setUserId(null);
-                    }
-                    setLoading(false);
-                });
-
-                return () => unsubscribe();
-            }, [loading]);
-            useEffect(() => {
-                initializeFirebase();
+                const cleanup = initializeFirebase();
+                return cleanup;
             }, []);
+
             useEffect(() => {
                 if (userId && dbRef.current) {
                     loadCustomPrices();
@@ -494,6 +497,16 @@
                     setClasses([]);
                 }
             }, [userId, dbRef.current]);
+
+            useEffect(() => {
+                if (Object.keys(customPrices).length > 0) {
+                    setNewEntry(prev => ({
+                        ...prev,
+                        price: customPrices[prev.studentCount] || 0
+                    }));
+                }
+            }, [customPrices]);
+
             useEffect(() => {
                 const report = {};
                 classes.forEach(cls => {
@@ -508,6 +521,7 @@
                 });
                 setMonthlyReports(report);
             }, [classes]);
+
             const filteredClassesForSelectedDate = useMemo(() => {
                 const selectedDateString = selectedDate.toISOString().split('T')[0];
                 
@@ -515,21 +529,22 @@
                     const classDateString = cls.date;
                     
                     const isMatchingDate = classDateString === selectedDateString;
-                    const isMatchingFilterText = filterText === '' ||
-                    cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()));
+                    const isMatchingFilterText = filterText === '' || 
+                        cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()));
 
                     return isMatchingDate && isMatchingFilterText;
                 });
 
                 if (view === 'report') {
                     return classes.filter(cls =>
-                        filterText === '' ||
+                        filterText === '' || 
                         cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()))
                     );
                 }
 
                 return filtered;
             }, [classes, selectedDate, view, filterText]);
+
             return (
                 <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
                     {/* Componente de la caja de mensajes */}
@@ -539,7 +554,7 @@
                         content={messageBox.content}
                         type={messageBox.type}
                         onConfirm={messageBox.onConfirm}
-                        onClose={messageBox.onClose}
+                        onClose={() => setMessageBox({ ...messageBox, show: false })}
                     />
 
                     {/* Modal de configuración */}
@@ -552,18 +567,21 @@
                                         <label className="block text-gray-700 font-medium">
                                             Precio para {count} {count === 1 ? 'persona' : 'personas'}
                                         </label>
-                                        <input
-                                            type="number"
-                                            value={customPrices[count] || ''}
-                                            onChange={(e) => handleCustomPriceChange(count, e.target.value)}
-                                            className="mt-1 p-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                            placeholder="Introduce el precio"
-                                        />
+                                        <div className="flex items-center">
+                                            <span className="text-xl font-bold mr-2 text-gray-700">$</span>
+                                            <input
+                                                type="number"
+                                                value={customPrices[count] || ''}
+                                                onChange={(e) => handleCustomPriceChange(count, e.target.value)}
+                                                className="mt-1 p-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                placeholder="0"
+                                            />
+                                        </div>
                                     </div>
                                 ))}
                                 <div className="flex justify-end mt-6">
                                     <button
-                                        onClick={saveCustomPrices}
+                                        onClick={() => { saveCustomPrices(); setShowConfigModal(false); }}
                                         className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors mr-2"
                                     >
                                         Guardar
@@ -590,7 +608,7 @@
                         <div className="flex justify-between items-center mb-6">
                             <h1 className="text-3xl font-extrabold text-gray-800">Informe de Clases de Padel</h1>
                             <div className="flex space-x-2">
-                                {userId ? (
+                                {userId && (
                                     <button
                                         onClick={signOutUser}
                                         className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-colors"
@@ -598,7 +616,7 @@
                                     >
                                         <i className="fas fa-sign-out-alt"></i>
                                     </button>
-                                ) : null}
+                                )}
                             </div>
                         </div>
 
@@ -628,7 +646,7 @@
                                 </button>
                             </div>
                         )}
-                
+                        
                         {/* Contenido principal si el usuario está autenticado */}
                         {userId && (
                             <>
@@ -649,7 +667,7 @@
                                             className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors"
                                             title="Configurar precios"
                                         >
-                                            <i className="fas fa-cog"></i>
+                                            <i className="fas fa-dollar-sign"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -805,14 +823,11 @@
                                             ))}
                                         </select>
 
+                                        {/* El campo de precio ahora es de solo lectura y se actualiza automáticamente */}
                                         <label className="block text-gray-700 font-medium">Precio:</label>
-                                        <input
-                                            type="number"
-                                            name="price"
-                                            value={newEntry.price}
-                                            onChange={handlePriceChange}
-                                            className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                        />
+                                        <p className="p-3 border rounded-lg bg-gray-200 text-gray-800 font-bold transition-shadow">
+                                            {formatPrice(newEntry.price)}
+                                        </p>
                                         
                                         <button
                                             onClick={addClass}
@@ -822,7 +837,7 @@
                                         </button>
                                         {isEditing && (
                                             <button
-                                                onClick={() => { setIsEditing(false); setNewEntry({ studentCount: 1, studentNames: [''], date: new Date().toISOString().split('T')[0], day: '', time: timesOfDay[0], price: 0 }); }}
+                                                onClick={() => { setIsEditing(false); setNewEntry({ studentCount: 1, studentNames: [''], date: new Date().toISOString().split('T')[0], day: '', time: timesOfDay[0], price: customPrices[1] || 0 }); }}
                                                 className="bg-gray-300 text-gray-800 font-bold py-3 rounded-lg shadow-md hover:bg-gray-400 transition-colors"
                                             >
                                                 Cancelar
@@ -842,6 +857,7 @@
                 </div>
             );
         };
+
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
