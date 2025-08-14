@@ -1,19 +1,25 @@
-<!DOCTYPE html>
+
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Informe de Clases de Padel</title>
+  <!-- CDN links for React, ReactDOM, Babel, Tailwind CSS and Font Awesome -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQo7fGUQYy7tJbC4wVf8nL5K0n5BfF+6T+n+A/QzR954fO0w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   
+  <!-- Libraries for PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, deleteDoc, updateDoc, writeBatch, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, getDocs, deleteDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     window.firebase = {
       initializeApp,
       getAuth,
@@ -30,41 +36,57 @@
       addDoc,
       getDocs,
       deleteDoc,
-      updateDoc,
-      writeBatch,
       where
     };
   </script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
-
 </head>
 <body class="bg-gray-100 font-sans">
+  <!-- The container where the React app will be mounted -->
   <div id="root"></div>
 
+  <!-- The React app script, wrapped in a Babel tag -->
   <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const { jsPDF } = window.jspdf;
+
+    // TODO: ***POR FAVOR, PEGA AQUÍ TU OBJETO DE CONFIGURACIÓN DE FIREBASE***
+    // Reemplaza los puntos suspensivos (...) con tu configuración real.
+    // Ejemplo:
+    // const firebaseConfig = {
+    //   apiKey: "YOUR_API_KEY",
+    //   authDomain: "YOUR_AUTH_DOMAIN",
+    //   projectId: "YOUR_PROJECT_ID",
+    //   storageBucket: "YOUR_STORAGE_BUCKET",
+    //   messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    //   appId: "YOUR_APP_ID"
+    // };
+    const firebaseConfig = {
+      // Pega aquí tu configuración. No te olvides de las comas entre las propiedades.
+    };
+
+    // Valores por defecto para las ganancias de la clase según el número de alumnos
+    const defaultValueMap = {
+      1: 12000,
+      2: 19000,
+      3: 24000,
+      4: 26000,
+    };
+
+    // Colores de fondo para las filas de la tabla
+    const colorMap = {
+      1: 'bg-green-100',
+      2: 'bg-blue-100',
+      3: 'bg-yellow-100',
+      4: 'bg-red-100',
+    };
+
+    // Componente principal de la aplicación
     const App = () => {
-      const { useState, useEffect, useRef } = React;
-
-      const defaultValueMap = {
-        1: 12000,
-        2: 19000,
-        3: 24000,
-        4: 26000,
-      };
-
-      const colorMap = {
-        1: 'bg-orange-100',
-        2: 'bg-green-100',
-        3: 'bg-blue-100',
-        4: 'bg-red-100',
-      };
-
       const [classes, setClasses] = useState([]);
       const [newEntry, setNewEntry] = useState({
-        studentName: '',
-        day: '',
+        studentNames: [''], // Ahora es un array para múltiples nombres
+        studentCount: 1, // Nuevo estado para la cantidad de alumnos
+        day: 'Lunes',
         time: '8:00 a. m.',
         date: new Date().toISOString().slice(0, 10),
       });
@@ -73,169 +95,171 @@
       const [loading, setLoading] = useState(true);
       const [userId, setUserId] = useState(null);
       const [appId, setAppId] = useState(null);
-      const [showConfigModal, setShowConfigModal] = useState(false);
-      const [userFirebaseConfig, setUserFirebaseConfig] = useState('');
-      const [configError, setConfigError] = useState('');
+      const [message, setMessage] = useState(null);
       const [editableValues, setEditableValues] = useState(defaultValueMap);
-      const [selectedMonth, setSelectedMonth] = useState('Todos');
-      const [availableMonths, setAvailableMonths] = useState([]);
-      const [searchQuery, setSearchQuery] = useState('');
-      const [startDate, setStartDate] = useState('');
-      const [endDate, setEndDate] = useState('');
-      const [editingClass, setEditingClass] = useState(null);
       const [groupedClasses, setGroupedClasses] = useState([]);
-      // Estados para el modal de confirmación
-      const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-      const [modalContent, setModalContent] = useState({ title: '', message: '', onConfirm: () => {} });
       
-      const firebaseConfigRef = useRef(null);
       const dbRef = useRef(null);
       const authRef = useRef(null);
-      const userRef = useRef(null);
+      const monthlyReportsRef = useRef(null); // Referencia para los informes mensuales
 
-      const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+      const dayOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
       const timeOptions = Array.from({ length: 5 }, (_, i) => `${8 + i}:00 a. m.`);
+      const studentCountOptions = [1, 2, 3, 4];
 
       const formatCurrency = (value) => {
+        if (value === null || value === undefined) return '';
         return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
       };
 
-      const formatDate = (dateString) => {
-        if (!dateString) return '';
-        const [year, month, day] = dateString.split('-');
-        return `${day}/${month}/${year}`;
-      };
-
-      const handleConfigSubmit = async (e) => {
-        e.preventDefault();
-        try {
-          const config = JSON.parse(userFirebaseConfig);
-          if (config.apiKey && config.projectId) {
-            firebaseConfigRef.current = config;
-            setShowConfigModal(false);
-            setConfigError('');
-            await initFirebase();
-          } else {
-            setConfigError('Configuración de Firebase inválida. Asegúrate de que sea un objeto JSON con apiKey y projectId.');
+      // Función para obtener los datos de las clases de Firestore
+      const fetchClasses = async (db, currentAppId, currentUserId, currentValues) => {
+          setLoading(true);
+          try {
+              const userClassesRef = firebase.collection(db, `artifacts/${currentAppId}/users/${currentUserId}/clases_padel`);
+              const classesSnap = await firebase.getDocs(userClassesRef);
+              const fetchedClasses = classesSnap.docs.map(doc => ({
+                  id: doc.id,
+                  ...doc.data()
+              }));
+              
+              updateClassesAndReports(fetchedClasses, currentValues);
+          } catch (error) {
+              console.error("Error al cargar las clases:", error);
+              const errorMessage = error.message.includes('permission-denied') 
+                ? 'Error de permisos: Las reglas de seguridad de Firestore no permiten la lectura de clases. Por favor, revisa tus reglas.' 
+                : `Error al cargar las clases: ${error.message}.`;
+              setMessage({ type: 'error', text: errorMessage });
+          } finally {
+              setLoading(false);
           }
-        } catch (error) {
-          setConfigError('Error al parsear el JSON. Asegúrate de que el formato sea correcto.');
-          console.error("Error parsing config JSON:", error);
-        }
       };
 
-      const initFirebase = async () => {
-        setLoading(true);
-        try {
-          const appId = 'default-padel-app';
-          setAppId(appId);
-          if (!firebaseConfigRef.current) {
-              setShowConfigModal(true);
+      // Inicializa Firebase
+      useEffect(() => {
+        const initFirebase = async () => {
+          setLoading(true);
+          try {
+            const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            setAppId(currentAppId);
+
+            let config = firebaseConfig;
+            if (typeof __firebase_config !== 'undefined') {
+              config = JSON.parse(__firebase_config);
+            }
+            if (!config || Object.keys(config).length === 0) {
+              console.error("Error: Firebase config is missing.");
+              setMessage({ type: 'error', text: 'Configuración de Firebase no encontrada. Por favor, edita el código para incluirla.' });
               setLoading(false);
               return;
-          }
-
-          const app = firebase.initializeApp(firebaseConfigRef.current);
-          const auth = firebase.getAuth(app);
-          const db = firebase.getFirestore(app);
-
-          dbRef.current = db;
-          authRef.current = auth;
-          await firebase.signInAnonymously(auth);
-          const currentUserId = auth.currentUser?.uid;
-          setUserId(currentUserId);
-          userRef.current = currentUserId;
-
-          const userClassesRef = firebase.collection(db, `artifacts/${appId}/users/${currentUserId}/clases_padel`);
-          const userValuesDocRef = firebase.doc(db, `artifacts/${appId}/users/${currentUserId}/valores_clase/precios`);
-
-          firebase.onSnapshot(userValuesDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-              const data = docSnap.data();
-              const newValues = {
-                1: data['1'] || defaultValueMap[1],
-                2: data['2'] || defaultValueMap[2],
-                3: data['3'] || defaultValueMap[3],
-                4: data['4'] || defaultValueMap[4],
-              };
-              setEditableValues(newValues);
-            } else {
-              setEditableValues(defaultValueMap);
-              firebase.setDoc(userValuesDocRef, defaultValueMap);
             }
-          });
 
-          firebase.onSnapshot(userClassesRef, (snapshot) => {
-            const fetchedClasses = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            updateClassesAndReports(fetchedClasses);
-            setLoading(false);
-          });
-        } catch (error) {
-          console.error("Error initializing Firebase:", error);
-          setShowConfigModal(true);
-          setConfigError('Error al conectar a Firebase. Revisa tu configuración e inténtalo de nuevo.');
-          setLoading(false);
-        }
-      };
-      
-      useEffect(() => {
-        const loadConfig = async () => {
-            try {
-                // Reemplaza con tu configuración de Firebase
-                const myFirebaseConfig = {
-                  apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
-                  authDomain: "app-de-padel.firebaseapp.com",
-                  projectId: "app-de-padel",
-                  storageBucket: "app-de-padel.firebasestorage.app",
-                  messagingSenderId: "731771747398",
-                  appId: "1:731771747398:web:ebc8b723fe220869fade47"
-                };
+            const app = firebase.initializeApp(config);
+            const auth = firebase.getAuth(app);
+            const db = firebase.getFirestore(app);
 
-                if (myFirebaseConfig && myFirebaseConfig.projectId) {
-                    firebaseConfigRef.current = myFirebaseConfig;
-                    await initFirebase();
+            dbRef.current = db;
+            authRef.current = auth;
+
+            await new Promise((resolve, reject) => {
+              const unsubscribe = firebase.onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                  setUserId(user.uid);
+                  unsubscribe();
+                  resolve();
                 } else {
-                    setShowConfigModal(true);
-                    setLoading(false);
+                  try {
+                    if (typeof __initial_auth_token !== 'undefined') {
+                      await firebase.signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                      await firebase.signInAnonymously(auth);
+                    }
+                  } catch(e) {
+                    reject(e);
+                  }
                 }
-            } catch (error) {
-                console.error("Error loading config:", error);
-                setShowConfigModal(true);
-                setLoading(false);
-            }
-        };
+              });
+            });
 
-        loadConfig();
+            const currentUserId = auth.currentUser?.uid || crypto.randomUUID();
+            setUserId(currentUserId);
+            
+            // Listener para los valores de las clases (en tiempo real)
+            const userValuesDocRef = firebase.doc(db, `artifacts/${currentAppId}/users/${currentUserId}/valores_clase/precios`);
+            const unsubscribeValues = firebase.onSnapshot(userValuesDocRef, (docSnap) => {
+              if (docSnap.exists()) {
+                const data = docSnap.data();
+                const newValues = {
+                  1: data['1'] || defaultValueMap[1],
+                  2: data['2'] || defaultValueMap[2],
+                  3: data['3'] || defaultValueMap[3],
+                  4: data['4'] || defaultValueMap[4],
+                };
+                setEditableValues(newValues);
+                updateClassesAndReports(classes, newValues);
+              } else {
+                setEditableValues(defaultValueMap);
+                firebase.setDoc(userValuesDocRef, defaultValueMap);
+              }
+            }, (error) => {
+              console.error("Error al escuchar los precios:", error);
+              if (error.code === 'permission-denied') {
+                setMessage({ type: 'error', text: 'Error de permisos: Las reglas de seguridad de Firestore no permiten la lectura de precios. Por favor, revisa tus reglas.' });
+              }
+            });
+
+            // Cargar los datos iniciales de las clases
+            await fetchClasses(db, currentAppId, currentUserId, editableValues);
+
+          } catch (error) {
+            console.error("Error al inicializar Firebase:", error);
+            setMessage({ type: 'error', text: `Error al conectar a Firebase: ${error.message}. Por favor, revisa la configuración en el código.` });
+            setLoading(false);
+          }
+        };
+        
+        initFirebase();
       }, []);
 
-      const updateClassesAndReports = (currentClasses) => {
-        const classesByDayTime = currentClasses.reduce((acc, curr) => {
+      const updateClassesAndReports = (currentClasses, currentValues) => {
+        // Agrupar clases por sesión única (fecha, día, hora)
+        const classesBySession = currentClasses.reduce((acc, curr) => {
           const key = `${curr.date}-${curr.day}-${curr.time}`;
           if (!acc[key]) {
-            acc[key] = [];
+            acc[key] = {
+              date: curr.date,
+              day: curr.day,
+              time: curr.time,
+              students: [],
+              ids: [], // Guardar todos los IDs de los documentos para el borrado
+            };
           }
-          acc[key].push(curr);
+          acc[key].students.push(curr.studentName);
+          acc[key].ids.push(curr.id);
           return acc;
         }, {});
 
-        const updatedClasses = currentClasses.map(cls => {
-          const key = `${cls.date}-${cls.day}-${cls.time}`;
-          const studentCount = (classesByDayTime[key] || []).length;
-          return {
-            ...cls,
-            studentCount,
-            color: colorMap[studentCount] || '',
-          };
+        // Convertir el objeto agrupado a un array para renderizarlo
+        const groupedClassesArray = Object.values(classesBySession);
+
+        // Calcular la ganancia y la cantidad de alumnos para cada sesión
+        const finalClasses = groupedClassesArray.map(cls => {
+            const studentCount = cls.students.length;
+            const value = currentValues[studentCount] || 0;
+            return {
+                ...cls,
+                studentCount,
+                value,
+                color: colorMap[studentCount] || 'bg-white', // Default color
+            };
         });
 
-        updatedClasses.sort((a, b) => {
+        // Ordenar las clases por fecha y hora
+        finalClasses.sort((a, b) => {
           const dateA = new Date(a.date);
           const dateB = new Date(b.date);
           if (dateA.getTime() !== dateB.getTime()) {
-            return dateB.getTime() - dateA.getTime();
+            return dateA.getTime() - dateB.getTime();
           }
           const dayIndexA = dayOptions.indexOf(a.day);
           const dayIndexB = dayOptions.indexOf(b.day);
@@ -247,80 +271,51 @@
           return timeIndexA - timeIndexB;
         });
 
-        setClasses(updatedClasses);
-        calculateReports(updatedClasses);
-        const months = [...new Set(updatedClasses.map(cls => cls.date.substring(0, 7)))].sort();
-        setAvailableMonths(months);
-
-        const groupedMap = new Map();
-        updatedClasses.forEach(cls => {
-          const key = `${cls.date}-${cls.day}-${cls.time}`;
-          if (!groupedMap.has(key)) {
-            groupedMap.set(key, {
-              date: cls.date,
-              day: cls.day,
-              time: cls.time,
-              studentCount: cls.studentCount,
-              value: cls.value,
-              color: cls.color,
-              students: [],
-              ids: []
-            });
-          }
-          const groupedClass = groupedMap.get(key);
-          groupedClass.students.push(cls.studentName);
-          groupedClass.ids.push(cls.id);
-        });
-
-        const groupedArray = Array.from(groupedMap.values());
-        setGroupedClasses(groupedArray);
+        setGroupedClasses(finalClasses);
+        calculateReports(finalClasses);
       };
 
-      const calculateReports = (updatedClasses) => {
+      const calculateReports = (finalClasses) => {
         const weeklyReportMap = new Map();
         const monthlyReportMap = new Map();
 
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-        const processedClassKeys = new Set();
-        updatedClasses.forEach(cls => {
-          const classKey = `${cls.date}-${cls.day}-${cls.time}`;
-          if (!processedClassKeys.has(classKey)) {
-            processedClassKeys.add(classKey);
 
-            const date = new Date(cls.date + 'T00:00:00');
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            const monthName = monthNames[month];
+        finalClasses.forEach(cls => {
+          const date = new Date(cls.date + 'T00:00:00'); // Normalize to avoid timezone issues
+          const year = date.getFullYear();
+          const month = date.getMonth();
+          const monthName = monthNames[month];
 
-            const firstDayOfYear = new Date(year, 0, 1);
-            const pastDays = (date - firstDayOfYear) / 86400000;
-            const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
+          // Calculate week number (simple approximation)
+          const firstDayOfYear = new Date(year, 0, 1);
+          const pastDays = (date - firstDayOfYear) / 86400000;
+          const weekNumber = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
 
-            const weekKey = `${year}-Semana ${weekNumber}`;
-            const monthKey = `${monthName} ${year}`;
+          const weekKey = `${year}-Semana ${weekNumber}`;
+          const monthKey = `${monthName} ${year}`;
 
-            if (!weeklyReportMap.has(weekKey)) {
-              weeklyReportMap.set(weekKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
-            }
-            const weeklyReport = weeklyReportMap.get(weekKey);
-            weeklyReport.totalClasses++;
-            weeklyReport.totalEarnings += cls.value;
-            if (cls.studentCount >= 1 && cls.studentCount <= 4) {
-              weeklyReport.countsByStudent[cls.studentCount]++;
-            }
+          // Update weekly report
+          if (!weeklyReportMap.has(weekKey)) {
+            weeklyReportMap.set(weekKey, { totalClasses: 0, totalEarnings: 0 });
+          }
+          const weeklyReport = weeklyReportMap.get(weekKey);
+          weeklyReport.totalClasses++;
+          weeklyReport.totalEarnings += cls.value;
 
-            if (!monthlyReportMap.has(monthKey)) {
-              monthlyReportMap.set(monthKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
-            }
-            const monthlyReport = monthlyReportMap.get(monthKey);
-            monthlyReport.totalClasses++;
-            monthlyReport.totalEarnings += cls.value;
-            if (cls.studentCount >= 1 && cls.studentCount <= 4) {
-              monthlyReport.countsByStudent[cls.studentCount]++;
-            }
+          // Update monthly report
+          if (!monthlyReportMap.has(monthKey)) {
+            monthlyReportMap.set(monthKey, { totalClasses: 0, totalEarnings: 0, countsByStudent: { 1: 0, 2: 0, 3: 0, 4: 0 } });
+          }
+          const monthlyReport = monthlyReportMap.get(monthKey);
+          monthlyReport.totalClasses++;
+          monthlyReport.totalEarnings += cls.value;
+          if (cls.studentCount >= 1 && cls.studentCount <= 4) {
+            monthlyReport.countsByStudent[cls.studentCount]++;
           }
         });
 
+        // Convert maps to arrays for rendering
         const weeklyReportsArray = Array.from(weeklyReportMap.entries()).map(([key, value]) => ({ week: key, ...value }));
         const monthlyReportsArray = Array.from(monthlyReportMap.entries()).map(([key, value]) => ({ month: key, ...value }));
 
@@ -330,20 +325,24 @@
 
       const handleInputChange = (e) => {
         const { name, value } = e.target;
-        const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-        if (name === 'date') {
-            const dateObj = new Date(value + 'T00:00:00');
-            const dayOfWeek = dateObj.getDay();
-            const newDayName = dayNames[dayOfWeek];
+        setNewEntry(prev => ({ ...prev, [name]: value }));
+      };
 
-            setNewEntry(prev => ({
-              ...prev,
-              [name]: value,
-              day: newDayName
-            }));
-        } else {
-            setNewEntry(prev => ({ ...prev, [name]: value }));
-        }
+      // Nuevo manejador para los nombres de los alumnos
+      const handleStudentNameChange = (index, e) => {
+        const newStudentNames = [...newEntry.studentNames];
+        newStudentNames[index] = e.target.value;
+        setNewEntry(prev => ({ ...prev, studentNames: newStudentNames }));
+      };
+      
+      // Nuevo manejador para la cantidad de alumnos
+      const handleStudentCountChange = (e) => {
+        const count = parseInt(e.target.value, 10);
+        setNewEntry(prev => ({
+          ...prev,
+          studentCount: count,
+          studentNames: Array(count).fill(''),
+        }));
       };
       
       const handleValueChange = async (e) => {
@@ -353,463 +352,146 @@
         try {
           const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
           await firebase.setDoc(userValuesDocRef, newValues);
+          setMessage({ type: 'success', text: 'Precios de clase actualizados correctamente.' });
+          setTimeout(() => setMessage(null), 3000);
         } catch (error) {
           console.error("Error updating values in Firestore:", error);
+          if (error.code === 'permission-denied') {
+            setMessage({ type: 'error', text: 'Error de permisos: No se puede actualizar los precios. Revisa tus reglas de seguridad de Firestore.' });
+          } else {
+            setMessage({ type: 'error', text: 'Ocurrió un error al intentar actualizar los precios.' });
+          }
+          setTimeout(() => setMessage(null), 5000);
         }
       };
       
       const handleAddClass = async (e) => {
         e.preventDefault();
-        if (newEntry.studentName.trim() === '') return;
-
-        try {
-          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-          const existingClassesQuery = firebase.query(
-            userClassesRef,
-            firebase.where("date", "==", newEntry.date),
-            firebase.where("time", "==", newEntry.time)
-          );
-          const existingClassesSnapshot = await firebase.getDocs(existingClassesQuery);
-          const studentCount = existingClassesSnapshot.size + 1;
-          const classValue = editableValues[studentCount] || 0;
-
-          const classToSave = {
-              ...newEntry,
-              value: classValue,
-          };
-          
-          await firebase.addDoc(userClassesRef, classToSave);
-          setNewEntry({ ...newEntry, studentName: '', date: newEntry.date });
-        } catch (error) {
-          console.error("Error adding class to Firestore:", error);
-        }
-      };
-      
-      const handleEditClass = (classToEdit) => {
-        setEditingClass(classToEdit);
-      };
-
-      const handleUpdateClass = async (e) => {
-        e.preventDefault();
-        if (!editingClass || editingClass.students.some(s => s.trim() === '')) {
-          const messageBox = document.createElement('div');
-          messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
-          messageBox.innerHTML = `
-            <div class="bg-white p-6 rounded-lg shadow-xl">
-              <p>El nombre de los alumnos no puede estar vacío.</p>
-              <div class="flex justify-end mt-4">
-                <button class="bg-blue-500 text-white px-4 py-2 rounded-md" onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)">Aceptar</button>
-              </div>
-            </div>
-          `;
-          document.body.appendChild(messageBox);
+        
+        if (newEntry.studentNames.some(name => name.trim() === '')) {
+          setMessage({ type: 'error', text: 'Por favor, introduce todos los nombres de los alumnos.' });
           return;
         }
-        
-        // Modal de confirmación
-        setModalContent({
-            title: 'Confirmar Actualización',
-            message: '¿Estás seguro de que quieres guardar los cambios? Esto eliminará los datos anteriores y creará clases nuevas.',
-            onConfirm: async () => {
-                try {
-                    const batch = firebase.writeBatch(dbRef.current);
-                    
-                    editingClass.ids.forEach(id => {
-                        const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
-                        batch.delete(docRef);
-                    });
-            
-                    const newStudentCount = editingClass.students.length;
-                    const newValue = editableValues[newStudentCount] || 0;
-            
-                    for (const studentName of editingClass.students) {
-                        const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-                        const newDocRef = firebase.doc(userClassesRef);
-                        batch.set(newDocRef, {
-                            studentName: studentName,
-                            day: editingClass.day,
-                            time: editingClass.time,
-                            date: editingClass.date,
-                            value: newValue,
-                        });
-                    }
-            
-                    await batch.commit();
-                    setEditingClass(null);
-                } catch (error) {
-                    console.error("Error updating classes in Firestore:", error);
-                } finally {
-                    setShowConfirmationModal(false);
-                }
-            }
-        });
-        setShowConfirmationModal(true);
-      };
 
-      const handleCancelEdit = () => {
-        setEditingClass(null);
-      };
-      
-      const handleDeleteStudentFromClass = (studentId) => {
-          setModalContent({
-              title: 'Confirmar Eliminación',
-              message: '¿Estás seguro de que quieres eliminar a este alumno de la clase?',
-              onConfirm: async () => {
-                  try {
-                      const docRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel/${studentId}`);
-                      await firebase.deleteDoc(docRef);
-      
-                      setEditingClass(prev => {
-                          if (!prev) return null;
-                          const studentIndex = prev.ids.indexOf(studentId);
-                          if (studentIndex > -1) {
-                              const newStudents = prev.students.filter((_, i) => i !== studentIndex);
-                              const newIds = prev.ids.filter(id => id !== studentId);
-                              return { ...prev, students: newStudents, ids: newIds };
-                          }
-                          return prev;
-                      });
-                  } catch (error) {
-                      console.error("Error deleting student from class:", error);
-                  } finally {
-                      setShowConfirmationModal(false);
-                  }
-              }
+        if (!dbRef.current || !userId || !appId) {
+          console.error("Firebase not ready. dbRef, userId, or appId is missing.");
+          setMessage({ type: 'error', text: 'La aplicación no está lista. Inténtalo de nuevo en unos segundos.' });
+          return;
+        }
+
+        try {
+          console.log("Attempting to add classes to Firestore...");
+          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
+
+          // Iterar sobre los nombres de los alumnos y añadir cada uno como un documento separado
+          const addPromises = newEntry.studentNames.map(studentName => {
+            return firebase.addDoc(userClassesRef, {
+              date: newEntry.date,
+              day: newEntry.day,
+              time: newEntry.time,
+              studentName: studentName.trim(),
+            });
           });
-          setShowConfirmationModal(true);
+
+          await Promise.all(addPromises);
+          
+          console.log("Classes added successfully.");
+          // Limpiar el formulario
+          setNewEntry({
+            studentNames: Array(newEntry.studentCount).fill(''),
+            studentCount: newEntry.studentCount,
+            day: 'Lunes',
+            time: '8:00 a. m.',
+            date: new Date().toISOString().slice(0, 10),
+          });
+          setMessage({ type: 'success', text: 'Clase(s) añadida(s) con éxito! Recargando datos...' });
+          setTimeout(() => {
+            setMessage(null);
+            fetchClasses(dbRef.current, appId, userId, editableValues);
+          }, 3000);
+        } catch (error) {
+          console.error("Error adding class to Firestore:", error);
+          const errorMessage = error.message.includes('permission-denied') 
+            ? 'Error de permisos: Las reglas de seguridad de Firestore no permiten la escritura. Por favor, revisa tus reglas.' 
+            : `Error al añadir la clase: ${error.message}. Verifica tu configuración de Firebase.`;
+          setMessage({ type: 'error', text: errorMessage });
+          setTimeout(() => setMessage(null), 5000);
+        }
       };
 
-      const handleDeleteGroupedClass = (ids) => {
-        setModalContent({
-            title: 'Confirmar Eliminación',
-            message: '¿Estás seguro de que quieres eliminar esta clase completa? Esto eliminará a todos los alumnos que la componen.',
-            onConfirm: async () => {
-                try {
-                    const db = dbRef.current;
-                    if (!db) {
-                        console.error("Referencia a la base de datos no disponible.");
-                        return;
-                    }
-                    
-                    const batch = firebase.writeBatch(db);
-                    
-                    ids.forEach(id => {
-                        const docRef = firebase.doc(db, `artifacts/${appId}/users/${userId}/clases_padel/${id}`);
-                        batch.delete(docRef);
-                    });
-                    
-                    await batch.commit();
-                    
-                } catch (error) {
-                    console.error("Error al eliminar la clase completa:", error);
-                } finally {
-                    setShowConfirmationModal(false);
-                }
-            }
-        });
-        setShowConfirmationModal(true);
+      const handleDeleteSession = async (date, day, time) => {
+        try {
+          const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
+          const q = firebase.query(userClassesRef, 
+            firebase.where("date", "==", date),
+            firebase.where("day", "==", day),
+            firebase.where("time", "==", time)
+          );
+          const snapshot = await firebase.getDocs(q);
+          
+          if (!snapshot.empty) {
+            const deletePromises = snapshot.docs.map(doc => firebase.deleteDoc(doc.ref));
+            await Promise.all(deletePromises);
+            setMessage({ type: 'success', text: 'Sesión de clase eliminada con éxito! Recargando datos...' });
+            setTimeout(() => {
+              setMessage(null);
+              fetchClasses(dbRef.current, appId, userId, editableValues);
+            }, 3000);
+          } else {
+            console.warn("No se encontraron documentos para la sesión a eliminar.");
+            setMessage({ type: 'error', text: 'No se encontraron documentos para la sesión a eliminar.' });
+          }
+        } catch (error) {
+          console.error("Error deleting class session from Firestore:", error);
+          if (error.code === 'permission-denied') {
+            setMessage({ type: 'error', text: 'Error de permisos: No se puede eliminar la sesión. Revisa tus reglas de seguridad de Firestore.' });
+          } else {
+             setMessage({ type: 'error', text: 'Ocurrió un error al intentar eliminar la sesión de clase. Por favor, revisa tus reglas de seguridad.' });
+          }
+        }
       };
       
-      const exportWeeklyPDF = () => {
-        const { jsPDF } = window.jspdf;
+      const handleDownloadMonthlyReport = (report) => {
         const doc = new jsPDF();
+        let y = 15;
+
+        // Title
+        doc.setFontSize(22);
+        doc.text(`Informe Mensual - ${report.month}`, 15, y);
+        y += 10;
+        
+        doc.setFontSize(14);
+        doc.text(`Ganancia Total: ${formatCurrency(report.totalEarnings)}`, 15, y);
+        y += 7;
+        doc.text(`Total de Clases: ${report.totalClasses}`, 15, y);
+        y += 15;
+
+        // Subtitle
         doc.setFontSize(16);
-        doc.text("Informe Semanal - Clases de Pádel", 14, 15);
+        doc.text("Clases por Cantidad de Alumnos", 15, y);
+        y += 10;
 
-        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
-        const tableData = weeklyReports.map(r => {
-          const [year, weekText] = r.week.split('-');
-          const weekNumber = weekText.replace('Semana ', '');
-          
-          const firstDayOfYear = new Date(year, 0, 1);
-          const dateInWeek = new Date(firstDayOfYear.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
-          const monthName = monthNames[dateInWeek.getMonth()];
-
-          const formattedWeek = `SEMANA Nº ${weekNumber} DEL MES DE ${monthName.toUpperCase()} DE ${year}`;
-          
-          return [
-            formattedWeek,
-            r.totalClasses,
-            formatCurrency(r.totalEarnings),
-            r.countsByStudent[1] || 0,
-            r.countsByStudent[2] || 0,
-            r.countsByStudent[3] || 0,
-            r.countsByStudent[4] || 0
-          ];
+        // Content
+        doc.setFontSize(12);
+        Object.entries(report.countsByStudent).forEach(([count, total]) => {
+          doc.text(`- ${total} clases con ${count} alumno${count > 1 ? 's' : ''}`, 20, y);
+          y += 7;
         });
-        doc.autoTable({
-          head: [["Semana", "Total Clases", "Ganancia Total", "1 Persona", "2 Personas", "3 Personas", "4 Personas"]],
-          body: tableData,
-          startY: 25,
-          styles: { fontSize: 8, halign: 'center' },
-          headStyles: { fillColor: '#ef4444' },
-          theme: 'grid'
-        });
-        doc.save("informe_semanal.pdf");
-      };
 
-      const exportMonthlyPDF = () => {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-
-        monthlyReports.forEach((report, index) => {
-          if (index > 0) {
-            doc.addPage();
-          }
-          
-          let finalY = 15;
-          doc.setFontSize(16);
-          doc.text(`Informe Mensual - Clases de Pádel - ${report.month}`, 14, finalY);
-          finalY += 10;
-          
-          doc.autoTable({
-            head: [["Mes", "Total Clases", "Ganancia Total"]],
-            body: [[
-              report.month,
-              report.totalClasses,
-              formatCurrency(report.totalEarnings)
-            ]],
-            startY: finalY,
-            theme: 'grid',
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: '#ef4444' }
-          });
-          finalY = doc.autoTable.previous.finalY + 10;
-
-          doc.setFontSize(12);
-          doc.text(`Desglose de Clases por Alumno:`, 14, finalY);
-          finalY += 5;
-          
-          const detailedCountData = [
-            ["1 Persona", "2 Personas", "3 Personas", "4 Personas"],
-            [
-              report.countsByStudent[1] || 0,
-              report.countsByStudent[2] || 0,
-              report.countsByStudent[3] || 0,
-              report.countsByStudent[4] || 0
-            ]
-          ];
-          doc.autoTable({
-            head: [detailedCountData[0]],
-            body: [detailedCountData[1]],
-            startY: finalY,
-            theme: 'grid',
-            styles: { fontSize: 8, halign: 'center' },
-            headStyles: { fillColor: '#fca5a5' }
-          });
-          finalY = doc.autoTable.previous.finalY + 10;
-
-          const classesForMonth = classes.filter(cls => {
-            const date = new Date(cls.date + 'T00:00:00');
-            const monthName = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][date.getMonth()];
-            const monthKey = `${monthName} ${date.getFullYear()}`;
-            return monthKey === report.month;
-          });
-
-          if (classesForMonth.length > 0) {
-            const processedClasses = new Set();
-            const detailedTableData = classesForMonth.map(cls => {
-              const classKey = `${cls.date}-${cls.day}-${cls.time}`;
-              const isFirstStudentInClass = !processedClasses.has(classKey);
-              
-              if (isFirstStudentInClass) {
-                processedClasses.add(classKey);
-              }
-
-              return [
-                formatDate(cls.date),
-                cls.day,
-                cls.time,
-                cls.studentName,
-                isFirstStudentInClass ? cls.studentCount : '',
-                isFirstStudentInClass ? formatCurrency(cls.value) : ''
-              ];
-            });
-            doc.setFontSize(12);
-            doc.text(`Detalle de Clases:`, 14, finalY);
-            finalY += 5;
-            
-            doc.autoTable({
-              head: [["Fecha", "Día", "Horario", "Nombre de Alumno", "Alumnos", "Valor"]],
-              body: detailedTableData,
-              startY: finalY,
-              theme: 'striped',
-              styles: { fontSize: 8 },
-              headStyles: { fillColor: '#ef4444' }
-            });
-          }
-
-        });
-        
-        doc.save("informe_mensual_detallado.pdf");
-      };
-
-      const exportDatabase = () => {
-        const data = {
-          precios: editableValues,
-          clases: classes
-        };
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "base_de_datos_padel.json";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      };
-
-      const importDatabase = (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const data = JSON.parse(e.target.result);
-            if (data.precios) {
-              const userValuesDocRef = firebase.doc(dbRef.current, `artifacts/${appId}/users/${userId}/valores_clase/precios`);
-              await firebase.setDoc(userValuesDocRef, data.precios);
-            }
-            if (data.clases) {
-              const userClassesRef = firebase.collection(dbRef.current, `artifacts/${appId}/users/${userId}/clases_padel`);
-              const snapshot = await firebase.getDocs(userClassesRef);
-              snapshot.forEach(docSnap => firebase.deleteDoc(docSnap.ref));
-              for (const cls of data.clases) {
-                await firebase.addDoc(userClassesRef, cls);
-              }
-            }
-            const messageBox = document.createElement('div');
-            messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
-            messageBox.innerHTML = `
-              <div class="bg-white p-6 rounded-lg shadow-xl">
-                <p>Base de datos importada correctamente.</p>
-                <div class="flex justify-end mt-4">
-                  <button class="bg-blue-500 text-white px-4 py-2 rounded-md" onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)">Aceptar</button>
-                </div>
-              </div>
-            `;
-            document.body.appendChild(messageBox);
-          } catch (err) {
-            const messageBox = document.createElement('div');
-            messageBox.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center';
-            messageBox.innerHTML = `
-              <div class="bg-white p-6 rounded-lg shadow-xl">
-                <p>Error al importar el archivo JSON.</p>
-                <div class="flex justify-end mt-4">
-                  <button class="bg-blue-500 text-white px-4 py-2 rounded-md" onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)">Aceptar</button>
-                </div>
-              </div>
-            `;
-            document.body.appendChild(messageBox);
-            console.error(err);
-          }
-        };
-        reader.readAsText(file);
+        doc.save(`Informe_Padel_${report.month.replace(/ /g, '_')}.pdf`);
       };
 
       const userIdDisplay = userId ? `Tu ID de Usuario: ${userId}` : "Cargando...";
 
-      const filteredClasses = groupedClasses.filter(cls => {
-        const isMonthMatch = selectedMonth === 'Todos' || cls.date.substring(0, 7) === selectedMonth;
-        const isSearchMatch = searchQuery === '' || cls.students.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
-        const isDateRangeMatch = (startDate === '' || new Date(cls.date) >= new Date(startDate)) &&
-                                 (endDate === '' || new Date(cls.date) <= new Date(endDate));
-        return isMonthMatch && isSearchMatch && isDateRangeMatch;
-      });
-
       return (
         <div className="min-h-screen bg-gray-100 p-4 font-sans text-gray-800">
           <div className="container mx-auto max-w-4xl p-6 bg-white rounded-xl shadow-lg">
-            
-            <div className="flex items-center justify-center gap-4 mb-4">
-              <img src="https://i.postimg.cc/L4PWVYFx/REPORTE-PADEL-LOGO.png" alt="Logo" className="h-12 w-12 object-contain" />
-              <h1 className="text-3xl font-bold text-center text-gray-900">
-                Informe de Clases de Padel
-              </h1>
-            </div>
-            
-            <div className="flex gap-4 mb-6 justify-center">
-              <button onClick={exportDatabase} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                Exportar BD
-              </button>
-              <label className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600">
-                Importar BD
-                <input type="file" accept=".json" onChange={importDatabase} className="hidden" />
-              </label>
-            </div>
-            
-            <div className="flex gap-4 mb-6 justify-center">
-              <button onClick={exportWeeklyPDF} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-                Exportar Informe Semanal (PDF)
-              </button>
-              <button onClick={exportMonthlyPDF} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-                Exportar Informe Mensual (PDF)
-              </button>
-            </div>
-            
+            <h1 className="text-3xl font-bold mb-2 text-center text-gray-900">
+              Informe de Clases de Padel
+            </h1>
             <p className="text-center text-sm mb-6 text-gray-500 italic">
               {userIdDisplay}
             </p>
-            
-            {showConfigModal && (
-              <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-                  <h2 className="text-2xl font-bold mb-4 text-gray-900">
-                    Introduce tu Configuración de Firebase
-                  </h2>
-                  <p className="text-gray-600 mb-6">
-                    Para que la aplicación funcione en la web, necesitas tu propia configuración de Firebase. Puedes encontrarla en la consola de Firebase.
-                  </p>
-                  <form onSubmit={handleConfigSubmit}>
-                    <textarea
-                      value={userFirebaseConfig}
-                      onChange={(e) => {
-                        setUserFirebaseConfig(e.target.value);
-                        setConfigError('');
-                      }}
-                      className="w-full h-40 p-3 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                      placeholder='Pega tu objeto JSON aquí: { "apiKey": "...", "authDomain": "...", ... }'
-                    />
-                    {configError && (
-                      <div className="text-red-500 text-sm mb-4">
-                        {configError}
-                      </div>
-                    )}
-                    <button
-                      type="submit"
-                      className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                    >
-                      Guardar y Conectar
-                    </button>
-                  </form>
-                </div>
-              </div>
-            )}
-            
-            {showConfirmationModal && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm">
-                        <h2 className="text-xl font-bold mb-4">{modalContent.title}</h2>
-                        <p className="text-gray-700 mb-6">{modalContent.message}</p>
-                        <div className="flex justify-end gap-4">
-                            <button
-                                onClick={() => setShowConfirmationModal(false)}
-                                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={() => modalContent.onConfirm()}
-                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                            >
-                                Confirmar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             
             {loading ? (
               <div className="flex justify-center items-center h-48">
@@ -818,8 +500,18 @@
               </div>
             ) : (
               <>
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={() => fetchClasses(dbRef.current, appId, userId, editableValues)}
+                    className="bg-green-500 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors flex items-center"
+                  >
+                    <i className="fas fa-sync-alt mr-2"></i> Recargar Datos
+                  </button>
+                </div>
+
+                {/* Editable Values Section */}
                 <div className="mb-8 p-6 bg-yellow-50 rounded-lg shadow-inner">
-                  <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                     <i className="fas fa-dollar-sign text-lg"></i> Precios de Clases
                   </h2>
                   <p className="text-sm text-gray-600 mb-4">
@@ -828,26 +520,40 @@
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {Object.entries(editableValues).map(([count, value]) => (
                       <div key={count} className="p-4 bg-white rounded-lg shadow-md flex flex-col items-center">
-                        <label htmlFor={`value-${count}`} className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor={`value-${count}`} className="text-sm font-medium text-gray-700 mb-1">
                           Clase con {count} Alumno{count > 1 ? 's' : ''}
                         </label>
-                        <input
-                          id={`value-${count}`}
-                          name={count}
-                          type="number"
-                          value={value}
-                          onChange={handleValueChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2 text-center text-lg font-bold"
-                          min="0"
-                        />
+                        <div className="relative mt-1 rounded-md shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span className="text-gray-500 sm:text-sm">
+                              $
+                            </span>
+                          </div>
+                          <input
+                            id={`value-${count}`}
+                            name={count}
+                            type="number"
+                            value={value}
+                            onChange={handleValueChange}
+                            className="block w-full pl-7 pr-12 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2 text-center text-lg font-bold"
+                            min="0"
+                          />
+                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <span className="text-gray-500 sm:text-sm" id="price-currency">
+                              ARS
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
+                {/* Reports Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  {/* Weekly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
-                    <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-700">
+                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                       <i className="fas fa-calendar-alt text-lg"></i> Informes Semanales
                     </h2>
                     {weeklyReports.length > 0 ? (
@@ -863,10 +569,6 @@
                               <p className="text-lg font-bold text-gray-900">{formatCurrency(report.totalEarnings)}</p>
                               <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
                             </div>
-                            <div className="col-span-2 mt-2 pt-2 border-t border-gray-200">
-                              <p className="text-xs font-semibold text-gray-700 mb-1">Clases por Alumno:</p>
-                                <p className="text-xs text-gray-600">1: {report.countsByStudent[1] || 0}, 2: {report.countsByStudent[2] || 0}, 3: {report.countsByStudent[3] || 0}, 4: {report.countsByStudent[4] || 0}</p>
-                            </div>
                           </div>
                         </div>
                       ))
@@ -874,7 +576,8 @@
                       <p className="text-sm text-gray-500 italic">No hay informes semanales disponibles.</p>
                     )}
                   </div>
-            
+                  
+                  {/* Monthly Reports */}
                   <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
                     <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
                       <i className="fas fa-chart-bar text-lg"></i> Informes Mensuales
@@ -882,7 +585,15 @@
                     {monthlyReports.length > 0 ? (
                       monthlyReports.map(report => (
                         <div key={report.month} className="mb-4 p-4 bg-white rounded-lg shadow-md">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">{report.month}</h3>
+                          <div className="flex justify-between items-center mb-2">
+                              <h3 className="text-lg font-bold text-gray-900">{report.month}</h3>
+                              <button
+                                onClick={() => handleDownloadMonthlyReport(report)}
+                                className="bg-blue-500 text-white font-bold py-1 px-3 text-xs rounded-md shadow-md hover:bg-blue-600 transition-colors flex items-center"
+                              >
+                                <i className="fas fa-file-pdf mr-2"></i> Descargar PDF
+                              </button>
+                          </div>
                           <div className="grid grid-cols-2 gap-4 text-center">
                             <div>
                               <p className="text-xl font-bold text-gray-900">{report.totalClasses}</p>
@@ -893,6 +604,17 @@
                               <p className="text-xs font-medium text-gray-600">Ganancia Total</p>
                             </div>
                           </div>
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <p className="text-sm font-semibold text-gray-700 mb-2">Clases por Alumno:</p>
+                            <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                              {Object.entries(report.countsByStudent).map(([count, total]) => (
+                                <div key={count} className="p-2 bg-gray-50 rounded-lg shadow-sm">
+                                  <span className="font-bold text-gray-900">{total}</span>
+                                  <span className="text-gray-600 ml-1">con {count} alumno{count > 1 ? 's' : ''}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -900,50 +622,50 @@
                     )}
                   </div>
                 </div>
+                
+                {message && (
+                  <div className={`p-4 rounded-lg mb-6 ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {message.text}
+                  </div>
+                )}
 
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h2 className="text-2xl font-bold mb-4 text-gray-900 flex items-center gap-2">
-                    <i className="fas fa-clipboard-list text-lg"></i> Ingresar nueva clase
+                {/* Form to add new classes */}
+                <form onSubmit={handleAddClass} className="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
+                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                    <i className="fas fa-plus text-lg"></i> Añadir Nueva Clase
                   </h2>
-                  <form onSubmit={handleAddClass} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 items-end">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-4">
                     <div className="md:col-span-1">
-                      <label htmlFor="studentName" className="block text-sm font-medium text-gray-700">
-                        Nombre del Alumno
+                      <label htmlFor="date" className="block text-sm font-medium text-gray-600">
+                        Fecha
                       </label>
                       <input
-                        type="text"
-                        id="studentName"
-                        name="studentName"
-                        value={newEntry.studentName}
+                        id="date"
+                        name="date"
+                        type="date"
+                        value={newEntry.date}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                        placeholder="Escribe un nombre..."
-                        required
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
                       />
                     </div>
                     <div className="md:col-span-1">
-                      <label htmlFor="date" className="block text-sm font-medium text-gray-700">
-                        Fecha
+                      <label htmlFor="day" className="block text-sm font-medium text-gray-600">
+                        Día
                       </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="date"
-                          id="date"
-                          name="date"
-                          value={newEntry.date}
-                          onChange={handleInputChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                          required
-                        />
-                        {newEntry.day && (
-                          <span className="mt-1 text-sm font-medium text-gray-700">
-                            ({newEntry.day})
-                          </span>
-                        )}
-                      </div>
+                      <select
+                        id="day"
+                        name="day"
+                        value={newEntry.day}
+                        onChange={handleInputChange}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                      >
+                        {dayOptions.map(day => (
+                          <option key={day} value={day}>{day}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="md:col-span-1">
-                      <label htmlFor="time" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="time" className="block text-sm font-medium text-gray-600">
                         Horario
                       </label>
                       <select
@@ -951,7 +673,7 @@
                         name="time"
                         value={newEntry.time}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
                       >
                         {timeOptions.map(time => (
                           <option key={time} value={time}>{time}</option>
@@ -959,165 +681,146 @@
                       </select>
                     </div>
                     <div className="md:col-span-1">
-                      <button
-                        type="submit"
-                        className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                      >
-                        <i className="fas fa-plus"></i> Añadir Clase
-                      </button>
-                    </div>
-                  </form>
-                </div>
-            
-                <div className="mt-8 p-6 bg-white rounded-xl shadow-lg">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                      <i className="fas fa-list-ul text-lg"></i> Clases Registradas
-                    </h2>
-                    <div className="flex gap-2 items-center">
-                      <label htmlFor="filterMonth" className="text-sm font-medium text-gray-700">
-                        Filtrar por Mes:
+                      <label htmlFor="studentCount" className="block text-sm font-medium text-gray-600">
+                        Cantidad de Alumnos
                       </label>
                       <select
-                        id="filterMonth"
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-1 text-sm"
+                        id="studentCount"
+                        name="studentCount"
+                        value={newEntry.studentCount}
+                        onChange={handleStudentCountChange}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
                       >
-                        <option value="Todos">Todos</option>
-                        {availableMonths.map(month => (
-                          <option key={month} value={month}>{month}</option>
+                        {studentCountOptions.map(count => (
+                          <option key={count} value={count}>{count} alumno{count > 1 ? 's' : ''}</option>
                         ))}
                       </select>
                     </div>
                   </div>
-                  <div className="flex flex-col md:flex-row gap-4 mb-4">
-                      <div className="w-full">
-                          <label htmlFor="search" className="block text-sm font-medium text-gray-700">Buscar por Alumno</label>
-                          <input
-                              type="text"
-                              id="search"
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              placeholder="Escribe el nombre de un alumno..."
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                          />
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    {newEntry.studentNames.map((name, index) => (
+                      <div key={index} className="md:col-span-1">
+                        <label htmlFor={`studentName-${index}`} className="block text-sm font-medium text-gray-600">
+                          Nombre del Alumno {index + 1}
+                        </label>
+                        <input
+                          id={`studentName-${index}`}
+                          name={`studentName-${index}`}
+                          type="text"
+                          value={name}
+                          onChange={(e) => handleStudentNameChange(index, e)}
+                          placeholder={`Ej: ALUMNO ${index + 1}`}
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors p-2"
+                        />
                       </div>
-                      <div className="w-full md:w-1/2">
-                          <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Fecha de Inicio</label>
-                          <input
-                              type="date"
-                              id="startDate"
-                              value={startDate}
-                              onChange={(e) => setStartDate(e.target.value)}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                          />
-                      </div>
-                      <div className="w-full md:w-1/2">
-                          <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">Fecha de Fin</label>
-                          <input
-                              type="date"
-                              id="endDate"
-                              value={endDate}
-                              onChange={(e) => setEndDate(e.target.value)}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                          />
-                      </div>
+                    ))}
+                    <div className="md:col-span-1">
+                      <button
+                        type="submit"
+                        className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                      >
+                        Añadir Clase
+                      </button>
+                    </div>
                   </div>
-                  {editingClass ? (
-                      <div className="p-4 bg-gray-50 rounded-lg shadow-inner mt-4">
-                          <h3 className="text-xl font-bold mb-2">Editar Clase</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                  <label className="block text-sm font-medium text-gray-700">Fecha</label>
-                                  <input type="date" value={editingClass.date} readOnly className="mt-1 block w-full rounded-md border-gray-300 bg-gray-200 p-2" />
-                              </div>
-                              <div>
-                                  <label className="block text-sm font-medium text-gray-700">Horario</label>
-                                  <input type="text" value={editingClass.time} readOnly className="mt-1 block w-full rounded-md border-gray-300 bg-gray-200 p-2" />
-                              </div>
-                          </div>
-                          <div className="mt-4">
-                              <label className="block text-sm font-medium text-gray-700">Alumnos</label>
-                              {editingClass.students.map((student, index) => (
-                                  <div key={editingClass.ids[index]} className="flex items-center gap-2 mt-2">
-                                      <input
-                                          type="text"
-                                          value={student}
-                                          onChange={(e) => {
-                                              const newStudents = [...editingClass.students];
-                                              newStudents[index] = e.target.value;
-                                              setEditingClass({ ...editingClass, students: newStudents });
-                                          }}
-                                          className="flex-grow rounded-md border-gray-300 p-2"
-                                      />
-                                      <button
-                                          onClick={() => handleDeleteStudentFromClass(editingClass.ids[index])}
-                                          className="text-red-500 hover:text-red-700"
-                                      >
-                                          <i className="fas fa-trash-alt"></i>
-                                      </button>
+                </form>
+
+                {/* Legend for colors */}
+                <div className="flex justify-center flex-wrap gap-4 mb-4">
+                  <span className="flex items-center text-sm text-gray-600">
+                    <span className="w-4 h-4 rounded mr-2 bg-green-100"></span>
+                    1 Alumno
+                  </span>
+                  <span className="flex items-center text-sm text-gray-600">
+                    <span className="w-4 h-4 rounded mr-2 bg-blue-100"></span>
+                    2 Alumnos
+                  </span>
+                  <span className="flex items-center text-sm text-gray-600">
+                    <span className="w-4 h-4 rounded mr-2 bg-yellow-100"></span>
+                    3 Alumnos
+                  </span>
+                  <span className="flex items-center text-sm text-gray-600">
+                    <span className="w-4 h-4 rounded mr-2 bg-red-100"></span>
+                    4 Alumnos
+                  </span>
+                </div>
+
+                {/* Table to display classes */}
+                <div className="overflow-x-auto rounded-lg shadow-md">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          Fecha
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          Día
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          Horario
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          Alumnos
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          Cantidad
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          Valor de la Clase
+                        </th>
+                        <th scope="col" className="relative px-6 py-3">
+                          <span className="sr-only">Eliminar</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {groupedClasses.length > 0 ? (
+                        groupedClasses.map((cls, index) => {
+                          const displayValue = !isNaN(cls.value) && cls.value !== 0;
+                          return (
+                            <tr key={`${cls.date}-${cls.day}-${cls.time}`} className={`${cls.color} hover:bg-gray-50 transition-colors`}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {cls.date}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {cls.day}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-500">
+                                {cls.students.map((student, studentIndex) => (
+                                  <div key={studentIndex} className="flex items-center gap-2">
+                                    <i className="fas fa-user-circle text-blue-500"></i>
+                                    <span>{student}</span>
                                   </div>
-                              ))}
-                              <div className="flex gap-2 mt-4">
-                                  <button onClick={handleUpdateClass} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                                      Guardar Cambios
-                                  </button>
-                                  <button onClick={handleCancelEdit} className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">
-                                      Cancelar
-                                  </button>
-                              </div>
-                          </div>
-                      </div>
-                  ) : (
-                      <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                              <thead className="bg-red-500">
-                                  <tr>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Fecha</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Día</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Horario</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Alumnos</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Valor</th>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Acciones</th>
-                                  </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
-                                  {filteredClasses.length > 0 ? (
-                                      filteredClasses.map((cls, index) => (
-                                          <tr key={index} className={cls.color}>
-                                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatDate(cls.date)}</td>
-                                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cls.day}</td>
-                                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cls.time}</td>
-                                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                <ul className="list-disc list-inside">
-                                                  {cls.students.map((student, i) => (
-                                                    <li key={i}>{student}</li>
-                                                  ))}
-                                                </ul>
-                                              </td>
-                                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(cls.value)}</td>
-                                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                  <button onClick={() => handleEditClass(cls)} className="text-blue-600 hover:text-blue-900 mr-2">
-                                                      <i className="fas fa-edit"></i>
-                                                  </button>
-                                                  <button onClick={() => handleDeleteGroupedClass(cls.ids)} className="text-red-600 hover:text-red-900">
-                                                      <i className="fas fa-trash-alt"></i>
-                                                  </button>
-                                              </td>
-                                          </tr>
-                                      ))
-                                  ) : (
-                                      <tr>
-                                          <td colSpan="6" className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center italic">
-                                              No hay clases registradas.
-                                          </td>
-                                      </tr>
-                                  )}
-                              </tbody>
-                          </table>
-                      </div>
-                  )}
+                                ))}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                {cls.studentCount}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
+                                {displayValue
+                                  ? formatCurrency(cls.value)
+                                  : ''}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button
+                                  onClick={() => handleDeleteSession(cls.date, cls.day, cls.time)}
+                                  className="text-red-600 hover:text-red-900 transition-colors"
+                                >
+                                  <i className="fas fa-trash-alt"></i>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500 italic">
+                            No hay clases registradas. ¡Añade una para empezar!
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </>
             )}
@@ -1126,12 +829,9 @@
       );
     };
 
-    ReactDOM.render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>,
-      document.getElementById('root')
-    );
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(<App />);
   </script>
 </body>
 </html>
