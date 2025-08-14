@@ -23,8 +23,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, deleteDoc, updateDoc, writeBatch, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, deleteDoc, updateDoc, writeBatch, where, getDocs, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         window.firebase = {
             initializeApp,
             getAuth,
@@ -32,6 +32,7 @@
             signInWithEmailAndPassword,
             createUserWithEmailAndPassword,
             signOut,
+            signInAnonymously,
             getFirestore,
             doc,
             setDoc,
@@ -44,7 +45,8 @@
             writeBatch,
             where,
             getDocs,
-            orderBy
+            orderBy,
+            getDoc
         };
     </script>
   
@@ -284,7 +286,7 @@
                 try {
                     setLoading(true);
                     const classesColRef = window.firebase.collection(dbRef.current, 'artifacts', appIdRef.current, 'users', userId, 'classes');
-
+                    
                     const dateObj = new Date(newEntry.date);
                     const dayOfWeek = daysOfWeek[dateObj.getUTCDay()];
                     const classData = {
