@@ -843,19 +843,19 @@ const dateObj = new Date(year, month - 1, day);
         <span className="font-bold text-gray-900">${newEntry.price.toLocaleString()}</span>
     </div>
     {isEditing ? (
-        <div className="md:col-span-2 lg:col-span-2 flex space-x-2">
-            <button onClick={handleAddEntry} className="w-1/2 bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">
-                Guardar Cambios
-            </button>
-            <button onClick={handleCancelEdit} className="w-1/2 bg-gray-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-600 transition-colors">
-                Cancelar
-            </button>
-        </div>
-    ) : (
-        <button onClick={handleAddEntry} className="md:col-span-2 lg:col-span-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-            Registrar Clase
+    <div className="md:col-span-2 lg:col-span-2 flex space-x-2">
+        <button onClick={handleAddEntry} className="w-1/2 bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">
+            Guardar Cambios
         </button>
-    )}
+        <button onClick={handleCancelEdit} className="w-1/2 bg-gray-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-600 transition-colors">
+            Cancelar
+        </button>
+    </div>
+) : (
+    <button onClick={handleAddEntry} className="md:col-span-2 lg:col-span-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+        Registrar Clase
+    </button>
+)}
 </div>
               <div className="flex items-center space-x-2 mb-4">
                 <i className="fas fa-list-ul text-xl text-gray-600"></i>
@@ -1090,6 +1090,7 @@ const dateObj = new Date(year, month - 1, day);
   </script>
 </body>
 </html>
+
 
 
 
