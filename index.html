@@ -27,7 +27,7 @@
         window.onAuthStateChanged = onAuthStateChanged;
         window.signInAnonymously = signInAnonymously;
         window.signInWithCustomToken = signInWithCustomToken;
-        window.sendPasswordResetEmail = sendPasswordResetEmail; // Added for password reset
+        window.sendPasswordResetEmail = sendPasswordResetEmail;
         window.getFirestore = getFirestore;
         window.doc = doc;
         window.getDoc = getDoc;
@@ -49,8 +49,6 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // Access global Firebase variables provided by the Canvas environment.
-        // If they don't exist, use default values to avoid errors.
         const firebaseConfig = {
             apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
             authDomain: "app-de-padel.firebaseapp.com",
@@ -139,7 +137,8 @@
             const [userId, setUserId] = useState(null);
             const [loading, setLoading] = useState(true);
             const [classes, setClasses] = useState([]);
-            const [students, setStudents] = useState([]); // New state for students
+            const [students, setStudents] = useState([]);
+            const [payments, setPayments] = useState([]);
             const [activityLog, setActivityLog] = useState([]);
             const [customPrices, setCustomPrices] = useState(defaultClassPrices);
             const [newEntry, setNewEntry] = useState({
@@ -157,6 +156,13 @@
             });
             const [isEditingStudent, setIsEditingStudent] = useState(false);
             const [editedStudentId, setEditedStudentId] = useState(null);
+            const [newPayment, setNewPayment] = useState({
+                date: new Date().toISOString().split('T')[0],
+                amount: 0,
+                description: '',
+            });
+            const [isEditingPayment, setIsEditingPayment] = useState(false);
+            const [editedPaymentId, setEditedPaymentId] = useState(null);
 
             const [monthlyReports, setMonthlyReports] = useState({});
             const [selectedMonthYear, setSelectedMonthYear] = useState('');
@@ -386,9 +392,72 @@
             };
 
             const sendWhatsApp = (phone) => {
-                const formattedPhone = phone.replace(/\D/g, ''); // Remove all non-digit characters
+                const formattedPhone = phone.replace(/\D/g, '');
                 const url = `https://wa.me/${formattedPhone}`;
                 window.open(url, '_blank');
+            };
+
+            const addPayment = async () => {
+                if (!dbRef.current || !userId) return;
+                if (!newPayment.date || !newPayment.amount || newPayment.amount <= 0) {
+                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, ingresa una fecha y un monto válido para el pago.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    return;
+                }
+                try {
+                    setLoading(true);
+                    const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
+                    const paymentData = {
+                        ...newPayment,
+                        amount: parseFloat(newPayment.amount),
+                        date: newPayment.date,
+                        timestamp: window.Timestamp.fromDate(new Date(newPayment.date))
+                    };
+
+                    if (isEditingPayment) {
+                        const paymentDocRef = window.doc(paymentsColRef, editedPaymentId);
+                        await window.setDoc(paymentDocRef, paymentData);
+                        setMessageBox({ show: true, title: 'Pago actualizado', content: 'El pago se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    } else {
+                        await window.addDoc(paymentsColRef, paymentData);
+                        setMessageBox({ show: true, title: 'Pago añadido', content: 'El nuevo pago se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    }
+                    setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' });
+                    setIsEditingPayment(false);
+                    setEditedPaymentId(null);
+                } catch (error) {
+                    setMessageBox({ show: true, title: 'Error al guardar el pago', content: 'Hubo un error al guardar los datos del pago. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    console.error("Error adding/updating payment:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            const editPayment = (paymentToEdit) => {
+                setNewPayment({ ...paymentToEdit, amount: paymentToEdit.amount.toString() });
+                setIsEditingPayment(true);
+                setEditedPaymentId(paymentToEdit.id);
+            };
+            const deletePayment = (paymentId) => {
+                setMessageBox({
+                    show: true,
+                    title: 'Confirmar eliminación',
+                    content: '¿Estás seguro de que quieres eliminar este pago? Esta acción es irreversible.',
+                    type: 'confirm',
+                    onConfirm: async () => {
+                        if (!dbRef.current || !userId) return;
+                        try {
+                            setLoading(true);
+                            const paymentDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments', paymentId);
+                            await window.deleteDoc(paymentDocRef);
+                            setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        } catch (error) {
+                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar el pago. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                            console.error("Error deleting payment:", error);
+                        } finally {
+                            setLoading(false);
+                        }
+                    },
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                });
             };
 
             useEffect(() => {
@@ -410,6 +479,14 @@
                         setStudents(fetchedStudents.sort((a, b) => a.lastName.localeCompare(b.lastName)));
                     });
 
+                    const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
+                    const paymentsQuery = window.query(paymentsColRef);
+                    const unsubscribePayments = window.onSnapshot(paymentsQuery, (snapshot) => {
+                        const fetchedPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        const sortedPayments = fetchedPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        setPayments(sortedPayments);
+                    });
+
                     const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
                     const logQuery = window.query(logColRef);
                     const unsubscribeLog = window.onSnapshot(logQuery, (snapshot) => {
@@ -421,11 +498,13 @@
                     return () => {
                         unsubscribeClasses();
                         unsubscribeStudents();
+                        unsubscribePayments();
                         unsubscribeLog();
                     };
                 } else {
                     setClasses([]);
                     setStudents([]);
+                    setPayments([]);
                     setActivityLog([]);
                 }
             }, [userId]);
@@ -546,7 +625,7 @@
                 });
                 setIsEditing(true);
                 setEditedClassId(classToEdit.id);
-                setView('list'); // Switch to list view to show the edit form
+                setView('list');
             };
             const generatePDF = () => {
                 if (!reportTableRef.current) return;
@@ -600,21 +679,17 @@
                 const year = date.getFullYear();
                 const month = date.getMonth();
                 const firstDayOfMonth = new Date(year, month, 1).getDay();
-                // 0 = Sunday
                 const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
                 const days = [];
-                // Add padding days from the previous month
                 const prevMonthLastDay = new Date(year, month, 0).getDate();
                 for (let i = firstDayOfMonth - 1; i >= 0; i--) {
                     days.push({ day: prevMonthLastDay - i, classes: [], isCurrentMonth: false });
                 }
-                // Add days of the current month
                 for (let i = 1; i <= lastDayOfMonth; i++) {
                     const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`;
                     const classesOnDay = classes.filter(cls => cls.date === dateStr);
                     days.push({ day: i, classes: classesOnDay, isCurrentMonth: true, date: dateStr });
                 }
-                // Add padding days for the next month
                 const totalDays = days.length;
                 const remainingDays = 42 - totalDays;
                 for (let i = 1; i <= remainingDays; i++) {
@@ -639,12 +714,12 @@
             const reportTableRef = useRef(null);
 
             const exportData = () => {
-                const data = JSON.stringify(classes, null, 2);
+                const data = JSON.stringify({ classes, students, payments }, null, 2);
                 const blob = new Blob([data], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `padel_classes_export_${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `padel_data_export_${new Date().toISOString().split('T')[0]}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -662,7 +737,7 @@
                         setMessageBox({
                             show: true,
                             title: 'Confirmar importación',
-                            content: `Se reemplazarán los datos actuales con ${importedData.length} nuevas clases. ¿Estás seguro?`,
+                            content: `Se reemplazarán los datos actuales con los del archivo. ¿Estás seguro?`,
                             type: 'confirm',
                             onConfirm: () => importData(importedData),
                             onClose: () => setMessageBox({ ...messageBox, show: false })
@@ -684,22 +759,35 @@
                 if (!dbRef.current || !userId) return;
                 setLoading(true);
                 try {
-                    // Start a new batch
                     const batch = window.writeBatch(dbRef.current);
                     const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
+                    const studentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'students');
+                    const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
 
-                    // Delete all existing documents
-                    const existingDocs = await window.getDocs(classesColRef);
-                    existingDocs.forEach(doc => {
-                        batch.delete(doc.ref);
-                    });
-                    // Add new documents from the imported data
-                    data.forEach(cls => {
+                    const existingClassesDocs = await window.getDocs(classesColRef);
+                    existingClassesDocs.forEach(doc => batch.delete(doc.ref));
+                    data.classes.forEach(cls => {
                         const newDocRef = window.doc(classesColRef);
-                        const { id, ...classData } = cls; // Exclude the old ID
+                        const { id, ...classData } = cls;
                         batch.set(newDocRef, { ...classData, timestamp: window.Timestamp.fromDate(new Date(classData.date)) });
                     });
-                    // Commit the batch
+
+                    const existingStudentsDocs = await window.getDocs(studentsColRef);
+                    existingStudentsDocs.forEach(doc => batch.delete(doc.ref));
+                    data.students.forEach(student => {
+                        const newDocRef = window.doc(studentsColRef);
+                        const { id, ...studentData } = student;
+                        batch.set(newDocRef, studentData);
+                    });
+
+                    const existingPaymentsDocs = await window.getDocs(paymentsColRef);
+                    existingPaymentsDocs.forEach(doc => batch.delete(doc.ref));
+                    data.payments.forEach(payment => {
+                        const newDocRef = window.doc(paymentsColRef);
+                        const { id, ...paymentData } = payment;
+                        batch.set(newDocRef, { ...paymentData, timestamp: window.Timestamp.fromDate(new Date(paymentData.date)) });
+                    });
+                    
                     await batch.commit();
                     setMessageBox({
                         show: true,
@@ -724,7 +812,6 @@
             };
             return (
                 <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
-                    {/* Custom Message Box Component */}
                     <MessageBox
                         show={messageBox.show}
                         title={messageBox.title}
@@ -734,7 +821,6 @@
                         onClose={() => setMessageBox({ ...messageBox, show: false })}
                     />
 
-                    {/* Hidden file input for import */}
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -743,7 +829,6 @@
                         accept=".json"
                     />
 
-                    {/* Custom Price Configuration Modal */}
                     {showConfigModal && (
                         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
                             <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg transform transition-all duration-300 ease-in-out">
@@ -771,7 +856,6 @@
                         </div>
                     )}
 
-                    {/* Class Details Modal */}
                     {selectedClassDetails && (
                         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
                             <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm transform transition-all duration-300 ease-in-out">
@@ -799,14 +883,12 @@
                         </div>
                     )}
 
-                    {/* Loading Spinner */}
                     {loading && (
                         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
                             <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-4 border-blue-500 border-opacity-25"></div>
                         </div>
                     )}
 
-                    {/* Main Application Card */}
                     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-6xl transition-all duration-300">
                         <div className="flex justify-between items-center mb-6">
                             <h1 className="text-3xl font-extrabold text-gray-800">Informe de Clases de Padel</h1>
@@ -831,7 +913,7 @@
 
                         {userId && (
                             <>
-                                <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
+                                <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner" style={{ display: view === 'list' || view === 'report' || view === 'calendar' ? 'block' : 'none' }}>
                                     <h2 className="text-2xl font-bold text-gray-800 mb-4">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
                                     <div className="flex flex-col md:flex-row gap-4 mb-4">
                                         <div className="w-full md:w-1/3">
@@ -885,7 +967,7 @@
 
                                 <div className="mt-8">
                                     <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-                                        <h2 className="text-2xl font-bold text-gray-800">Sección de {view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : view === 'calendar' ? 'Calendario' : 'Alumnos'}</h2>
+                                        <h2 className="text-2xl font-bold text-gray-800">Sección de {view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : view === 'calendar' ? 'Calendario' : view === 'students' ? 'Alumnos' : 'Pagos del Club'}</h2>
                                         <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
                                             <button onClick={() => setView('list')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de clases">
                                                 <i className="fas fa-list"></i>
@@ -898,6 +980,9 @@
                                             </button>
                                             <button onClick={() => setView('students')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'students' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de alumnos">
                                                 <i className="fas fa-user-friends"></i>
+                                            </button>
+                                            <button onClick={() => setView('payments')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'payments' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver pagos del club">
+                                                <i className="fas fa-money-bill-alt"></i>
                                             </button>
                                             <button onClick={() => setShowConfigModal(true)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Configurar precios">
                                                 <i className="fas fa-dollar-sign"></i>
@@ -1028,7 +1113,7 @@
                                             </div>
                                         </div>
                                     )}
-
+                                    
                                     {view === 'students' && (
                                         <div className="mt-8">
                                             <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
@@ -1083,6 +1168,62 @@
                                                     </div>
                                                 ) : (
                                                     <p className="text-center text-gray-500 p-8 bg-white">No hay alumnos registrados.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {view === 'payments' && (
+                                        <div className="mt-8">
+                                            <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
+                                                <h3 className="text-2xl font-bold text-gray-800 mb-4">{isEditingPayment ? 'Editar Pago' : 'Añadir Nuevo Pago'}</h3>
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                                                    <input type="date" name="date" value={newPayment.date} onChange={(e) => setNewPayment(prev => ({ ...prev, date: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                                    <input type="number" placeholder="Monto (ej: 50000)" value={newPayment.amount || ''} onChange={(e) => setNewPayment(prev => ({ ...prev, amount: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                                    <input type="text" placeholder="Descripción (ej: Pago de Mayo)" value={newPayment.description} onChange={(e) => setNewPayment(prev => ({ ...prev, description: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                                </div>
+                                                <div className="flex space-x-4">
+                                                    <button onClick={addPayment} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                                                        {isEditingPayment ? 'Guardar Cambios' : 'Añadir Pago'}
+                                                    </button>
+                                                    {isEditingPayment && (
+                                                        <button onClick={() => { setIsEditingPayment(false); setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                                            Cancelar
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="overflow-x-auto rounded-xl shadow-lg">
+                                                <h3 className="text-xl font-bold text-gray-800 p-4 bg-white border-b-2">Pagos Registrados</h3>
+                                                {payments.length > 0 ? (
+                                                    <div className="bg-white">
+                                                        <div className="hidden md:grid grid-cols-4 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
+                                                            <div>Fecha</div>
+                                                            <div>Monto</div>
+                                                            <div>Descripción</div>
+                                                            <div className="text-center">Acciones</div>
+                                                        </div>
+                                                        <div className="divide-y divide-gray-200">
+                                                            {payments.map(payment => (
+                                                                <div key={payment.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-center">
+                                                                    <div className="text-gray-600">{payment.date}</div>
+                                                                    <div className="font-bold text-gray-800">{formatPrice(payment.amount)}</div>
+                                                                    <div className="text-gray-600">{payment.description || '-'}</div>
+                                                                    <div className="flex justify-end md:justify-center space-x-2">
+                                                                        <button onClick={() => editPayment(payment)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar pago">
+                                                                            <i className="fas fa-edit"></i>
+                                                                        </button>
+                                                                        <button onClick={() => deletePayment(payment.id)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar pago">
+                                                                            <i className="fas fa-trash-alt"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-center text-gray-500 p-8 bg-white">No hay pagos registrados.</p>
                                                 )}
                                             </div>
                                         </div>
