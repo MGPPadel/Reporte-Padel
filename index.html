@@ -322,7 +322,7 @@ const dateObj = new Date(year, month - 1, day);
     setMonthlyReports(monthlyReportsData);
 };
 
-      const handleAddEntry = async () => {
+   const handleAddEntry = async () => {
     // 1. Validación del formulario
     const areStudentNamesComplete = newEntry.studentNames.every(name => name.trim() !== '');
     if (
@@ -357,17 +357,32 @@ const dateObj = new Date(year, month - 1, day);
 
     try {
         if (isEditing && newEntry.id) {
-            // 2. Lógica para EDITAR una clase
+            // Lógica para EDITAR una clase
             const classDocRef = firebase.doc(db, `artifacts/${appIdRef.current}/users/${userId}/classes`, newEntry.id);
             await firebase.updateDoc(classDocRef, entryToSave);
             showMessageBox('Éxito', 'Clase actualizada con éxito.', 'success');
         } else {
-            // 3. Lógica para AÑADIR una clase
+            // Lógica para AÑADIR una clase
             const classesCollectionRef = firebase.collection(db, `artifacts/${appIdRef.current}/users/${userId}/classes`);
             await firebase.addDoc(classesCollectionRef, entryToSave);
             showMessageBox('Éxito', 'Clase registrada con éxito.', 'success');
         }
         
+        // Limpiar el formulario y salir del modo edición
+        setNewEntry({
+            studentCount: 1,
+            studentNames: [''],
+            date: new Date().toISOString().split('T')[0],
+            day: '',
+            time: timesOfDay[0],
+            price: 0,
+        });
+        setIsEditing(false);
+    } catch (error) {
+        console.error("Error al guardar la clase:", error);
+        showMessageBox('Error', 'Error al guardar la clase en la base de datos.', 'error');
+    }
+};
         // Limpiar el formulario
         setNewEntry({
             studentCount: 1,
@@ -1083,6 +1098,7 @@ const dateObj = new Date(year, month - 1, day);
   </script>
 </body>
 </html>
+
 
 
 
