@@ -5,27 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Informe de Clases de Padel</title>
     
-    <!-- Librerías de React y Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Font Awesome para los iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
-    <!-- Librerías para exportar a PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <!-- Configuración y librerías de Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, query, Timestamp, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+        
         window.initializeApp = initializeApp;
         window.getAuth = getAuth;
         window.signInWithEmailAndPassword = signInWithEmailAndPassword;
@@ -33,6 +28,7 @@
         window.onAuthStateChanged = onAuthStateChanged;
         window.signInAnonymously = signInAnonymously;
         window.signInWithCustomToken = signInWithCustomToken;
+        window.sendPasswordResetEmail = sendPasswordResetEmail; // Added for password reset
         window.getFirestore = getFirestore;
         window.doc = doc;
         window.getDoc = getDoc;
@@ -55,16 +51,15 @@
         // Accede a las variables globales de Firebase proporcionadas por el entorno de Canvas.
         // Si no existen, utiliza valores por defecto para evitar errores.
         const firebaseConfig = {
-      apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
-      authDomain: "app-de-padel.firebaseapp.com",
-      projectId: "app-de-padel",
-      storageBucket: "app-de-padel.firebasestorage.app",
-      messagingSenderId: "731771747398",
-      appId: "1:731771747398:web:ebc8b723fe220869fade47"
-    };
-    
-    const appId = typeof firebaseConfig.appId !== 'undefined' ? firebaseConfig.appId : 'default-app-id';
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+            authDomain: "app-de-padel.firebaseapp.com",
+            projectId: "app-de-padel",
+            storageBucket: "app-de-padel.firebasestorage.app",
+            messagingSenderId: "731771747398",
+            appId: "1:731771747398:web:ebc8b723fe220869fade47"
+        };
+        const appId = typeof firebaseConfig.appId !== 'undefined' ? firebaseConfig.appId : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         const { useState, useEffect, useRef, useMemo } = React;
         const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -86,10 +81,8 @@
             3: 'bg-blue-100',
             4: 'bg-purple-100',
         };
-
         const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
             if (!show) return null;
-
             let icon, bgColor, titleColor;
             switch (type) {
                 case 'success':
@@ -175,18 +168,15 @@
             const dbRef = useRef(null);
             const authRef = useRef(null);
             const fileInputRef = useRef(null);
-            
             const formatPrice = (price) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price);
             const formatMonthYear = (monthYearString) => {
                 const [year, month] = monthYearString.split('-');
                 return new Date(year, month - 1).toLocaleString('es-AR', { month: 'long', year: 'numeric' });
             };
-
             const formatDate = (timestamp) => {
                 const date = new Date(timestamp.seconds * 1000);
                 return date.toLocaleString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
             };
-
             const initializeFirebase = async () => {
                 try {
                     const app = window.initializeApp(firebaseConfig);
@@ -201,13 +191,11 @@
                         }
                         setLoading(false);
                     });
-                    
                     if (initialAuthToken) {
                         await window.signInWithCustomToken(authRef.current, initialAuthToken);
                     } else {
                          await window.signInAnonymously(authRef.current);
                     }
-
                     return () => unsubscribe();
                 } catch (error) {
                     console.error("Error initializing Firebase:", error);
@@ -221,11 +209,10 @@
                     setLoading(false);
                 }
             };
-            
             useEffect(() => {
                 initializeFirebase();
             }, []);
-
+            
             const signIn = async () => {
                 try {
                     setLoading(true);
@@ -243,6 +230,41 @@
                     setLoading(false);
                 }
             };
+            
+            const handlePasswordReset = async () => {
+                if (!email) {
+                    setMessageBox({
+                        show: true,
+                        title: 'Error de validación',
+                        content: 'Por favor, ingresa tu email para restablecer la contraseña.',
+                        type: 'error',
+                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                    });
+                    return;
+                }
+                try {
+                    setLoading(true);
+                    await window.sendPasswordResetEmail(authRef.current, email);
+                    setMessageBox({
+                        show: true,
+                        title: 'Correo enviado',
+                        content: 'Se ha enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.',
+                        type: 'success',
+                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                    });
+                } catch (error) {
+                    setMessageBox({
+                        show: true,
+                        title: 'Error al enviar correo',
+                        content: 'Hubo un error al enviar el correo. Asegúrate de que el email sea correcto.',
+                        type: 'error',
+                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                    });
+                    console.error("Error sending password reset email:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
 
             const signOutUser = async () => {
                 try {
@@ -253,7 +275,6 @@
                     console.error("Error signing out:", error);
                 }
             };
-            
             const saveCustomPrices = async () => {
                 if (!dbRef.current || !userId) return;
                 try {
@@ -268,7 +289,6 @@
                     setLoading(false);
                 }
             };
-
             const loadCustomPrices = async () => {
                 if (!dbRef.current || !userId) return;
                 try {
@@ -281,7 +301,6 @@
                     console.error("Error loading custom prices:", error);
                 }
             };
-            
             const addLogEntry = async (action, details) => {
                 if (!dbRef.current || !userId) return;
                 try {
@@ -295,7 +314,6 @@
                     console.error("Error adding log entry:", error);
                 }
             };
-
             useEffect(() => {
                 if (userId && dbRef.current) {
                     loadCustomPrices();
@@ -315,7 +333,6 @@
                         const sortedLog = fetchedLog.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
                         setActivityLog(sortedLog);
                     });
-
                     return () => {
                         unsubscribeClasses();
                         unsubscribeLog();
@@ -325,13 +342,11 @@
                     setActivityLog([]);
                 }
             }, [userId]);
-
             useEffect(() => {
                 if (Object.keys(customPrices).length > 0) {
                     setNewEntry(prev => ({ ...prev, price: customPrices[prev.studentCount] || 0 }));
                 }
             }, [customPrices]);
-
             useEffect(() => {
                 const report = {};
                 classes.forEach(cls => {
@@ -364,16 +379,13 @@
                     setNewEntry(prev => ({ ...prev, [name]: value }));
                 }
             };
-            
             const handleDateChange = (e) => {
                 const dateString = e.target.value;
                 const dateObj = new Date(`${dateString}T00:00:00Z`);
                 const dayOfWeek = daysOfWeek[dateObj.getUTCDay()];
                 setNewEntry(prev => ({ ...prev, date: dateString, day: dayOfWeek }));
             };
-
             const handleCustomPriceChange = (studentCount, price) => setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 }));
-
             const addClass = async () => {
                 if (!dbRef.current || !userId) return;
                 if (newEntry.studentNames.some(name => name.trim() === '') || newEntry.price <= 0) {
@@ -411,7 +423,6 @@
                     setLoading(false);
                 }
             };
-            
             const deleteClass = (id, classData) => {
                 setMessageBox({
                     show: true,
@@ -450,7 +461,6 @@
                 setEditedClassId(classToEdit.id);
                 setView('list'); // Switch to list view to show the edit form
             };
-
             const generatePDF = () => {
                 if (!reportTableRef.current) return;
                 setLoading(true);
@@ -489,7 +499,6 @@
                 });
                 return Array.from(months).sort((a, b) => new Date(a) - new Date(b));
             }, [classes]);
-
             const filteredClasses = useMemo(() => {
                 let filtered = classes;
                 if (selectedMonthYear) {
@@ -500,13 +509,12 @@
                 }
                 return filtered;
             }, [classes, selectedMonthYear, filterText]);
-
             const getCalendarDays = (date) => {
                 const year = date.getFullYear();
                 const month = date.getMonth();
-                const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 = Sunday
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                // 0 = Sunday
                 const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
-                
                 const days = [];
                 // Add padding days from the previous month
                 const prevMonthLastDay = new Date(year, month, 0).getDate();
@@ -538,7 +546,6 @@
                     return newDate;
                 });
             };
-
             const handleClassClick = (cls) => {
                 setSelectedClassDetails(cls);
             };
@@ -587,7 +594,6 @@
                 };
                 reader.readAsText(file);
             };
-
             const importData = async (data) => {
                 if (!dbRef.current || !userId) return;
                 setLoading(true);
@@ -601,17 +607,14 @@
                     existingDocs.forEach(doc => {
                         batch.delete(doc.ref);
                     });
-                    
                     // Add new documents from the imported data
                     data.forEach(cls => {
                         const newDocRef = window.doc(classesColRef);
                         const { id, ...classData } = cls; // Exclude the old ID
                         batch.set(newDocRef, { ...classData, timestamp: window.Timestamp.fromDate(new Date(classData.date)) });
                     });
-
                     // Commit the batch
                     await batch.commit();
-
                     setMessageBox({
                         show: true,
                         title: 'Importación exitosa',
@@ -633,8 +636,6 @@
                     setLoading(false);
                 }
             };
-
-
             return (
                 <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
                     {/* Custom Message Box Component */}
@@ -738,6 +739,7 @@
                                 <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
                                 <input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
                                 <button onClick={signIn} className="bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Ingresar</button>
+                                <button onClick={handlePasswordReset} className="mt-2 text-blue-600 hover:underline">¿No recuerdas la contraseña?</button>
                             </div>
                         )}
                         
@@ -977,5 +979,3 @@
     </script>
 </body>
 </html>
-
-
