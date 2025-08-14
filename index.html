@@ -65,7 +65,33 @@
       3: 2500,
       4: 2000,
     };
-    const peopleOptions = [1, 2, 3, 4];
+    const peopleOptions = [1, 2, 3, 4]; 
+
+    const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
+          if (!show) return null;
+
+          let icon, bgColor, buttonColor, titleColor;
+          switch (type) {
+              case 'success':
+                  icon = <i className="fas fa-check-circle text-4xl text-green-500"></i>;
+                  bgColor = 'bg-white';
+                  titleColor = 'text-green-600';
+                  break;
+              case 'error':
+                  icon = <i className="fas fa-times-circle text-4xl text-red-500"></i>;
+                  bgColor = 'bg-white';
+                  titleColor = 'text-red-600';
+                  break;
+              case 'confirm':
+                  icon = <i className="fas fa-question-circle text-4xl text-blue-500"></i>;
+                  bgColor = 'bg-white';
+                  titleColor = 'text-blue-600';
+                  break;
+              default:
+                  icon = null;
+          }
+
+          return (
     
     const colorMap = {
         1: 'bg-yellow-100',
@@ -296,23 +322,32 @@ const getMonthlyReportData = () => {
     };
 }, [userId]);
 
-      const generateReports = (fetchedClasses) => {
-    const monthly = {};
-    fetchedClasses.forEach(entry => {
+      const generateReports = (classes) => {
+    const monthlyReports = {};
+    let totalEarnings = 0;
+
+    classes.forEach(entry => {
         const [year, month] = entry.date.split('-');
         const monthKey = `${year}-${month}`;
 
-        if (!monthly[monthKey]) {
-            monthly[monthKey] = { 
+        if (!monthlyReports[monthKey]) {
+            monthlyReports[monthKey] = {
                 classCountByStudents: { 1: 0, 2: 0, 3: 0, 4: 0 },
                 totalEarnings: 0
             };
         }
-        monthly[monthKey].classCountByStudents[entry.studentCount]++;
-        monthly[monthKey].totalEarnings += entry.price;
+
+        if (entry.studentCount >= 1 && entry.studentCount <= 4) {
+            monthlyReports[monthKey].classCountByStudents[entry.studentCount]++;
+        }
+        monthlyReports[monthKey].totalEarnings += entry.price;
+        totalEarnings += entry.price;
     });
 
-    setMonthlyReports(monthly);
+    setMonthlyReports(monthlyReports);
+    return {
+        totalEarnings
+    };
 };
 
     const monthlyReportsData = Object.keys(monthly).map(monthKey => ({
@@ -633,33 +668,7 @@ const handleNextMonth = () => {
           const formattedDate = date.toISOString().slice(0, 10);
           return classes.some(cls => cls.date === formattedDate);
       };
-      
-      const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
-          if (!show) return null;
-
-          let icon, bgColor, buttonColor, titleColor;
-          switch (type) {
-              case 'success':
-                  icon = <i className="fas fa-check-circle text-4xl text-green-500"></i>;
-                  bgColor = 'bg-white';
-                  titleColor = 'text-green-600';
-                  break;
-              case 'error':
-                  icon = <i className="fas fa-times-circle text-4xl text-red-500"></i>;
-                  bgColor = 'bg-white';
-                  titleColor = 'text-red-600';
-                  break;
-              case 'confirm':
-                  icon = <i className="fas fa-question-circle text-4xl text-blue-500"></i>;
-                  bgColor = 'bg-white';
-                  titleColor = 'text-blue-600';
-                  break;
-              default:
-                  icon = null;
-          }
-
-          return (
-              <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
                   <div className={`p-6 rounded-xl shadow-xl w-full max-w-sm text-center ${bgColor} transform transition-all duration-300 ease-in-out scale-100`}>
                       <div className="mb-4">{icon}</div>
                       <h3 className={`text-lg font-bold mb-2 ${titleColor}`}>{title}</h3>
@@ -1111,6 +1120,7 @@ const handleNextMonth = () => {
   </script>
 </body>
 </html>
+
 
 
 
