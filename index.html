@@ -145,12 +145,13 @@
                 studentCount: 1,
                 studentNames: [''],
                 date: new Date().toISOString().split('T')[0],
-                day: '',
+                day: daysOfWeek[new Date().getDay()], // Se inicializa el día de la semana
                 time: timesOfDay[0],
                 price: defaultClassPrices[1] || 0,
             });
             const [monthlyReports, setMonthlyReports] = useState({});
             const [selectedDate, setSelectedDate] = useState(new Date());
+            const [selectedMonthYear, setSelectedMonthYear] = useState(''); // Nuevo estado para el mes seleccionado
             const [isEditing, setIsEditing] = useState(false);
             const [editedClassId, setEditedClassId] = useState(null);
             const [showConfigModal, setShowConfigModal] = useState(false);
@@ -173,6 +174,12 @@
             // Funciones de utilidad
             const formatPrice = (price) => {
                 return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price);
+            };
+
+            const formatMonthYear = (monthYearString) => {
+                const [year, month] = monthYearString.split('-');
+                const date = new Date(year, month - 1);
+                return date.toLocaleString('es-AR', { month: 'long', year: 'numeric' });
             };
 
             // Funciones para manejar Firebase
@@ -373,7 +380,7 @@
                         studentCount: 1,
                         studentNames: [''],
                         date: new Date().toISOString().split('T')[0],
-                        day: '',
+                        day: daysOfWeek[new Date().getDay()], // Se reinicia el día al estado inicial
                         time: timesOfDay[0],
                         price: customPrices[1] || 0,
                     });
@@ -513,37 +520,56 @@
                     const date = new Date(cls.date);
                     const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
                     if (!report[monthYear]) {
-                        report[monthYear] = { totalIncome: 0, classCount: 0, classDetails: [] };
+                        report[monthYear] = {
+                            totalIncome: 0,
+                            classCount: 0,
+                            classCountByStudent: {}, // Nuevo campo para el desglose
+                        };
                     }
                     report[monthYear].totalIncome += cls.price;
                     report[monthYear].classCount += 1;
-                    report[monthYear].classDetails.push(cls);
+                    
+                    // Agregar el desglose por cantidad de alumnos
+                    const studentCount = cls.studentCount;
+                    report[monthYear].classCountByStudent[studentCount] = (report[monthYear].classCountByStudent[studentCount] || 0) + 1;
                 });
                 setMonthlyReports(report);
             }, [classes]);
-
-            const filteredClassesForSelectedDate = useMemo(() => {
-                const selectedDateString = selectedDate.toISOString().split('T')[0];
-                
-                const filtered = classes.filter(cls => {
-                    const classDateString = cls.date;
-                    
-                    const isMatchingDate = classDateString === selectedDateString;
-                    const isMatchingFilterText = filterText === '' || 
-                        cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()));
-
-                    return isMatchingDate && isMatchingFilterText;
+            
+            // Genera la lista de meses únicos para las pestañas
+            const uniqueMonths = useMemo(() => {
+                const months = new Set();
+                classes.forEach(cls => {
+                    const monthYear = cls.date.substring(0, 7); // yyyy-mm
+                    months.add(monthYear);
                 });
+                return Array.from(months).sort((a, b) => new Date(a) - new Date(b));
+            }, [classes]);
 
-                if (view === 'report') {
-                    return classes.filter(cls =>
-                        filterText === '' || 
+            // Filtra las clases basadas en la fecha, el mes y el texto de búsqueda
+            const filteredClasses = useMemo(() => {
+                let filtered = classes;
+
+                // Filtrar por mes si hay uno seleccionado
+                if (selectedMonthYear) {
+                    filtered = filtered.filter(cls => cls.date.startsWith(selectedMonthYear));
+                }
+
+                // Filtrar por fecha específica si está seleccionada
+                const selectedDateString = selectedDate.toISOString().split('T')[0];
+                if (!selectedMonthYear && classes.some(cls => cls.date === selectedDateString)) {
+                    filtered = filtered.filter(cls => cls.date === selectedDateString);
+                }
+
+                // Filtrar por texto de búsqueda
+                if (filterText) {
+                    filtered = filtered.filter(cls => 
                         cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase()))
                     );
                 }
 
                 return filtered;
-            }, [classes, selectedDate, view, filterText]);
+            }, [classes, selectedDate, selectedMonthYear, filterText]);
 
             return (
                 <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
@@ -656,7 +682,10 @@
                                     </h2>
                                     <div className="flex items-center space-x-2">
                                         <button
-                                            onClick={() => setView(view === 'list' ? 'report' : 'list')}
+                                            onClick={() => {
+                                                setView(view === 'list' ? 'report' : 'list');
+                                                setSelectedMonthYear(''); // Limpiar el mes seleccionado al cambiar de vista
+                                            }}
                                             className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-600 transition-colors"
                                             title={view === 'list' ? 'Ver Reporte' : 'Volver a la lista'}
                                         >
@@ -677,7 +706,10 @@
                                     <input
                                         type="date"
                                         value={selectedDate.toISOString().split('T')[0]}
-                                        onChange={(e) => setSelectedDate(new Date(e.target.value))}
+                                        onChange={(e) => {
+                                            setSelectedDate(new Date(e.target.value));
+                                            setSelectedMonthYear(''); // Limpiar el mes seleccionado
+                                        }}
                                         className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full md:w-auto"
                                     />
                                     <input
@@ -688,13 +720,35 @@
                                         className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full md:flex-1"
                                     />
                                 </div>
+                                
+                                {/* Pestañas de meses para la vista de lista */}
+                                {view === 'list' && (
+                                    <div className="flex flex-wrap gap-2 mb-4">
+                                        <button
+                                            onClick={() => setSelectedMonthYear('')}
+                                            className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === '' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                                        >
+                                            Todos
+                                        </button>
+                                        {uniqueMonths.map(monthYear => (
+                                            <button
+                                                key={monthYear}
+                                                onClick={() => setSelectedMonthYear(monthYear)}
+                                                className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === monthYear ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                                            >
+                                                {formatMonthYear(monthYear)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
 
                                 {/* Vista de lista de clases */}
                                 {view === 'list' && (
                                     <div className="overflow-x-auto">
                                         <div className="space-y-4">
-                                            {filteredClassesForSelectedDate.length > 0 ? (
-                                                filteredClassesForSelectedDate.map(cls => (
+                                            {filteredClasses.length > 0 ? (
+                                                filteredClasses.map(cls => (
                                                     <div key={cls.id} className={`p-4 rounded-xl shadow-md ${colorMap[cls.studentCount]}`}>
                                                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                                                             <div>
@@ -752,16 +806,21 @@
                                                                 {new Date(monthYear).toLocaleString('es-AR', { year: 'numeric', month: 'long' })}
                                                             </h4>
                                                             <p className="text-gray-600">
-                                                                Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span>
-                                                            </p>
-                                                            <p className="text-gray-600">
                                                                 Ingreso total: <span className="font-bold text-green-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span>
                                                             </p>
-                                                            <ul className="mt-2 text-sm text-gray-500 space-y-1">
-                                                                {monthlyReports[monthYear].classDetails.map((cls, index) => (
-                                                                    <li key={index}>{cls.date}: {cls.studentNames.join(', ')} - {formatPrice(cls.price)}</li>
-                                                                ))}
-                                                            </ul>
+                                                            <p className="text-gray-600">
+                                                                Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span>
+                                                            </p>
+                                                            <div className="mt-2 text-sm text-gray-500">
+                                                                <p className="font-bold">Clases por cantidad de alumnos:</p>
+                                                                <ul className="list-disc list-inside ml-4">
+                                                                    {Object.entries(monthlyReports[monthYear].classCountByStudent).map(([count, numClasses]) => (
+                                                                        <li key={count}>
+                                                                            {count} {count === '1' ? 'persona' : 'personas'}: {numClasses}
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -786,6 +845,12 @@
                                             onChange={handleDateChange}
                                             className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                                         />
+                                        
+                                        {/* Campo de día de la semana que se actualiza automáticamente */}
+                                        <label className="block text-gray-700 font-medium">Día:</label>
+                                        <p className="p-3 border rounded-lg bg-gray-200 text-gray-800 font-bold transition-shadow">
+                                            {newEntry.day}
+                                        </p>
 
                                         <label className="block text-gray-700 font-medium">Número de personas:</label>
                                         <select
@@ -837,7 +902,7 @@
                                         </button>
                                         {isEditing && (
                                             <button
-                                                onClick={() => { setIsEditing(false); setNewEntry({ studentCount: 1, studentNames: [''], date: new Date().toISOString().split('T')[0], day: '', time: timesOfDay[0], price: customPrices[1] || 0 }); }}
+                                                onClick={() => { setIsEditing(false); setNewEntry({ studentCount: 1, studentNames: [''], date: new Date().toISOString().split('T')[0], day: daysOfWeek[new Date().getDay()], time: timesOfDay[0], price: customPrices[1] || 0 }); }}
                                                 className="bg-gray-300 text-gray-800 font-bold py-3 rounded-lg shadow-md hover:bg-gray-400 transition-colors"
                                             >
                                                 Cancelar
