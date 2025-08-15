@@ -20,11 +20,12 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken, sendPasswordResetEmail, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken, sendPasswordResetEmail, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, query, Timestamp, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         window.initializeApp = initializeApp;
         window.getAuth = getAuth;
         window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
         window.signOut = signOut;
         window.onAuthStateChanged = onAuthStateChanged;
         window.signInAnonymously = signInAnonymously;
@@ -175,6 +176,7 @@
             const [filterText, setFilterText] = useState('');
             const [selectedClassDetails, setSelectedClassDetails] = useState(null);
             const [selectedDate, setSelectedDate] = useState(new Date());
+            const [isSigningUp, setIsSigningUp] = useState(false);
 
             const [messageBox, setMessageBox] = useState({
                 show: false,
@@ -247,6 +249,35 @@
                         onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                     console.error("Error signing in:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const signUp = async () => {
+                try {
+                    setLoading(true);
+                    const auth = authRef.current;
+                    await window.createUserWithEmailAndPassword(auth, email, password);
+                    setMessageBox({
+                        show: true,
+                        title: 'Cuenta creada',
+                        content: 'Tu cuenta se ha creado exitosamente. ¡Ya puedes iniciar sesión!',
+                        type: 'success',
+                        onClose: () => {
+                            setMessageBox({ ...messageBox, show: false });
+                            setIsSigningUp(false);
+                        }
+                    });
+                } catch (error) {
+                    setMessageBox({
+                        show: true,
+                        title: 'Error de registro',
+                        content: 'Hubo un error al crear la cuenta. Puede que el email ya esté en uso o la contraseña sea demasiado débil.',
+                        type: 'error',
+                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                    });
+                    console.error("Error signing up:", error);
                 } finally {
                     setLoading(false);
                 }
@@ -910,11 +941,24 @@
 
                         {!userId && (
                             <div className="flex flex-col space-y-4">
-                                <h2 className="text-2xl font-bold text-gray-800">Iniciar Sesión</h2>
+                                <h2 className="text-2xl font-bold text-gray-800">{isSigningUp ? 'Crear Nueva Cuenta' : 'Iniciar Sesión'}</h2>
                                 <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
                                 <input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                <button onClick={signIn} className="bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Ingresar</button>
-                                <button onClick={handlePasswordReset} className="mt-2 text-blue-600 hover:underline">¿No recuerdas la contraseña?</button>
+                                {isSigningUp ? (
+                                    <button onClick={signUp} className="bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Registrarme</button>
+                                ) : (
+                                    <button onClick={signIn} className="bg-green-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-green-700 transition-colors">Ingresar</button>
+                                )}
+                                
+                                {isSigningUp ? (
+                                    <button onClick={() => setIsSigningUp(false)} className="mt-2 text-blue-600 hover:underline">¿Ya tienes una cuenta? Iniciar Sesión</button>
+                                ) : (
+                                    <>
+                                        <button onClick={() => setIsSigningUp(true)} className="mt-2 text-blue-600 hover:underline">¿No tienes una cuenta? Crear una</button>
+                                        <button onClick={handlePasswordReset} className="mt-2 text-blue-600 hover:underline">¿No recuerdas la contraseña?</button>
+                                    </>
+                                )}
+                                
                             </div>
                         )}
 
