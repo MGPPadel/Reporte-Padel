@@ -748,7 +748,7 @@
                         const importedData = JSON.parse(e.target.result);
                         setMessageBox({ show: true, title: 'Confirmar importación', content: `Se reemplazarán los datos actuales con los del archivo. ¿Estás seguro?`, type: 'confirm', onConfirm: () => importData(importedData), onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     } catch (error) {
-                        setMessageBox({ show: true, title: 'Error de archivo', content: 'El archivo no es un JSON válido. Por favor, revisa el formato.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        setMessageBox({ show: true, title: 'Error de archivo', content: 'El archivo no es un JSON válido. Por favor, revisa el formato.', type: 'error', onClose: () => setMessageBox({ ...message_box, show: false }) });
                         console.error("Error parsing JSON:", error);
                     }
                 };
@@ -877,7 +877,7 @@
                         {userId && (
                             <>
                                 <div className="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0">
-                                    <div className="flex flex-row overflow-x-auto whitespace-nowrap space-x-2 pb-2">
+                                    <div className="w-full sm:w-auto flex overflow-x-auto whitespace-nowrap space-x-2 pb-2">
                                         <button onClick={() => setView('list')} className={`px-4 py-2 rounded-lg font-bold shadow-md transition-colors ${view === 'list' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Lista de Clases</button>
                                         <button onClick={() => setView('calendar')} className={`px-4 py-2 rounded-lg font-bold shadow-md transition-colors ${view === 'calendar' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Calendario</button>
                                         <button onClick={() => setView('reports')} className={`px-4 py-2 rounded-lg font-bold shadow-md transition-colors ${view === 'reports' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Reportes</button>
