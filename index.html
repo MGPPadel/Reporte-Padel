@@ -4,52 +4,47 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Informe de Clases de Padel</title>
-    
-    <link rel="icon" href="https://i.postimg.cc/4yQCzCkR/favicon-PADEL-LOGO.png" type="image/png">
-    
+
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken, sendPasswordResetEmail, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, query, Timestamp, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, browserSessionPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, setDoc, query, onSnapshot, writeBatch, Timestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         window.initializeApp = initializeApp;
         window.getAuth = getAuth;
         window.signInWithEmailAndPassword = signInWithEmailAndPassword;
         window.signOut = signOut;
         window.onAuthStateChanged = onAuthStateChanged;
-        window.signInAnonymously = signInAnonymously;
-        window.signInWithCustomToken = signInWithCustomToken;
-        window.sendPasswordResetEmail = sendPasswordResetEmail;
         window.getFirestore = getFirestore;
-        window.doc = doc;
-        window.getDoc = getDoc;
-        window.setDoc = setDoc;
-        window.updateDoc = updateDoc;
-        window.deleteDoc = deleteDoc;
-        window.onSnapshot = onSnapshot;
         window.collection = collection;
         window.addDoc = addDoc;
-        window.query = query;
-        window.Timestamp = Timestamp;
         window.getDocs = getDocs;
+        window.doc = doc;
+        window.deleteDoc = deleteDoc;
+        window.setDoc = setDoc;
+        window.query = query;
+        window.onSnapshot = onSnapshot;
         window.writeBatch = writeBatch;
-        window.setPersistence = setPersistence;
+        window.Timestamp = Timestamp;
+        window.getDoc = getDoc;
+        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+        window.sendPasswordResetEmail = sendPasswordResetEmail;
         window.browserSessionPersistence = browserSessionPersistence;
+        window.setPersistence = setPersistence;
     </script>
 </head>
-<body>
+<body class="bg-gray-100 font-sans">
     <div id="root"></div>
-
     <script type="text/babel">
         const firebaseConfig = {
             apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
@@ -88,7 +83,7 @@
             let icon, bgColor, titleColor;
             switch (type) {
                 case 'success':
-                    icon = <i className="fas fa-check-circle text-4xl text-green-500"></i>;
+                    icon = <i className="fas fa-check-circle text-4xl text-green-600"></i>;
                     bgColor = 'bg-white';
                     titleColor = 'text-green-600';
                     break;
@@ -98,9 +93,9 @@
                     titleColor = 'text-red-600';
                     break;
                 case 'confirm':
-                    icon = <i className="fas fa-question-circle text-4xl text-blue-500"></i>;
+                    icon = <i className="fas fa-question-circle text-4xl text-blue-800"></i>;
                     bgColor = 'bg-white';
-                    titleColor = 'text-blue-600';
+                    titleColor = 'text-blue-800';
                     break;
                 default:
                     icon = null;
@@ -116,14 +111,14 @@
                             {type === 'confirm' && (
                                 <button
                                     onClick={() => { onConfirm(); onClose(); }}
-                                    className={`py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-600 hover:bg-blue-700 shadow-md mr-2`}
+                                    className={`py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md mr-2`}
                                 >
                                     Aceptar
                                 </button>
                             )}
                             <button
                                 onClick={onClose}
-                                className={`py-2 px-4 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ? 'bg-gray-400 hover:bg-gray-500' : type === 'success' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} shadow-md`}
+                                className={`py-2 px-4 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ? 'bg-gray-400 hover:bg-gray-500' : type === 'success' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-500 hover:bg-red-600'} shadow-md`}
                             >
                                 {type === 'confirm' ? 'Cancelar' : 'Cerrar'}
                             </button>
@@ -137,6 +132,7 @@
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
             const [userId, setUserId] = useState(null);
+            const [userEmail, setUserEmail] = useState('');
             const [loading, setLoading] = useState(true);
             const [classes, setClasses] = useState([]);
             const [students, setStudents] = useState([]);
@@ -173,8 +169,9 @@
             const [showConfigModal, setShowConfigModal] = useState(false);
             const [view, setView] = useState('list');
             const [filterText, setFilterText] = useState('');
-            const [selectedClassDetails, setSelectedClassDetails] = useState(null);
+            const [selectedClassesForDay, setSelectedClassesForDay] = useState(null);
             const [selectedDate, setSelectedDate] = useState(new Date());
+            const [isSigningUp, setIsSigningUp] = useState(false);
 
             const [messageBox, setMessageBox] = useState({
                 show: false,
@@ -205,16 +202,13 @@
                     const unsubscribe = window.onAuthStateChanged(authRef.current, (user) => {
                         if (user) {
                             setUserId(user.uid);
+                            setUserEmail(user.email);
                         } else {
                             setUserId(null);
+                            setUserEmail('');
                         }
                         setLoading(false);
                     });
-                    if (initialAuthToken) {
-                        await window.signInWithCustomToken(authRef.current, initialAuthToken);
-                    } else {
-                        await window.signInAnonymously(authRef.current);
-                    }
                     return () => unsubscribe();
                 } catch (error) {
                     console.error("Error initializing Firebase:", error);
@@ -247,6 +241,35 @@
                         onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                     console.error("Error signing in:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const signUp = async () => {
+                try {
+                    setLoading(true);
+                    const auth = authRef.current;
+                    await window.createUserWithEmailAndPassword(auth, email, password);
+                    setMessageBox({
+                        show: true,
+                        title: 'Cuenta creada',
+                        content: 'Tu cuenta se ha creado exitosamente. ¡Ya puedes iniciar sesión!',
+                        type: 'success',
+                        onClose: () => {
+                            setMessageBox({ ...messageBox, show: false });
+                            setIsSigningUp(false);
+                        }
+                    });
+                } catch (error) {
+                    setMessageBox({
+                        show: true,
+                        title: 'Error de registro',
+                        content: 'Hubo un error al crear la cuenta. Puede que el email ya esté en uso o la contraseña sea demasiado débil.',
+                        type: 'error',
+                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                    });
+                    console.error("Error signing up:", error);
                 } finally {
                     setLoading(false);
                 }
@@ -465,7 +488,7 @@
             useEffect(() => {
                 if (userId && dbRef.current) {
                     loadCustomPrices();
-                    
+
                     const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
                     const classesQuery = window.query(classesColRef);
                     const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
@@ -605,6 +628,7 @@
                             await window.deleteDoc(classDocRef);
                             setMessageBox({ show: true, title: 'Clase eliminada', content: 'La clase ha sido eliminada exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                             addLogEntry('Clase eliminada', `Clase con ${classData.studentNames.join(', ')} del día ${classData.date} a las ${classData.time} ha sido eliminada.`);
+                            setSelectedClassesForDay(null); // Close modal after deleting
                         } catch (error) {
                             setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                             console.error("Error deleting class:", error);
@@ -627,6 +651,7 @@
                 });
                 setIsEditing(true);
                 setEditedClassId(classToEdit.id);
+                setSelectedClassesForDay(null); // Close modal when editing
                 setView('list');
             };
             const generatePDF = () => {
@@ -710,8 +735,10 @@
                     return newDate;
                 });
             };
-            const handleClassClick = (cls) => {
-                setSelectedClassDetails(cls);
+            const handleDayClick = (classesOnDay) => {
+                if (classesOnDay.length > 0) {
+                    setSelectedClassesForDay(classesOnDay);
+                }
             };
 
             const reportTableRef = useRef(null);
@@ -790,7 +817,7 @@
                         const { id, ...paymentData } = payment;
                         batch.set(newDocRef, { ...paymentData, timestamp: window.Timestamp.fromDate(new Date(paymentData.date)) });
                     });
-                    
+
                     await batch.commit();
                     setMessageBox({
                         show: true,
@@ -852,35 +879,43 @@
                                     </div>
                                 ))}
                                 <div className="flex justify-end mt-6">
-                                    <button onClick={() => { saveCustomPrices(); setShowConfigModal(false); }} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors mr-2">Guardar</button>
+                                    <button onClick={() => { saveCustomPrices(); setShowConfigModal(false); }} className="bg-blue-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-900 transition-colors mr-2">Guardar</button>
                                     <button onClick={() => setShowConfigModal(false)} className="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition-colors">Cancelar</button>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {selectedClassDetails && (
+                    {selectedClassesForDay && (
                         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-                            <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm transform transition-all duration-300 ease-in-out">
-                                <h3 className="text-xl font-bold mb-4 text-gray-800">Detalles de la Clase</h3>
-                                <p className="mb-2"><span className="font-bold">Fecha:</span> {selectedClassDetails.date}</p>
-                                <p className="mb-2"><span className="font-bold">Día:</span> {selectedClassDetails.day}</p>
-                                <p className="mb-2"><span className="font-bold">Hora:</span> {selectedClassDetails.time}</p>
-                                <p className="mb-2"><span className="font-bold">Precio:</span> {formatPrice(selectedClassDetails.price)}</p>
-                                <div className="mb-4">
-                                    <span className="font-bold block">Alumnos:</span>
-                                    <ul className="list-disc list-inside mt-1">
-                                        {selectedClassDetails.studentNames.map((name, index) => <li key={index}>{name}</li>)}
-                                    </ul>
-                                </div>
-                                <div className="flex justify-end space-x-2">
-                                    <button onClick={() => { editClass(selectedClassDetails); setSelectedClassDetails(null); }} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar clase">
-                                        <i className="fas fa-edit"></i> Editar
-                                    </button>
-                                    <button onClick={() => { deleteClass(selectedClassDetails.id, selectedClassDetails); setSelectedClassDetails(null); }} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar clase">
-                                        <i className="fas fa-trash-alt"></i> Eliminar
-                                    </button>
-                                    <button onClick={() => setSelectedClassDetails(null)} className="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition-colors">Cerrar</button>
+                            <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md transform transition-all duration-300 ease-in-out">
+                                <h3 className="text-xl font-bold mb-4 text-gray-800">Clases del día {selectedClassesForDay[0]?.date}</h3>
+                                {selectedClassesForDay.length > 0 ? (
+                                    selectedClassesForDay.map(cls => (
+                                        <div key={cls.id} className="p-4 mb-4 rounded-lg shadow-md border border-gray-200">
+                                            <p className="mb-2"><span className="font-bold">Hora:</span> {cls.time}</p>
+                                            <div className="mb-2">
+                                                <span className="font-bold block">Alumnos:</span>
+                                                <ul className="list-disc list-inside mt-1">
+                                                    {cls.studentNames.map((name, index) => <li key={index}>{name}</li>)}
+                                                </ul>
+                                            </div>
+                                            <p className="mb-2"><span className="font-bold">Precio:</span> {formatPrice(cls.price)}</p>
+                                            <div className="flex justify-end space-x-2">
+                                                <button onClick={() => editClass(cls)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar clase">
+                                                    <i className="fas fa-edit"></i> Editar
+                                                </button>
+                                                <button onClick={() => deleteClass(cls.id, cls)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar clase">
+                                                    <i className="fas fa-trash-alt"></i> Eliminar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-gray-500">No hay clases para este día.</p>
+                                )}
+                                <div className="flex justify-end mt-4">
+                                    <button onClick={() => setSelectedClassesForDay(null)} className="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition-colors">Cerrar</button>
                                 </div>
                             </div>
                         </div>
@@ -895,26 +930,41 @@
                     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-6xl transition-all duration-300">
                         <div className="flex justify-between items-center mb-6">
                             <div className="flex items-center">
-                                {/* Aquí va la etiqueta del logo */}
                                 <img src="https://i.postimg.cc/R0BrhVnV/REPORTE-PADEL-LOGO.png" alt="Logo de la aplicación" className="w-10 h-10 mr-4"/>
-                                <h1 className="text-3xl font-extrabold text-gray-800">Informe de Clases de Padel</h1>
+                                <h1 className="text-3xl font-bold text-gray-800">REPORTE CLASES PADEL</h1>
                             </div>
                             <div className="flex space-x-2">
                                 {userId && (
-                                    <button onClick={signOutUser} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-colors" title="Cerrar sesión">
-                                        <i className="fas fa-sign-out-alt"></i>
-                                    </button>
+                                    <div className="flex items-center space-x-4">
+                                        <span className="text-gray-600 font-medium hidden sm:block">{userEmail}</span>
+                                        <button onClick={signOutUser} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-colors" title="Cerrar sesión">
+                                            <i className="fas fa-sign-out-alt"></i>
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
 
                         {!userId && (
                             <div className="flex flex-col space-y-4">
-                                <h2 className="text-2xl font-bold text-gray-800">Iniciar Sesión</h2>
+                                <h2 className="text-2xl font-bold text-gray-800">{isSigningUp ? 'Crear Nueva Cuenta' : 'Iniciar Sesión'}</h2>
                                 <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
                                 <input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                <button onClick={signIn} className="bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Ingresar</button>
-                                <button onClick={handlePasswordReset} className="mt-2 text-blue-600 hover:underline">¿No recuerdas la contraseña?</button>
+                                {isSigningUp ? (
+                                    <button onClick={signUp} className="bg-blue-800 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-900 transition-colors">Registrarme</button>
+                                ) : (
+                                    <button onClick={signIn} className="bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Ingresar</button>
+                                )}
+
+                                {isSigningUp ? (
+                                    <button onClick={() => setIsSigningUp(false)} className="mt-2 text-blue-800 hover:underline">¿Ya tienes una cuenta? Iniciar Sesión</button>
+                                ) : (
+                                    <>
+                                        <button onClick={() => setIsSigningUp(true)} className="mt-2 text-blue-800 hover:underline">¿No tienes una cuenta? Crear una</button>
+                                        <button onClick={handlePasswordReset} className="mt-2 text-blue-800 hover:underline">¿No recuerdas la contraseña?</button>
+                                    </>
+                                )}
+
                             </div>
                         )}
 
@@ -961,7 +1011,7 @@
                                     </div>
 
                                     <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mt-6">
-                                        <button onClick={addClass} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors flex-1">
+                                        <button onClick={addClass} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors flex-1">
                                             {isEditing ? 'Guardar Cambios' : 'Añadir Clase'}
                                         </button>
                                         {isEditing && (
@@ -976,19 +1026,19 @@
                                     <div className="flex flex-col md:flex-row justify-between items-center mb-6">
                                         <h2 className="text-2xl font-bold text-gray-800">Sección de {view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : view === 'calendar' ? 'Calendario' : view === 'students' ? 'Alumnos' : 'Pagos del Club'}</h2>
                                         <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
-                                            <button onClick={() => setView('list')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de clases">
+                                            <button onClick={() => setView('list')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'list' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de clases">
                                                 <i className="fas fa-list"></i>
                                             </button>
-                                            <button onClick={() => setView('report')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'report' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver reporte mensual">
+                                            <button onClick={() => setView('report')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'report' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver reporte mensual">
                                                 <i className="fas fa-chart-bar"></i>
                                             </button>
-                                            <button onClick={() => setView('calendar')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'calendar' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver calendario">
+                                            <button onClick={() => setView('calendar')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'calendar' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver calendario">
                                                 <i className="fas fa-calendar-alt"></i>
                                             </button>
-                                            <button onClick={() => setView('students')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'students' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de alumnos">
+                                            <button onClick={() => setView('students')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'students' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de alumnos">
                                                 <i className="fas fa-user-friends"></i>
                                             </button>
-                                            <button onClick={() => setView('payments')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'payments' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver pagos del club">
+                                            <button onClick={() => setView('payments')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'payments' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver pagos del club">
                                                 <i className="fas fa-money-bill-alt"></i>
                                             </button>
                                             <button onClick={() => setShowConfigModal(true)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Configurar precios">
@@ -1007,9 +1057,9 @@
                                         <>
                                             <div className="mb-6">
                                                 <div className="flex flex-wrap gap-2 mb-4">
-                                                    <button onClick={() => setSelectedMonthYear('')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === '' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Todos</button>
+                                                    <button onClick={() => setSelectedMonthYear('')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === '' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Todos</button>
                                                     {uniqueMonths.map(monthYear => (
-                                                        <button key={monthYear} onClick={() => setSelectedMonthYear(monthYear)} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === monthYear ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>
+                                                        <button key={monthYear} onClick={() => setSelectedMonthYear(monthYear)} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === monthYear ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>
                                                             {formatMonthYear(monthYear)}
                                                         </button>
                                                     ))}
@@ -1044,7 +1094,7 @@
                                                                     </div>
                                                                     <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
                                                                     <div className="flex justify-end md:justify-center space-x-2 mt-2 md:mt-0">
-                                                                        <button onClick={() => editClass(cls)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar clase">
+                                                                        <button onClick={() => editClass(cls)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar clase">
                                                                             <i className="fas fa-edit"></i>
                                                                         </button>
                                                                         <button onClick={() => deleteClass(cls.id, cls)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar clase">
@@ -1065,7 +1115,7 @@
                                     {view === 'report' && (
                                         <div>
                                             <div className="flex justify-end mb-4">
-                                                <button onClick={generatePDF} className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors">Generar PDF</button>
+                                                <button onClick={generatePDF} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Generar PDF</button>
                                             </div>
                                             <div ref={reportTableRef} className="bg-white p-4 rounded-xl shadow-lg">
                                                 <h3 className="text-2xl font-bold mb-4">Reporte Mensual</h3>
@@ -1074,7 +1124,7 @@
                                                         {Object.keys(monthlyReports).sort().map(monthYear => (
                                                             <div key={monthYear} className="border-b pb-4">
                                                                 <h4 className="text-xl font-bold text-gray-700 mb-2">{formatMonthYear(monthYear)}</h4>
-                                                                <p className="text-gray-600">Ingreso total: <span className="font-bold text-green-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
+                                                                <p className="text-gray-600">Ingreso total: <span className="font-bold text-blue-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
                                                                 <p className="text-gray-600">Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span></p>
                                                                 <div className="mt-2 text-sm text-gray-500">
                                                                     <p className="font-bold">Clases por cantidad de alumnos:</p>
@@ -1095,26 +1145,26 @@
                                     {view === 'calendar' && (
                                         <div className="bg-white p-6 rounded-xl shadow-lg">
                                             <div className="flex justify-between items-center mb-4">
-                                                <button onClick={() => handleCalendarNavigation(-1)} className="text-blue-600 hover:text-blue-800 transition-colors p-2 rounded-full"><i className="fas fa-chevron-left"></i></button>
+                                                <button onClick={() => handleCalendarNavigation(-1)} className="text-blue-800 hover:text-blue-900 transition-colors p-2 rounded-full"><i className="fas fa-chevron-left"></i></button>
                                                 <h3 className="text-xl font-bold">{selectedDate.toLocaleString('es-AR', { month: 'long', year: 'numeric' })}</h3>
-                                                <button onClick={() => handleCalendarNavigation(1)} className="text-blue-600 hover:text-blue-800 transition-colors p-2 rounded-full"><i className="fas fa-chevron-right"></i></button>
+                                                <button onClick={() => handleCalendarNavigation(1)} className="text-blue-800 hover:text-blue-900 transition-colors p-2 rounded-full"><i className="fas fa-chevron-right"></i></button>
                                             </div>
                                             <div className="grid grid-cols-7 gap-1 text-center font-bold text-gray-700 mb-2">
                                                 {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => <div key={day} className="p-2">{day}</div>)}
                                             </div>
                                             <div className="grid grid-cols-7 gap-1">
                                                 {calendarDays.map((day, index) => (
-                                                    <div key={index} className={`relative h-24 p-1 rounded-lg transition-colors ${day.isCurrentMonth ? 'bg-gray-100' : 'bg-gray-50 text-gray-400'}`}>
+                                                    <div key={index} onClick={() => handleDayClick(day.classes)} className={`relative h-24 p-1 rounded-lg transition-colors cursor-pointer ${day.isCurrentMonth ? 'bg-gray-100' : 'bg-gray-50 text-gray-400'}`}>
                                                         <span className="font-bold text-sm">{day.day}</span>
                                                         {day.dailyIncome > 0 && (
-                                                            <span className="absolute top-1 right-1 text-xs font-bold text-green-600 bg-green-200 px-2 py-1 rounded-full shadow-sm">
+                                                            <span className="absolute top-1 right-1 text-xs font-bold text-blue-600 bg-blue-200 px-2 py-1 rounded-full shadow-sm">
                                                                 {formatPrice(day.dailyIncome)}
                                                             </span>
                                                         )}
                                                         {day.classes.length > 0 && (
                                                             <div className="mt-1 space-y-1">
                                                                 {day.classes.map(cls => (
-                                                                    <div key={cls.id} onClick={() => handleClassClick(cls)} className={`cursor-pointer rounded-md p-1 text-xs truncate font-medium text-gray-800 shadow-md transition-transform transform hover:scale-105 ${colorMap[cls.studentCount]}`}>
+                                                                    <div key={cls.id} className={`rounded-md p-1 text-xs truncate font-medium text-gray-800 shadow-md transition-transform transform hover:scale-105 ${colorMap[cls.studentCount]}`}>
                                                                         {cls.time}
                                                                     </div>
                                                                 ))}
@@ -1125,7 +1175,7 @@
                                             </div>
                                         </div>
                                     )}
-                                    
+
                                     {view === 'students' && (
                                         <div className="mt-8">
                                             <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
@@ -1136,7 +1186,7 @@
                                                     <input type="tel" placeholder="Teléfono (ej: 549381XXXXXXX)" value={newStudent.phone} onChange={(e) => setNewStudent(prev => ({ ...prev, phone: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
                                                 </div>
                                                 <div className="flex space-x-4">
-                                                    <button onClick={addStudent} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                                                    <button onClick={addStudent} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
                                                         {isEditingStudent ? 'Guardar Cambios' : 'Añadir Alumno'}
                                                     </button>
                                                     {isEditingStudent && (
@@ -1146,7 +1196,7 @@
                                                     )}
                                                 </div>
                                             </div>
-                                            
+
                                             <div className="overflow-x-auto rounded-xl shadow-lg">
                                                 <h3 className="text-xl font-bold text-gray-800 p-4 bg-white border-b-2">Lista de Alumnos</h3>
                                                 {students.length > 0 ? (
@@ -1164,10 +1214,10 @@
                                                                     <div className="text-gray-600">{student.lastName}</div>
                                                                     <div className="text-gray-600">{student.phone}</div>
                                                                     <div className="flex justify-end md:justify-center space-x-2">
-                                                                        <button onClick={() => sendWhatsApp(student.phone)} className="text-green-600 hover:text-green-800 transition-colors" title="Enviar WhatsApp">
+                                                                        <button onClick={() => sendWhatsApp(student.phone)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Enviar WhatsApp">
                                                                             <i className="fab fa-whatsapp"></i>
                                                                         </button>
-                                                                        <button onClick={() => editStudent(student)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar alumno">
+                                                                        <button onClick={() => editStudent(student)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar alumno">
                                                                             <i className="fas fa-edit"></i>
                                                                         </button>
                                                                         <button onClick={() => deleteStudent(student.id)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar alumno">
@@ -1195,7 +1245,7 @@
                                                     <input type="text" placeholder="Descripción (ej: Pago de Mayo)" value={newPayment.description} onChange={(e) => setNewPayment(prev => ({ ...prev, description: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
                                                 </div>
                                                 <div className="flex space-x-4">
-                                                    <button onClick={addPayment} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                                                    <button onClick={addPayment} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
                                                         {isEditingPayment ? 'Guardar Cambios' : 'Añadir Pago'}
                                                     </button>
                                                     {isEditingPayment && (
@@ -1223,7 +1273,7 @@
                                                                     <div className="font-bold text-gray-800">{formatPrice(payment.amount)}</div>
                                                                     <div className="text-gray-600">{payment.description || '-'}</div>
                                                                     <div className="flex justify-end md:justify-center space-x-2">
-                                                                        <button onClick={() => editPayment(payment)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Editar pago">
+                                                                        <button onClick={() => editPayment(payment)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar pago">
                                                                             <i className="fas fa-edit"></i>
                                                                         </button>
                                                                         <button onClick={() => deletePayment(payment.id)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar pago">
@@ -1250,7 +1300,7 @@
                                                         {activityLog.map(log => (
                                                             <li key={log.id} className="py-4 flex justify-between items-center text-sm">
                                                                 <div className="flex-1">
-                                                                    <span className="font-bold text-blue-600 uppercase mr-2">{log.action}:</span>
+                                                                    <span className="font-bold text-blue-800 uppercase mr-2">{log.action}:</span>
                                                                     <span className="text-gray-700">{log.details}</span>
                                                                 </div>
                                                                 <span className="text-gray-500 text-xs">{formatDate(log.timestamp)}</span>
