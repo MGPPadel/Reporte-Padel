@@ -134,7 +134,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
           {filteredStudents.map((stu, i) => (
             <div
               key={stu.id}
-              onClick={messageBox.onConfirm}
+              onClick={onConfirm}
               className={`px-3 py-2 cursor-pointer transition-colors ${
                 i === activeIndex ? "bg-blue-100 text-blue-800 font-semibold" : "hover:bg-gray-100"
               }`}
@@ -213,7 +213,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         <div className="mt-4">
                             {type === 'confirm' && (
                                 <button
-                                    onClick={messageBox.onConfirm}
+                                    onClick={onConfirm}
                                     className={`py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md mr-2`}
                                 >
                                     Aceptar
@@ -994,7 +994,7 @@ const classData = {
                                     </div>
                                 ))}
                                 <div className="flex justify-end mt-6">
-                                    <button onClick={messageBox.onConfirm} className="bg-blue-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-900 transition-colors mr-2">Guardar</button>
+                                    <button onClick={onConfirm} className="bg-blue-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-900 transition-colors mr-2">Guardar</button>
                                     <button onClick={() => setShowConfigModal(false)} className="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition-colors">Cancelar</button>
                                 </div>
                             </div>
@@ -1137,7 +1137,7 @@ const classData = {
                                             {isEditing ? 'Guardar Cambios' : 'Añadir Clase'}
                                         </button>
                                         {isEditing && (
-                                            <button onClick={messageBox.onConfirm} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                            <button onClick={onConfirm} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                 Cancelar
                                             </button>
                                         )}
@@ -1312,7 +1312,7 @@ const classData = {
                                                         {isEditingStudent ? 'Guardar Cambios' : 'Añadir Alumno'}
                                                     </button>
                                                     {isEditingStudent && (
-                                                        <button onClick={messageBox.onConfirm} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                                        <button onClick={onConfirm} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                             Cancelar
                                                         </button>
                                                     )}
@@ -1371,7 +1371,7 @@ const classData = {
                                                         {isEditingPayment ? 'Guardar Cambios' : 'Añadir Pago'}
                                                     </button>
                                                     {isEditingPayment && (
-                                                        <button onClick={messageBox.onConfirm} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                                        <button onClick={onConfirm} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                             Cancelar
                                                         </button>
                                                     )}
