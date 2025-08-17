@@ -134,7 +134,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
           {filteredStudents.map((stu, i) => (
             <div
               key={stu.id}
-              onClick={onConfirm}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(stu); }}
+              onTouchStart={(e) => { e.preventDefault(); handleSelect(stu); }}
               className={`px-3 py-2 cursor-pointer transition-colors ${
                 i === activeIndex ? "bg-blue-100 text-blue-800 font-semibold" : "hover:bg-gray-100"
               }`}
