@@ -960,15 +960,14 @@ const classData = {
             };
             return (
                 <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
-                    <MessageBox
-                        show={messageBox.show}
-                        title={messageBox.title}
-                        content={messageBox.content}
-                        type={messageBox.type}
-                        onConfirm={messageBox.onConfirm}
-                        onClose={() => setMessageBox({ ...messageBox, show: false })}
-                    />
-
+<MessageBox
+    show={messageBox.show}
+    title={messageBox.title}
+    content={messageBox.content}
+    type={messageBox.type}
+    onConfirm={messageBox.onConfirm || (() => setMessageBox({ ...messageBox, show: false }))}  
+    onClose={() => setMessageBox({ ...messageBox, show: false })}
+/>
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -1455,3 +1454,4 @@ const classData = {
     </script>
 </body>
 </html>
+
