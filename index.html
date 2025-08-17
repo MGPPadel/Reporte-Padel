@@ -55,8 +55,7 @@
             appId: "1:731771747398:web:ebc8b723fe220869fade47"
         };
         const appId = typeof firebaseConfig.appId !== 'undefined' ? firebaseConfig.appId : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ?
-            __initial_auth_token : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         const { useState, useEffect, useRef, useMemo } = React;
         const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -68,9 +67,9 @@
         };
         const peopleOptions = [1, 2, 3, 4];
         const timesOfDay = [
-            '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
-            '1:00 p. m.', '2:00 p. m.', '3:00 p. m.', '4:00 p. m.', '5:00 p. m.',
-            '6:00 p. m.', '7:00 p. m.', '8:00 p. m.', '9:00 p. m.', '10:00 p. m.',
+            '8:00 a.m.', '9:00 a.m.', '10:00 a.m.', '11:00 a.m.', '12:00 p.m.',
+            '1:00 p.m.', '2:00 p.m.', '3:00 p.m.', '4:00 p.m.', '5:00 p.m.',
+            '6:00 p.m.', '7:00 p.m.', '8:00 p.m.', '9:00 p.m.', '10:00 p.m.',
         ];
         const colorMap = {
             1: 'bg-yellow-100',
@@ -128,6 +127,69 @@
             );
         };
 
+        const StudentAutocompleteInput = ({ value, onChange, students, index }) => {
+            const [filteredSuggestions, setFilteredSuggestions] = useState([]);
+            const [showSuggestions, setShowSuggestions] = useState(false);
+            const inputRef = useRef(null);
+
+            useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (inputRef.current && !inputRef.current.contains(event.target)) {
+                        setShowSuggestions(false);
+                    }
+                };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => {
+                    document.removeEventListener("mousedown", handleClickOutside);
+                };
+            }, []);
+
+            const handleChange = (e) => {
+                const userInput = e.target.value;
+                onChange(index, userInput);
+                const suggestions = students.filter(
+                    (student) =>
+                        `${student.firstName} ${student.lastName}`
+                            .toLowerCase()
+                            .includes(userInput.toLowerCase())
+                );
+                setFilteredSuggestions(suggestions);
+                setShowSuggestions(true);
+            };
+
+            const handleSelectSuggestion = (student) => {
+                onChange(index, `${student.firstName} ${student.lastName}`);
+                setShowSuggestions(false);
+                setFilteredSuggestions([]);
+            };
+
+            return (
+                <div className="relative mb-2" ref={inputRef}>
+                    <input
+                        type="text"
+                        name={`studentName-${index}`}
+                        value={value}
+                        onChange={handleChange}
+                        placeholder={`Nombre del Alumno ${index + 1}`}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {showSuggestions && filteredSuggestions.length > 0 && (
+                        <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                            {filteredSuggestions.map((student) => (
+                                <li
+                                    key={student.id}
+                                    onClick={() => handleSelectSuggestion(student)}
+                                    className="p-2 cursor-pointer hover:bg-gray-200"
+                                >
+                                    {student.firstName} {student.lastName}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            );
+        };
+
         const App = () => {
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
@@ -141,7 +203,7 @@
             const [customPrices, setCustomPrices] = useState(defaultClassPrices);
             const [newEntry, setNewEntry] = useState({
                 studentCount: 1,
-                studentNames: [],
+                studentNames: [''],
                 date: new Date().toISOString().split('T')[0],
                 day: daysOfWeek[new Date().getDay()],
                 time: timesOfDay[0],
@@ -553,22 +615,20 @@
                     const newNames = Array(count).fill('');
                     const newPrice = customPrices[count] || 0;
                     setNewEntry(prev => ({ ...prev, studentCount: count, studentNames: newNames, price: newPrice }));
+                } else if (name.startsWith('studentName-')) {
+                    const index = parseInt(name.split('-')[1]);
+                    const newNames = [...newEntry.studentNames];
+                    newNames[index] = value;
+                    setNewEntry(prev => ({ ...prev, studentNames: newNames }));
                 } else {
                     setNewEntry(prev => ({ ...prev, [name]: value }));
                 }
             };
-            
-            const handleStudentSelection = (e) => {
-                const selectedOptions = Array.from(e.target.selectedOptions);
-                const selectedNames = selectedOptions.map(option => option.value);
-                setNewEntry(prev => ({
-                    ...prev,
-                    studentNames: selectedNames,
-                    studentCount: selectedNames.length,
-                    price: customPrices[selectedNames.length] || 0
-                }));
+            const handleAutocompleteStudentChange = (index, value) => {
+                const newNames = [...newEntry.studentNames];
+                newNames[index] = value;
+                setNewEntry(prev => ({ ...prev, studentNames: newNames }));
             };
-
             const handleDateChange = (e) => {
                 const dateString = e.target.value;
                 const dateObj = new Date(`${dateString}T00:00:00Z`);
@@ -578,8 +638,8 @@
             const handleCustomPriceChange = (studentCount, price) => setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 }));
             const addClass = async () => {
                 if (!dbRef.current || !userId) return;
-                if (newEntry.studentNames.length === 0 || newEntry.price <= 0) {
-                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, selecciona al menos un alumno y asegúrate de que el precio sea válido.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                if (newEntry.studentNames.some(name => name.trim() === '') || newEntry.price <= 0) {
+                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos de los alumnos y el precio.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     return;
                 }
                 try {
@@ -598,7 +658,7 @@
                     }
                     setNewEntry({
                         studentCount: 1,
-                        studentNames: [],
+                        studentNames: [''],
                         date: new Date().toISOString().split('T')[0],
                         day: daysOfWeek[new Date().getDay()],
                         time: timesOfDay[0],
@@ -791,674 +851,592 @@
                         batch.set(newDocRef, { ...paymentData, timestamp: window.Timestamp.fromDate(new Date(paymentData.date)) });
                     });
                     await batch.commit();
-                    setMessageBox({ show: true, title: 'Importación exitosa', content: 'Los datos se han importado correctamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-                    addLogEntry('Datos importados', 'Se han reemplazado los datos con un archivo JSON.');
+                    addLogEntry('Importación de datos', 'Datos importados exitosamente desde un archivo JSON.');
+                    setMessageBox({ show: true, title: 'Importación exitosa', content: 'Los datos han sido importados exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                 } catch (error) {
-                    setMessageBox({ show: true, title: 'Error de importación', content: 'Hubo un error al importar los datos. Por favor, revisa el formato del archivo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    setMessageBox({ show: true, title: 'Error de importación', content: 'Hubo un error al importar los datos. Revisa el archivo e inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     console.error("Error importing data:", error);
                 } finally {
                     setLoading(false);
+                    if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                    }
                 }
             };
-            const ClassList = () => {
-                const classesForSelectedDay = useMemo(() => {
-                    if (selectedClassesForDay) {
-                        return selectedClassesForDay.sort((a, b) => a.time.localeCompare(b.time));
-                    }
-                    return [];
-                }, [selectedClassesForDay]);
-
-                return (
-                    <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
-                        {selectedClassesForDay ? (
-                            <>
-                                <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">
-                                    Clases del día {selectedClassesForDay[0].date}
-                                </h3>
-                                <div className="space-y-4">
-                                    {classesForSelectedDay.length > 0 ? classesForSelectedDay.map(cls => (
-                                        <div key={cls.id} className="p-4 bg-gray-50 rounded-lg shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center transition-transform hover:scale-[1.01]">
-                                            <div className="mb-2 sm:mb-0 flex-1">
-                                                <p className="font-semibold text-gray-800">
-                                                    <i className="fas fa-users text-blue-500 mr-2"></i>
-                                                    {cls.studentNames.join(', ')}
-                                                </p>
-                                                <p className="text-sm text-gray-600">
-                                                    <i className="fas fa-clock text-blue-500 mr-2"></i>
-                                                    {cls.time}
-                                                </p>
-                                            </div>
-                                            <div className="flex-shrink-0">
-                                                <span className="font-bold text-lg text-blue-800 mr-4">{formatPrice(cls.price)}</span>
-                                                <button onClick={() => editClass(cls)} className="text-blue-500 hover:text-blue-700 transition-colors mr-2">
-                                                    <i className="fas fa-edit"></i>
-                                                </button>
-                                                <button onClick={() => deleteClass(cls.id, cls)} className="text-red-500 hover:text-red-700 transition-colors">
-                                                    <i className="fas fa-trash-alt"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )) : (
-                                        <p className="text-center text-gray-500">No hay clases para este día.</p>
-                                    )}
-                                </div>
-                                <div className="text-center mt-6">
-                                    <button
-                                        onClick={() => setSelectedClassesForDay(null)}
-                                        className="py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
-                                    >
-                                        Volver al Calendario
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">Clases Recientes</h3>
-                                <div className="mb-4 flex flex-col md:flex-row gap-4 items-center">
-                                    <select
-                                        value={selectedMonthYear}
-                                        onChange={(e) => setSelectedMonthYear(e.target.value)}
-                                        className="w-full md:w-auto p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
-                                    >
-                                        <option value="">Todos los meses</option>
-                                        {uniqueMonths.map(month => (
-                                            <option key={month} value={month}>{formatMonthYear(month)}</option>
-                                        ))}
-                                    </select>
-                                    <input
-                                        type="text"
-                                        placeholder="Filtrar por nombre de alumno..."
-                                        value={filterText}
-                                        onChange={(e) => setFilterText(e.target.value)}
-                                        className="w-full md:flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
-                                    />
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full bg-white rounded-lg shadow-md overflow-hidden">
-                                        <thead className="bg-blue-800 text-white">
-                                            <tr>
-                                                <th className="py-2 px-4 text-left font-semibold">Fecha</th>
-                                                <th className="py-2 px-4 text-left font-semibold">Alumnos</th>
-                                                <th className="py-2 px-4 text-left font-semibold">Hora</th>
-                                                <th className="py-2 px-4 text-right font-semibold">Precio</th>
-                                                <th className="py-2 px-4 text-center font-semibold">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredClasses.length > 0 ? (
-                                                filteredClasses.map(cls => (
-                                                    <tr key={cls.id} className="border-b border-gray-200 hover:bg-gray-50">
-                                                        <td className="py-2 px-4">{cls.date}</td>
-                                                        <td className="py-2 px-4">{cls.studentNames.join(', ')}</td>
-                                                        <td className="py-2 px-4">{cls.time}</td>
-                                                        <td className="py-2 px-4 text-right font-bold text-blue-800">{formatPrice(cls.price)}</td>
-                                                        <td className="py-2 px-4 flex justify-center items-center gap-2">
-                                                            <button onClick={() => editClass(cls)} className="text-blue-500 hover:text-blue-700 transition-colors">
-                                                                <i className="fas fa-edit"></i>
-                                                            </button>
-                                                            <button onClick={() => deleteClass(cls.id, cls)} className="text-red-500 hover:text-red-700 transition-colors">
-                                                                <i className="fas fa-trash-alt"></i>
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="5" className="text-center py-4 text-gray-500">No hay clases registradas.</td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                );
-            };
-
-            const CalendarView = () => (
-                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
-                    <div className="flex justify-between items-center mb-6">
-                        <button onClick={() => handleCalendarNavigation(-1)} className="p-2 rounded-full bg-blue-800 text-white hover:bg-blue-900 transition-colors">
-                            <i className="fas fa-chevron-left"></i>
-                        </button>
-                        <h3 className="text-2xl font-extrabold text-blue-800 text-center">
-                            {selectedDate.toLocaleString('es-AR', { month: 'long', year: 'numeric' })}
-                        </h3>
-                        <button onClick={() => handleCalendarNavigation(1)} className="p-2 rounded-full bg-blue-800 text-white hover:bg-blue-900 transition-colors">
-                            <i className="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1 text-center">
-                        {daysOfWeek.map(day => (
-                            <div key={day} className="font-bold text-sm text-blue-800 p-2">{day.substring(0, 3)}</div>
-                        ))}
-                        {calendarDays.map((day, index) => (
-                            <div key={index} className={`p-2 rounded-lg transition-transform hover:scale-[1.02] cursor-pointer
-                                ${day.isCurrentMonth ? (day.classes.length > 0 ? `bg-blue-200 hover:bg-blue-300` : `bg-gray-200 hover:bg-gray-300`) : `bg-gray-100 text-gray-400`}
-                            `}
-                                onClick={() => handleDayClick(day.classes)}
-                            >
-                                <span className="font-semibold">{day.day}</span>
-                                {day.dailyIncome > 0 && (
-                                    <div className="text-xs font-bold text-green-700 mt-1">
-                                        {formatPrice(day.dailyIncome)}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-
-            const StudentList = () => (
-                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
-                    <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">Gestión de Alumnos</h3>
-                    <div className="mb-6 bg-gray-50 p-6 rounded-xl shadow-inner">
-                        <h4 className="text-xl font-bold text-blue-800 mb-4">{isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}</h4>
-                        <div className="flex flex-col md:flex-row gap-4 mb-4">
-                            <input
-                                type="text"
-                                placeholder="Nombre"
-                                value={newStudent.firstName}
-                                onChange={(e) => setNewStudent({ ...newStudent, firstName: e.target.value })}
-                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
-                            />
-                            <input
-                                type="text"
-                                placeholder="Apellido"
-                                value={newStudent.lastName}
-                                onChange={(e) => setNewStudent({ ...newStudent, lastName: e.target.value })}
-                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
-                            />
-                            <input
-                                type="tel"
-                                placeholder="Teléfono"
-                                value={newStudent.phone}
-                                onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
-                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
-                            />
+            const Login = () => (
+                <div className="flex flex-col items-center justify-center min-h-screen bg-gray-200 p-4">
+                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+                        <div className="flex justify-center mb-6">
+                            <i className="fas fa-sign-in-alt text-5xl text-blue-800"></i>
                         </div>
-                        <button
-                            onClick={addStudent}
-                            className="w-full py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
-                        >
-                            {isEditingStudent ? 'Actualizar Alumno' : 'Guardar Alumno'}
-                        </button>
-                        {isEditingStudent && (
-                            <button
-                                onClick={() => { setIsEditingStudent(false); setNewStudent({ firstName: '', lastName: '', phone: '' }); }}
-                                className="w-full mt-2 py-2 px-4 rounded-lg font-bold transition-colors text-blue-800 bg-gray-200 hover:bg-gray-300 shadow-md"
-                            >
-                                Cancelar
-                            </button>
-                        )}
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full bg-white rounded-lg shadow-md overflow-hidden">
-                            <thead className="bg-blue-800 text-white">
-                                <tr>
-                                    <th className="py-2 px-4 text-left font-semibold">Nombre</th>
-                                    <th className="py-2 px-4 text-left font-semibold">Apellido</th>
-                                    <th className="py-2 px-4 text-left font-semibold">Teléfono</th>
-                                    <th className="py-2 px-4 text-center font-semibold">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {students.length > 0 ? (
-                                    students.map(student => (
-                                        <tr key={student.id} className="border-b border-gray-200 hover:bg-gray-50">
-                                            <td className="py-2 px-4">{student.firstName}</td>
-                                            <td className="py-2 px-4">{student.lastName}</td>
-                                            <td className="py-2 px-4">{student.phone}</td>
-                                            <td className="py-2 px-4 flex justify-center items-center gap-2">
-                                                <button onClick={() => editStudent(student)} className="text-blue-500 hover:text-blue-700 transition-colors">
-                                                    <i className="fas fa-edit"></i>
-                                                </button>
-                                                <button onClick={() => deleteStudent(student.id)} className="text-red-500 hover:text-red-700 transition-colors">
-                                                    <i className="fas fa-trash-alt"></i>
-                                                </button>
-                                                <button onClick={() => sendWhatsApp(student.phone)} className="text-green-500 hover:text-green-700 transition-colors">
-                                                    <i className="fab fa-whatsapp"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="4" className="text-center py-4 text-gray-500">No hay alumnos registrados.</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            );
-
-            const PaymentList = () => (
-                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
-                    <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">Gestión de Pagos</h3>
-                    <div className="mb-6 bg-gray-50 p-6 rounded-xl shadow-inner">
-                        <h4 className="text-xl font-bold text-blue-800 mb-4">{isEditingPayment ? 'Editar Pago' : 'Añadir Nuevo Pago'}</h4>
-                        <div className="flex flex-col md:flex-row gap-4 mb-4">
-                            <input
-                                type="date"
-                                value={newPayment.date}
-                                onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
-                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
-                            />
-                            <input
-                                type="number"
-                                placeholder="Monto"
-                                value={newPayment.amount}
-                                onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
-                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
-                            />
-                            <input
-                                type="text"
-                                placeholder="Descripción (opcional)"
-                                value={newPayment.description}
-                                onChange={(e) => setNewPayment({ ...newPayment, description: e.target.value })}
-                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
-                            />
-                        </div>
-                        <button
-                            onClick={addPayment}
-                            className="w-full py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
-                        >
-                            {isEditingPayment ? 'Actualizar Pago' : 'Guardar Pago'}
-                        </button>
-                        {isEditingPayment && (
-                            <button
-                                onClick={() => { setIsEditingPayment(false); setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' }); }}
-                                className="w-full mt-2 py-2 px-4 rounded-lg font-bold transition-colors text-blue-800 bg-gray-200 hover:bg-gray-300 shadow-md"
-                            >
-                                Cancelar
-                            </button>
-                        )}
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full bg-white rounded-lg shadow-md overflow-hidden">
-                            <thead className="bg-blue-800 text-white">
-                                <tr>
-                                    <th className="py-2 px-4 text-left font-semibold">Fecha</th>
-                                    <th className="py-2 px-4 text-left font-semibold">Monto</th>
-                                    <th className="py-2 px-4 text-left font-semibold">Descripción</th>
-                                    <th className="py-2 px-4 text-center font-semibold">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {payments.length > 0 ? (
-                                    payments.map(payment => (
-                                        <tr key={payment.id} className="border-b border-gray-200 hover:bg-gray-50">
-                                            <td className="py-2 px-4">{payment.date}</td>
-                                            <td className="py-2 px-4 font-bold text-green-600">{formatPrice(payment.amount)}</td>
-                                            <td className="py-2 px-4">{payment.description || '-'}</td>
-                                            <td className="py-2 px-4 flex justify-center items-center gap-2">
-                                                <button onClick={() => editPayment(payment)} className="text-blue-500 hover:text-blue-700 transition-colors">
-                                                    <i className="fas fa-edit"></i>
-                                                </button>
-                                                <button onClick={() => deletePayment(payment.id)} className="text-red-500 hover:text-red-700 transition-colors">
-                                                    <i className="fas fa-trash-alt"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="4" className="text-center py-4 text-gray-500">No hay pagos registrados.</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            );
-
-            const Report = () => (
-                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
-                    <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">Informes Mensuales</h3>
-                    <div className="flex justify-center items-center gap-4 mb-6">
-                        <label htmlFor="reportMonth" className="font-semibold text-gray-700">Seleccionar Mes:</label>
-                        <select
-                            id="reportMonth"
-                            value={selectedMonthYear}
-                            onChange={(e) => setSelectedMonthYear(e.target.value)}
-                            className="p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
-                        >
-                            <option value="">Selecciona un mes</option>
-                            {uniqueMonths.map(month => (
-                                <option key={month} value={month}>{formatMonthYear(month)}</option>
-                            ))}
-                        </select>
-                    </div>
-                    {selectedMonthYear && monthlyReports[selectedMonthYear] ? (
-                        <div ref={reportTableRef} className="p-6 rounded-lg border border-gray-200 bg-gray-50">
-                            <div className="text-center mb-4">
-                                <h4 className="text-xl font-bold text-blue-800">Informe de {formatMonthYear(selectedMonthYear)}</h4>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center mb-4">
-                                <div className="bg-white p-4 rounded-lg shadow-sm">
-                                    <p className="text-sm text-gray-500">Ingreso Total</p>
-                                    <p className="text-xl font-extrabold text-green-600">{formatPrice(monthlyReports[selectedMonthYear].totalIncome)}</p>
-                                </div>
-                                <div className="bg-white p-4 rounded-lg shadow-sm">
-                                    <p className="text-sm text-gray-500">Clases Totales</p>
-                                    <p className="text-xl font-extrabold text-blue-600">{monthlyReports[selectedMonthYear].classCount}</p>
-                                </div>
-                            </div>
-                            <div className="bg-white p-4 rounded-lg shadow-sm">
-                                <p className="text-lg font-bold text-gray-700 mb-2">Clases por cantidad de alumnos:</p>
-                                {Object.keys(monthlyReports[selectedMonthYear].classCountByStudent).sort().map(count => (
-                                    <div key={count} className="flex justify-between items-center py-1">
-                                        <span className="font-semibold text-gray-600">{count} {count === '1' ? 'alumno' : 'alumnos'}:</span>
-                                        <span className={`font-bold ${colorMap[count].replace('bg', 'text')}`}>{monthlyReports[selectedMonthYear].classCountByStudent[count]}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mt-6 flex justify-center">
-                                <button
-                                    onClick={generatePDF}
-                                    className="py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
-                                >
-                                    Generar PDF <i className="fas fa-file-pdf ml-2"></i>
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <p className="text-center text-gray-500 p-8">Selecciona un mes para ver el informe.</p>
-                    )}
-                </div>
-            );
-
-            const Settings = () => (
-                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
-                    <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">Configuración</h3>
-                    <div className="bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
-                        <h4 className="text-xl font-bold text-blue-800 mb-4">Precios de Clases</h4>
-                        {peopleOptions.map(count => (
-                            <div key={count} className="flex items-center justify-between mb-4 last:mb-0">
-                                <label className="text-gray-700 font-semibold">{count} {count === 1 ? 'Alumno' : 'Alumnos'}:</label>
-                                <input
-                                    type="number"
-                                    value={customPrices[count] || ''}
-                                    onChange={(e) => handleCustomPriceChange(count, e.target.value)}
-                                    className="p-2 rounded-lg border border-gray-300 shadow-sm w-32 text-right"
-                                />
-                            </div>
-                        ))}
-                        <button
-                            onClick={saveCustomPrices}
-                            className="w-full mt-4 py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
-                        >
-                            Guardar Precios
-                        </button>
-                    </div>
-                    <div className="bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
-                        <h4 className="text-xl font-bold text-blue-800 mb-4">Exportar/Importar Datos</h4>
-                        <button
-                            onClick={exportData}
-                            className="w-full py-2 px-4 rounded-lg font-bold transition-colors text-white bg-green-600 hover:bg-green-700 shadow-md"
-                        >
-                            Exportar Datos
-                        </button>
-                        <label htmlFor="file-upload" className="block w-full text-center py-2 px-4 rounded-lg font-bold transition-colors text-white bg-yellow-600 hover:bg-yellow-700 shadow-md mt-4 cursor-pointer">
-                            Importar Datos
-                        </label>
+                        <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">{isSigningUp ? 'Crear Cuenta' : 'Iniciar Sesión'}</h2>
                         <input
-                            id="file-upload"
-                            type="file"
-                            onChange={handleFileChange}
-                            className="hidden"
-                            accept=".json"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="Email"
+                            className="w-full p-3 mb-4 text-gray-700 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
                         />
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Contraseña"
+                            className="w-full p-3 mb-4 text-gray-700 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                        />
+                        <button
+                            onClick={isSigningUp ? signUp : signIn}
+                            className="w-full bg-blue-800 text-white font-bold p-3 rounded-lg hover:bg-blue-900 transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        >
+                            {isSigningUp ? 'Crear Cuenta' : 'Ingresar'}
+                        </button>
+                        <div className="mt-6 text-center">
+                            <button
+                                onClick={() => setIsSigningUp(!isSigningUp)}
+                                className="text-sm text-blue-700 hover:text-blue-900 transition-colors"
+                            >
+                                {isSigningUp ? '¿Ya tienes una cuenta? Inicia sesión' : '¿No tienes una cuenta? Regístrate'}
+                            </button>
+                        </div>
+                        <div className="mt-4 text-center">
+                            <button
+                                onClick={handlePasswordReset}
+                                className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                                ¿Olvidaste tu contraseña?
+                            </button>
+                        </div>
                     </div>
                 </div>
             );
-
             const AddClass = () => (
-                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-xl mx-auto my-8">
-                    <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">
-                        {isEditing ? 'Editar Clase' : 'Añadir Clase'}
-                    </h3>
-                    <div className="flex flex-col gap-4 mb-4">
+                <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
+                    <h3 className="text-xl font-bold mb-4 text-blue-800">Añadir Clase</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                         <div>
-                            <label className="block text-gray-700 font-bold mb-2">Fecha</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
                             <input
                                 type="date"
                                 name="date"
                                 value={newEntry.date}
                                 onChange={handleDateChange}
-                                className="w-full p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
                         <div>
-                            <label className="block text-gray-700 font-bold mb-2">Hora</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Día</label>
+                            <input
+                                type="text"
+                                name="day"
+                                value={newEntry.day}
+                                readOnly
+                                className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Hora</label>
                             <select
                                 name="time"
                                 value={newEntry.time}
                                 onChange={handleNewEntryChange}
-                                className="w-full p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
-                                {timesOfDay.map(time => (
-                                    <option key={time} value={time}>{time}</option>
+                                {timesOfDay.map((time, index) => (
+                                    <option key={index} value={time}>{time}</option>
                                 ))}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-gray-700 font-bold mb-2">Seleccionar Alumnos</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">N° de alumnos</label>
                             <select
-                                multiple
-                                size={students.length > 5 ? 8 : students.length}
-                                name="studentNames"
-                                value={newEntry.studentNames}
-                                onChange={handleStudentSelection}
-                                className="w-full p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 min-h-24"
+                                name="studentCount"
+                                value={newEntry.studentCount}
+                                onChange={handleNewEntryChange}
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
-                                {students.map(student => (
-                                    <option key={student.id} value={`${student.firstName} ${student.lastName}`}>
-                                        {student.firstName} {student.lastName}
-                                    </option>
+                                {peopleOptions.map(option => (
+                                    <option key={option} value={option}>{option}</option>
                                 ))}
                             </select>
-                            <p className="text-xs text-gray-500 mt-1">Mantén presionada la tecla Ctrl (o Cmd en Mac) para seleccionar múltiples alumnos.</p>
-                        </div>
-                        <div>
-                            <label className="block text-gray-700 font-bold mb-2">Precio</label>
-                            <div className="flex items-center p-2 rounded-lg border border-gray-300 bg-gray-200 shadow-sm">
-                                <span className="font-bold text-blue-800">{formatPrice(newEntry.price)}</span>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">El precio se actualiza automáticamente según el número de alumnos seleccionados, basado en la configuración de precios.</p>
                         </div>
                     </div>
-                    <button
-                        onClick={addClass}
-                        className="w-full py-3 px-4 rounded-lg font-bold text-lg transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
-                    >
-                        {isEditing ? 'Actualizar Clase' : 'Guardar Clase'}
-                    </button>
-                    {isEditing && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Añadir alumnos</label>
+                        {Array.from({ length: newEntry.studentCount }).map((_, index) => (
+                            <StudentAutocompleteInput
+                                key={index}
+                                index={index}
+                                value={newEntry.studentNames[index]}
+                                onChange={handleAutocompleteStudentChange}
+                                students={students}
+                            />
+                        ))}
+                    </div>
+                    <div className="mt-4 text-right">
+                        <div className="text-lg font-bold text-gray-800 mb-2">Precio: <span className="text-blue-800">{formatPrice(newEntry.price)}</span></div>
                         <button
-                            onClick={() => {
-                                setIsEditing(false);
-                                setEditedClassId(null);
-                                setNewEntry({
-                                    studentCount: 1,
-                                    studentNames: [],
-                                    date: new Date().toISOString().split('T')[0],
-                                    day: daysOfWeek[new Date().getDay()],
-                                    time: timesOfDay[0],
-                                    price: customPrices[1] || 0,
-                                });
-                            }}
-                            className="w-full mt-2 py-2 px-4 rounded-lg font-bold transition-colors text-blue-800 bg-gray-200 hover:bg-gray-300 shadow-md"
+                            onClick={addClass}
+                            className={`w-full md:w-auto px-6 py-3 rounded-lg font-bold transition-colors text-white ${isEditing ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-800 hover:bg-blue-900'} shadow-md`}
                         >
-                            Cancelar
+                            {isEditing ? 'Actualizar Clase' : 'Añadir Clase'}
                         </button>
+                    </div>
+                </div>
+            );
+            const AddStudent = () => (
+                <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
+                    <h3 className="text-xl font-bold mb-4 text-blue-800">{isEditingStudent ? 'Editar Alumno' : 'Añadir Alumno'}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <input
+                            type="text"
+                            value={newStudent.firstName}
+                            onChange={(e) => setNewStudent({ ...newStudent, firstName: e.target.value })}
+                            placeholder="Nombre"
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                            type="text"
+                            value={newStudent.lastName}
+                            onChange={(e) => setNewStudent({ ...newStudent, lastName: e.target.value })}
+                            placeholder="Apellido"
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                            type="tel"
+                            value={newStudent.phone}
+                            onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
+                            placeholder="Teléfono (ej: 381...)"
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div className="text-right">
+                        <button
+                            onClick={addStudent}
+                            className={`w-full md:w-auto px-6 py-3 rounded-lg font-bold transition-colors text-white ${isEditingStudent ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-800 hover:bg-blue-900'} shadow-md`}
+                        >
+                            {isEditingStudent ? 'Actualizar Alumno' : 'Añadir Alumno'}
+                        </button>
+                    </div>
+                </div>
+            );
+            const AddPayment = () => (
+                <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
+                    <h3 className="text-xl font-bold mb-4 text-blue-800">{isEditingPayment ? 'Editar Pago' : 'Añadir Pago'}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <input
+                            type="date"
+                            value={newPayment.date}
+                            onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                            type="number"
+                            value={newPayment.amount}
+                            onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
+                            placeholder="Monto"
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                            type="text"
+                            value={newPayment.description}
+                            onChange={(e) => setNewPayment({ ...newPayment, description: e.target.value })}
+                            placeholder="Descripción (ej: Alquiler de cancha)"
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div className="text-right">
+                        <button
+                            onClick={addPayment}
+                            className={`w-full md:w-auto px-6 py-3 rounded-lg font-bold transition-colors text-white ${isEditingPayment ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-800 hover:bg-blue-900'} shadow-md`}
+                        >
+                            {isEditingPayment ? 'Actualizar Pago' : 'Añadir Pago'}
+                        </button>
+                    </div>
+                </div>
+            );
+            const Tab = ({ label, name, currentView, setView }) => (
+                <button
+                    className={`px-4 py-2 font-bold transition-colors rounded-t-lg ${currentView === name ? 'bg-white text-blue-800 shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+                    onClick={() => setView(name)}
+                >
+                    {label}
+                </button>
+            );
+            const DataList = ({ data, type, onDelete, onEdit, sendWhatsApp, columns }) => (
+                <div className="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 className="text-xl font-bold mb-4 text-blue-800">
+                        {type === 'class' ? 'Listado de Clases' : type === 'student' ? 'Listado de Alumnos' : 'Listado de Pagos'}
+                    </h3>
+                    <input
+                        type="text"
+                        placeholder="Filtrar por nombre..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="w-full p-2 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {data.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        {columns.map((col, index) => (
+                                            <th key={index} scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{col.label}</th>
+                                        ))}
+                                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {data.map((item, index) => (
+                                        <tr key={item.id} className="hover:bg-gray-100 transition-colors">
+                                            {columns.map((col, colIndex) => (
+                                                <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {col.render(item)}
+                                                </td>
+                                            ))}
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <div className="flex justify-end space-x-2">
+                                                    <button onClick={() => onEdit(item)} className="text-blue-600 hover:text-blue-900 transition-colors">
+                                                        <i className="fas fa-edit"></i>
+                                                    </button>
+                                                    {type === 'student' && item.phone && (
+                                                        <button onClick={() => sendWhatsApp(item.phone)} className="text-green-600 hover:text-green-800 transition-colors">
+                                                            <i className="fab fa-whatsapp"></i>
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => onDelete(item.id, item)} className="text-red-600 hover:text-red-900 transition-colors">
+                                                        <i className="fas fa-trash-alt"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <p className="text-center text-gray-500 p-8">No hay {type === 'class' ? 'clases' : type === 'student' ? 'alumnos' : 'pagos'} registrados.</p>
                     )}
                 </div>
             );
-
-            const MainContent = () => {
-                switch (view) {
-                    case 'list':
-                        return <ClassList />;
-                    case 'calendar':
-                        return <CalendarView />;
-                    case 'add':
-                        return <AddClass />;
-                    case 'students':
-                        return <StudentList />;
-                    case 'payments':
-                        return <PaymentList />;
-                    case 'report':
-                        return <Report />;
-                    case 'settings':
-                        return <Settings />;
-                    default:
-                        return <ClassList />;
-                }
-            };
-            const Login = () => (
-                <div className="flex justify-center items-center h-screen bg-gray-100 p-4">
-                    <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-center">
-                        <div className="flex justify-center mb-6">
-                            <img src="https://i.imgur.com/G35L8vX.png" alt="Padel Perfect Logo" className="w-32" />
-                        </div>
-                        <h2 className="text-3xl font-extrabold text-blue-800 mb-4">
-                            {isSigningUp ? 'Crear Cuenta' : 'Iniciar Sesión'}
-                        </h2>
-                        <p className="text-gray-500 mb-6">{isSigningUp ? 'Regístrate para empezar a gestionar tus clases.' : 'Ingresa a tu cuenta para continuar.'}</p>
-                        <div className="space-y-4">
-                            <input
-                                type="email"
-                                placeholder="Email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                            />
-                            <input
-                                type="password"
-                                placeholder="Contraseña"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                            />
-                            {!isSigningUp && (
-                                <button
-                                    onClick={signIn}
-                                    className="w-full bg-blue-800 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-900 transition-colors"
-                                >
-                                    Iniciar Sesión
-                                </button>
-                            )}
-                            {isSigningUp && (
-                                <button
-                                    onClick={signUp}
-                                    className="w-full bg-blue-800 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-900 transition-colors"
-                                >
-                                    Crear Cuenta
-                                </button>
-                            )}
-                        </div>
-                        <div className="mt-6 text-sm">
-                            <button
-                                onClick={() => setIsSigningUp(!isSigningUp)}
-                                className="text-blue-800 hover:text-blue-900 font-semibold transition-colors"
-                            >
-                                {isSigningUp ? '¿Ya tienes una cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
-                            </button>
-                        </div>
-                        {!isSigningUp && (
-                            <div className="mt-4">
-                                <button
-                                    onClick={handlePasswordReset}
-                                    className="text-gray-500 hover:text-gray-700 transition-colors text-xs"
-                                >
-                                    ¿Olvidaste tu contraseña?
-                                </button>
-                            </div>
+            const Reportes = () => (
+                <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
+                    <h3 className="text-xl font-bold mb-4 text-blue-800">Informes Mensuales</h3>
+                    <div className="flex flex-col md:flex-row items-center mb-4 space-y-4 md:space-y-0 md:space-x-4">
+                        <select
+                            value={selectedMonthYear}
+                            onChange={(e) => setSelectedMonthYear(e.target.value)}
+                            className="w-full md:w-auto p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">Todos los Meses</option>
+                            {uniqueMonths.map(monthYear => (
+                                <option key={monthYear} value={monthYear}>{formatMonthYear(monthYear)}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {Object.keys(monthlyReports).length > 0 ? (
+                            Object.keys(monthlyReports).sort((a, b) => new Date(b) - new Date(a)).filter(monthYear => !selectedMonthYear || monthYear === selectedMonthYear).map(monthYear => (
+                                <div key={monthYear} className="bg-gray-50 p-4 rounded-lg shadow-inner">
+                                    <h4 className="font-bold text-lg text-blue-700 mb-2">{formatMonthYear(monthYear)}</h4>
+                                    <p className="text-gray-700">Ingresos Totales: <span className="font-bold">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
+                                    <p className="text-gray-700">Clases Registradas: <span className="font-bold">{monthlyReports[monthYear].classCount}</span></p>
+                                    <ul className="mt-2 list-disc list-inside text-sm text-gray-600">
+                                        {Object.entries(monthlyReports[monthYear].classCountByStudent).map(([count, numClasses]) => (
+                                            <li key={count}>Clases de {count} alumno(s): {numClasses}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="col-span-2 text-center text-gray-500 p-8">No hay datos para generar informes.</p>
                         )}
                     </div>
+                    <div className="mt-6 text-right">
+                        <button
+                            onClick={generatePDF}
+                            className="w-full md:w-auto px-6 py-3 rounded-lg font-bold transition-colors text-white bg-red-600 hover:bg-red-700 shadow-md"
+                        >
+                            Descargar PDF
+                        </button>
+                    </div>
                 </div>
             );
-            
-            const Header = () => (
-                <header className="bg-white shadow-lg p-4 md:p-6 sticky top-0 z-40">
-                    <div className="container mx-auto flex flex-col md:flex-row items-center justify-between">
-                        <div className="flex items-center mb-4 md:mb-0">
-                            <img src="https://i.imgur.com/G35L8vX.png" alt="Padel Perfect Logo" className="h-10 mr-4" />
-                            <h1 className="text-2xl md:text-3xl font-extrabold text-blue-800">
-                                Padel Perfect
-                            </h1>
-                        </div>
-                        <nav className="flex flex-wrap justify-center md:justify-end gap-2 md:gap-4 text-sm font-semibold text-gray-600">
-                            <button onClick={() => setView('list')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
-                                <i className="fas fa-list-ul mr-2"></i>
-                                Listado
-                            </button>
-                            <button onClick={() => setView('calendar')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'calendar' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
-                                <i className="fas fa-calendar-alt mr-2"></i>
-                                Calendario
-                            </button>
-                            <button onClick={() => setView('add')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'add' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
-                                <i className="fas fa-plus-circle mr-2"></i>
-                                Añadir Clase
-                            </button>
-                            <button onClick={() => setView('students')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'students' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
-                                <i className="fas fa-user-friends mr-2"></i>
-                                Alumnos
-                            </button>
-                            <button onClick={() => setView('payments')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'payments' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
-                                <i className="fas fa-credit-card mr-2"></i>
-                                Pagos
-                            </button>
-                            <button onClick={() => setView('report')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'report' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
-                                <i className="fas fa-chart-bar mr-2"></i>
-                                Reporte
-                            </button>
-                            <button onClick={() => setView('settings')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'settings' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
-                                <i className="fas fa-cog mr-2"></i>
-                                Configuración
-                            </button>
-                            <button onClick={signOutUser} className="flex items-center p-2 rounded-lg transition-colors bg-red-500 text-white hover:bg-red-600">
-                                <i className="fas fa-sign-out-alt mr-2"></i>
-                                Salir
-                            </button>
-                        </nav>
+            const CalendarView = () => (
+                <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
+                    <h3 className="text-xl font-bold mb-4 text-blue-800">Calendario de Clases</h3>
+                    <div className="flex justify-between items-center mb-4">
+                        <button onClick={() => handleCalendarNavigation(-1)} className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors">
+                            <i className="fas fa-chevron-left"></i>
+                        </button>
+                        <h4 className="text-lg font-bold">{selectedDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</h4>
+                        <button onClick={() => handleCalendarNavigation(1)} className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors">
+                            <i className="fas fa-chevron-right"></i>
+                        </button>
                     </div>
-                </header>
-            );
-
-            return (
-                <div className="min-h-screen bg-gray-100">
-                    <MessageBox
-                        show={messageBox.show}
-                        title={messageBox.title}
-                        content={messageBox.content}
-                        type={messageBox.type}
-                        onConfirm={messageBox.onConfirm}
-                        onClose={messageBox.onClose}
-                    />
-
-                    {loading && (
-                        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-                            <i className="fas fa-spinner fa-spin text-4xl text-white"></i>
+                    <div className="grid grid-cols-7 text-center text-sm font-bold text-gray-600">
+                        {daysOfWeek.map(day => <div key={day}>{day.substring(0, 3)}</div>)}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1 mt-2">
+                        {calendarDays.map((day, index) => (
+                            <div
+                                key={index}
+                                className={`p-2 text-center rounded-lg cursor-pointer transition-colors ${day.isCurrentMonth ? (day.classes.length > 0 ? `${colorMap[day.classes[0].studentCount]} shadow-sm` : 'bg-gray-100 hover:bg-gray-200') : 'text-gray-400 bg-gray-50'}`}
+                                onClick={() => handleDayClick(day.classes)}
+                            >
+                                <span className="font-bold">{day.day}</span>
+                                {day.classes.length > 0 && (
+                                    <div className="text-xs mt-1 text-gray-800">
+                                        <div className="font-semibold">{day.classes.length} {day.classes.length === 1 ? 'clase' : 'clases'}</div>
+                                        <div>{formatPrice(day.dailyIncome)}</div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    {selectedClassesForDay && (
+                        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                            <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-lg mx-4">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h4 className="text-xl font-bold text-blue-800">Clases del {new Date(selectedClassesForDay[0].date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</h4>
+                                    <button onClick={() => setSelectedClassesForDay(null)} className="text-gray-500 hover:text-gray-700">
+                                        <i className="fas fa-times-circle text-2xl"></i>
+                                    </button>
+                                </div>
+                                <ul className="space-y-4">
+                                    {selectedClassesForDay.map(cls => (
+                                        <li key={cls.id} className="p-4 rounded-lg bg-gray-100 shadow-sm flex justify-between items-center">
+                                            <div>
+                                                <p className="font-bold text-gray-800">{cls.time}</p>
+                                                <p className="text-sm text-gray-600">Alumnos: {cls.studentNames.join(', ')}</p>
+                                                <p className="text-sm font-bold text-blue-700 mt-1">Precio: {formatPrice(cls.price)}</p>
+                                            </div>
+                                            <div className="flex space-x-2">
+                                                <button onClick={() => editClass(cls)} className="text-blue-600 hover:text-blue-900 transition-colors">
+                                                    <i className="fas fa-edit"></i>
+                                                </button>
+                                                <button onClick={() => deleteClass(cls.id, cls)} className="text-red-600 hover:text-red-900 transition-colors">
+                                                    <i className="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         </div>
                     )}
-                    
+                </div>
+            );
+            const ImportExport = () => (
+                <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
+                    <h3 className="text-xl font-bold mb-4 text-blue-800">Importar / Exportar Datos</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-gray-50 rounded-lg shadow-inner text-center">
+                            <h4 className="font-bold text-lg mb-2 text-gray-700">Exportar Datos</h4>
+                            <p className="text-sm text-gray-500 mb-4">Exporta todas tus clases, alumnos y pagos a un archivo JSON.</p>
+                            <button
+                                onClick={exportData}
+                                className="w-full px-6 py-3 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
+                            >
+                                <i className="fas fa-download mr-2"></i> Exportar
+                            </button>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-lg shadow-inner text-center">
+                            <h4 className="font-bold text-lg mb-2 text-gray-700">Importar Datos</h4>
+                            <p className="text-sm text-gray-500 mb-4">Importa datos desde un archivo JSON. ¡Esto reemplazará todos tus datos existentes!</p>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                accept=".json"
+                                className="hidden"
+                                id="import-file"
+                            />
+                            <label
+                                htmlFor="import-file"
+                                className="w-full inline-block px-6 py-3 rounded-lg font-bold transition-colors text-white bg-green-600 hover:bg-green-700 shadow-md cursor-pointer"
+                            >
+                                <i className="fas fa-upload mr-2"></i> Seleccionar Archivo
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            );
+            const ConfigModal = () => {
+                if (!showConfigModal) return null;
+                return (
+                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                        <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md mx-4">
+                            <h3 className="text-xl font-bold mb-4 text-blue-800">Configuración de Precios</h3>
+                            {peopleOptions.map(count => (
+                                <div key={count} className="flex items-center justify-between mb-4">
+                                    <label className="text-gray-700">Precio para {count} alumno(s):</label>
+                                    <div className="relative rounded-lg shadow-sm">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <span className="text-gray-500 sm:text-sm">$</span>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            value={customPrices[count] || ''}
+                                            onChange={(e) => handleCustomPriceChange(count, e.target.value)}
+                                            className="block w-full pl-7 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                            <div className="mt-6 flex justify-end space-x-2">
+                                <button
+                                    onClick={() => setShowConfigModal(false)}
+                                    className="px-4 py-2 rounded-lg font-bold transition-colors text-gray-700 bg-gray-200 hover:bg-gray-300 shadow-md"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={saveCustomPrices}
+                                    className="px-4 py-2 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
+                                >
+                                    Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const activityLogColumns = [
+                { label: 'Acción', render: (log) => <span className="font-bold text-blue-800 uppercase">{log.action}</span> },
+                { label: 'Detalles', render: (log) => <span className="text-gray-700">{log.details}</span> },
+                { label: 'Fecha/Hora', render: (log) => <span className="text-gray-500">{formatDate(log.timestamp)}</span> },
+            ];
+
+            const classColumns = [
+                { label: 'Fecha', render: (cls) => cls.date },
+                { label: 'Hora', render: (cls) => cls.time },
+                { label: 'Alumnos', render: (cls) => cls.studentNames.join(', ') },
+                { label: 'Precio', render: (cls) => formatPrice(cls.price) },
+            ];
+
+            const studentColumns = [
+                { label: 'Nombre', render: (student) => `${student.firstName} ${student.lastName}` },
+                { label: 'Teléfono', render: (student) => student.phone },
+            ];
+
+            const paymentColumns = [
+                { label: 'Fecha', render: (payment) => payment.date },
+                { label: 'Monto', render: (payment) => formatPrice(payment.amount) },
+                { label: 'Descripción', render: (payment) => payment.description },
+            ];
+            return (
+                <div className="min-h-screen bg-gray-100">
+                    <MessageBox {...messageBox} />
+                    {showConfigModal && <ConfigModal />}
+                    <header className="bg-blue-800 text-white p-4 shadow-md">
+                        <div className="container mx-auto flex justify-between items-center">
+                            <h1 className="text-2xl font-bold flex items-center">
+                                <i className="fas fa-table-tennis mr-2"></i> Padel Pro Manager
+                            </h1>
+                            {userId && (
+                                <div className="flex items-center space-x-4">
+                                    <span className="text-sm">Hola, {userEmail}</span>
+                                    <button onClick={signOutUser} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold transition-colors">
+                                        Cerrar Sesión
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </header>
                     {!userId ? (
                         <Login />
                     ) : (
                         <>
-                            <Header />
-                            <div className="container mx-auto p-4 md:p-6">
-                                <MainContent />
-                            </div>
-                            <div className="mt-8 text-center text-gray-500">
-                                ID de Usuario: <span className="font-mono">{userId}</span>
+                            <div className="container mx-auto p-4 md:p-8">
+                                <div className="flex justify-between items-center mb-4 space-x-2 overflow-x-auto">
+                                    <Tab label="Añadir Clase" name="addClass" currentView={view} setView={setView} />
+                                    <Tab label="Ver Clases" name="list" currentView={view} setView={setView} />
+                                    <Tab label="Calendario" name="calendar" currentView={view} setView={setView} />
+                                    <Tab label="Añadir Alumno" name="addStudent" currentView={view} setView={setView} />
+                                    <Tab label="Ver Alumnos" name="listStudents" currentView={view} setView={setView} />
+                                    <Tab label="Añadir Pago" name="addPayment" currentView={view} setView={setView} />
+                                    <Tab label="Ver Pagos" name="listPayments" currentView={view} setView={setView} />
+                                    <Tab label="Informes" name="reports" currentView={view} setView={setView} />
+                                    <Tab label="Actividad" name="log" currentView={view} setView={setView} />
+                                    <button
+                                        onClick={() => setShowConfigModal(true)}
+                                        className="px-4 py-2 font-bold transition-colors rounded-lg bg-gray-200 text-gray-600 hover:bg-gray-300 flex-shrink-0"
+                                    >
+                                        <i className="fas fa-cog"></i> Precios
+                                    </button>
+                                    <button
+                                        onClick={() => setView('importExport')}
+                                        className="px-4 py-2 font-bold transition-colors rounded-lg bg-gray-200 text-gray-600 hover:bg-gray-300 flex-shrink-0"
+                                    >
+                                        <i className="fas fa-file-import"></i> Datos
+                                    </button>
+                                </div>
+                                {view === 'addClass' && <AddClass />}
+                                {view === 'addStudent' && <AddStudent />}
+                                {view === 'addPayment' && <AddPayment />}
+                                {view === 'list' && (
+                                    <DataList
+                                        data={filteredClasses}
+                                        type="class"
+                                        onDelete={deleteClass}
+                                        onEdit={editClass}
+                                        columns={classColumns}
+                                    />
+                                )}
+                                {view === 'listStudents' && (
+                                    <DataList
+                                        data={students}
+                                        type="student"
+                                        onDelete={deleteStudent}
+                                        onEdit={editStudent}
+                                        sendWhatsApp={sendWhatsApp}
+                                        columns={studentColumns}
+                                    />
+                                )}
+                                {view === 'listPayments' && (
+                                    <DataList
+                                        data={payments}
+                                        type="payment"
+                                        onDelete={deletePayment}
+                                        onEdit={editPayment}
+                                        columns={paymentColumns}
+                                    />
+                                )}
+                                {view === 'reports' && <Reportes />}
+                                {view === 'calendar' && <CalendarView />}
+                                {view === 'importExport' && <ImportExport />}
+                                {view === 'log' && (
+                                    <div className="bg-white p-6 rounded-xl shadow-lg">
+                                        <h3 className="text-xl font-bold mb-4 text-blue-800">Historial de Actividad</h3>
+                                        {activityLog.length > 0 ? (
+                                            <div className="overflow-x-auto">
+                                                <ul className="divide-y divide-gray-200">
+                                                    {activityLog.map(log => (
+                                                        <li key={log.id} className="py-4">
+                                                            <div className="flex justify-between items-center">
+                                                                <div>
+                                                                    <span className="font-bold text-blue-800 uppercase mr-2">{log.action}:</span>
+                                                                    <span className="text-gray-700">{log.details}</span>
+                                                                </div>
+                                                                <span className="text-gray-500 text-xs">{formatDate(log.timestamp)}</span>
+                                                            </li>
+                                                        ))}
+                                                </ul>
+                                            </div>
+                                        ) : (
+                                            <p className="text-center text-gray-500 p-8 bg-white">No hay actividad reciente.</p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </>
+                    )}
+                    {userId && (
+                        <div className="mt-8 text-center text-gray-500">
+                            ID de Usuario: <span className="font-mono">{userId}</span>
+                        </div>
                     )}
                 </div>
             );
