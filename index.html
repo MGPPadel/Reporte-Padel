@@ -322,7 +322,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         title: 'Error de configuración',
                         content: 'Error al inicializar Firebase. Revisa tu configuración.',
                         type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                        onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                     setLoading(false);
                 }
@@ -343,7 +344,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         title: 'Error de autenticación',
                         content: 'Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.',
                         type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                        onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                     console.error("Error signing in:", error);
                 } finally {
@@ -361,7 +363,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         title: 'Cuenta creada',
                         content: 'Tu cuenta se ha creado exitosamente. ¡Ya puedes iniciar sesión!',
                         type: 'success',
-                        onClose: () => {
+                        onConfirm: null,
+onClose: () => {
                             setMessageBox({ ...messageBox, show: false });
                             setIsSigningUp(false);
                         }
@@ -372,7 +375,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         title: 'Error de registro',
                         content: 'Hubo un error al crear la cuenta. Puede que el email ya esté en uso o la contraseña sea demasiado débil.',
                         type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                        onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                     console.error("Error signing up:", error);
                 } finally {
@@ -387,7 +391,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         title: 'Error de validación',
                         content: 'Por favor, ingresa tu email para restablecer la contraseña.',
                         type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                        onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                     return;
                 }
@@ -399,7 +404,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         title: 'Correo enviado',
                         content: 'Se ha enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.',
                         type: 'success',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                        onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                 } catch (error) {
                     setMessageBox({
@@ -407,7 +413,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         title: 'Error al enviar correo',
                         content: 'Hubo un error al enviar el correo. Asegúrate de que el email sea correcto.',
                         type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                        onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                     console.error("Error sending password reset email:", error);
                 } finally {
@@ -433,7 +440,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
         onConfirm: null
 }) });
                 } catch (error) {
-                    setMessageBox({ show: true, title: 'Error al guardar', content: 'Hubo un error al guardar los precios.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    setMessageBox({ show: true, title: 'Error al guardar', content: 'Hubo un error al guardar los precios.', type: 'error', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     console.error("Error saving custom prices:", error);
                 } finally {
                     setLoading(false);
@@ -468,7 +476,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             const addStudent = async () => {
                 if (!dbRef.current || !userId) return;
                 if (!newStudent.firstName || !newStudent.lastName || !newStudent.phone) {
-                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos del alumno.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos del alumno.', type: 'error', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     return;
                 }
                 try {
@@ -477,16 +486,19 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     if (isEditingStudent) {
                         const studentDocRef = window.doc(studentsColRef, editedStudentId);
                         await window.setDoc(studentDocRef, newStudent);
-                        setMessageBox({ show: true, title: 'Alumno actualizado', content: 'El alumno se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        setMessageBox({ show: true, title: 'Alumno actualizado', content: 'El alumno se ha actualizado exitosamente.', type: 'success', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     } else {
                         await window.addDoc(studentsColRef, newStudent);
-                        setMessageBox({ show: true, title: 'Alumno añadido', content: 'El nuevo alumno se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        setMessageBox({ show: true, title: 'Alumno añadido', content: 'El nuevo alumno se ha añadido exitosamente.', type: 'success', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     }
                     setNewStudent({ firstName: '', lastName: '', phone: '' });
                     setIsEditingStudent(false);
                     setEditedStudentId(null);
                 } catch (error) {
-                    setMessageBox({ show: true, title: 'Error al guardar el alumno', content: 'Hubo un error al guardar los datos del alumno. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    setMessageBox({ show: true, title: 'Error al guardar el alumno', content: 'Hubo un error al guardar los datos del alumno. Inténtalo de nuevo.', type: 'error', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     console.error("Error adding/updating student:", error);
                 } finally {
                     setLoading(false);
@@ -513,13 +525,16 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             await window.deleteDoc(studentDocRef);
                             setMessageBox({ show: true, title: 'Alumno eliminado', content: 'El alumno ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                         } catch (error) {
-                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar al alumno. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar al alumno. Inténtalo de nuevo.', type: 'error', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                             console.error("Error deleting student:", error);
                         } finally {
                             setLoading(false);
                         }
                     },
-                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                    onClose: () => setMessageBox({ ...messageBox, show: false }),
+  onConfirm: null
+}
                 });
             };
 
@@ -532,7 +547,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             const addPayment = async () => {
                 if (!dbRef.current || !userId) return;
                 if (!newPayment.date || !newPayment.amount || newPayment.amount <= 0) {
-                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, ingresa una fecha y un monto válido para el pago.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, ingresa una fecha y un monto válido para el pago.', type: 'error', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     return;
                 }
                 try {
@@ -548,16 +564,19 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     if (isEditingPayment) {
                         const paymentDocRef = window.doc(paymentsColRef, editedPaymentId);
                         await window.setDoc(paymentDocRef, paymentData);
-                        setMessageBox({ show: true, title: 'Pago actualizado', content: 'El pago se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        setMessageBox({ show: true, title: 'Pago actualizado', content: 'El pago se ha actualizado exitosamente.', type: 'success', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     } else {
                         await window.addDoc(paymentsColRef, paymentData);
-                        setMessageBox({ show: true, title: 'Pago añadido', content: 'El nuevo pago se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        setMessageBox({ show: true, title: 'Pago añadido', content: 'El nuevo pago se ha añadido exitosamente.', type: 'success', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     }
                     setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' });
                     setIsEditingPayment(false);
                     setEditedPaymentId(null);
                 } catch (error) {
-                    setMessageBox({ show: true, title: 'Error al guardar el pago', content: 'Hubo un error al guardar los datos del pago. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    setMessageBox({ show: true, title: 'Error al guardar el pago', content: 'Hubo un error al guardar los datos del pago. Inténtalo de nuevo.', type: 'error', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     console.error("Error adding/updating payment:", error);
                 } finally {
                     setLoading(false);
@@ -582,13 +601,16 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             await window.deleteDoc(paymentDocRef);
                             setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                         } catch (error) {
-                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar el pago. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar el pago. Inténtalo de nuevo.', type: 'error', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                             console.error("Error deleting payment:", error);
                         } finally {
                             setLoading(false);
                         }
                     },
-                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                    onClose: () => setMessageBox({ ...messageBox, show: false }),
+  onConfirm: null
+}
                 });
             };
 
@@ -687,7 +709,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             const addClass = async () => {
                 if (!dbRef.current || !userId) return;
                 if (newEntry.studentNames.some(name => name.trim() === '') || newEntry.price <= 0) {
-                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos de los alumnos y el precio.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos de los alumnos y el precio.', type: 'error', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     return;
                 }
                 try {
@@ -707,11 +730,13 @@ const classData = {
                     if (isEditing) {
                         const classDocRef = window.doc(classesColRef, editedClassId);
                         await window.setDoc(classDocRef, classData);
-                        setMessageBox({ show: true, title: 'Clase actualizada', content: 'La clase se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        setMessageBox({ show: true, title: 'Clase actualizada', content: 'La clase se ha actualizado exitosamente.', type: 'success', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                         addLogEntry('Clase editada', `Clase con ${classData.studentNames.join(', ')} editada el día ${classData.date} a las ${classData.time}.`);
                     } else {
                         await window.addDoc(classesColRef, classData);
-                        setMessageBox({ show: true, title: 'Clase añadida', content: 'La nueva clase se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        setMessageBox({ show: true, title: 'Clase añadida', content: 'La nueva clase se ha añadido exitosamente.', type: 'success', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                         addLogEntry('Clase añadida', `Clase con ${classData.studentNames.join(', ')} añadida para el día ${classData.date} a las ${classData.time}.`);
                     }
                     setNewEntry({
@@ -726,7 +751,8 @@ const classData = {
                     setIsEditing(false);
                     setEditedClassId(null);
                 } catch (error) {
-                    setMessageBox({ show: true, title: 'Error al guardar la clase', content: 'Hubo un error al guardar los datos de la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    setMessageBox({ show: true, title: 'Error al guardar la clase', content: 'Hubo un error al guardar los datos de la clase. Inténtalo de nuevo.', type: 'error', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     console.error("Error adding/updating class:", error);
                 } finally {
                     setLoading(false);
@@ -748,13 +774,16 @@ const classData = {
                             addLogEntry('Clase eliminada', `Clase con ${classData.studentNames.join(', ')} del día ${classData.date} a las ${classData.time} ha sido eliminada.`);
                             setSelectedClassesForDay(null); // Close modal after deleting
                         } catch (error) {
-                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar la clase. Inténtalo de nuevo.', type: 'error', onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false }) });
                             console.error("Error deleting class:", error);
                         } finally {
                             setLoading(false);
                         }
                     },
-                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                    onClose: () => setMessageBox({ ...messageBox, show: false }),
+  onConfirm: null
+}
                 });
             };
 
@@ -896,7 +925,8 @@ const classData = {
                             title: 'Error de archivo',
                             content: 'El archivo no es un JSON válido. Por favor, revisa el formato.',
                             type: 'error',
-                            onClose: () => setMessageBox({ ...messageBox, show: false })
+                            onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false })
                         });
                         console.error("Error parsing JSON:", error);
                     }
@@ -942,7 +972,8 @@ const classData = {
                         title: 'Importación exitosa',
                         content: 'Los datos se han importado correctamente.',
                         type: 'success',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                        onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                     addLogEntry('Datos importados', 'Se han reemplazado los datos con un archivo JSON.');
                 } catch (error) {
@@ -951,7 +982,8 @@ const classData = {
                         title: 'Error de importación',
                         content: 'Hubo un error al importar los datos. Inténtalo de nuevo.',
                         type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
+                        onConfirm: null,
+onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                     console.error("Error importing data:", error);
                 } finally {
@@ -960,14 +992,17 @@ const classData = {
             };
             return (
                 <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
-<MessageBox
-    show={messageBox.show}
-    title={messageBox.title}
-    content={messageBox.content}
-    type={messageBox.type}
-    onConfirm={messageBox.onConfirm || (() => setMessageBox({ ...messageBox, show: false }))}  
-    onClose={() => setMessageBox({ ...messageBox, show: false })}
-/>
+                    <MessageBox
+                        show={messageBox.show}
+                        title={messageBox.title}
+                        content={messageBox.content}
+                        type={messageBox.type}
+                        onConfirm={messageBox.onConfirm}
+                        onClose={() => setMessageBox({ ...messageBox, show: false }),
+  onConfirm: null
+}}
+                    />
+
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -1454,4 +1489,3 @@ const classData = {
     </script>
 </body>
 </html>
-
