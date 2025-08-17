@@ -1069,7 +1069,7 @@ const classData = {
                                     </div>
                                 ))}
                                 <div className="flex justify-end mt-6">
-                                    <button onClick={onConfirm} className="bg-blue-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-900 transition-colors mr-2">Guardar</button>
+                                    <button onClick={() => { saveCustomPrices(); setShowConfigModal(false); }} className="bg-blue-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-900 transition-colors mr-2">Guardar</button>
                                     <button onClick={() => setShowConfigModal(false)} className="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition-colors">Cancelar</button>
                                 </div>
                             </div>
@@ -1212,7 +1212,7 @@ const classData = {
                                             {isEditing ? 'Guardar Cambios' : 'Añadir Clase'}
                                         </button>
                                         {isEditing && (
-                                            <button onClick={onConfirm} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                            <button onClick={() => { setIsEditing(false); setEditedClassId(null); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                 Cancelar
                                             </button>
                                         )}
@@ -1387,7 +1387,7 @@ const classData = {
                                                         {isEditingStudent ? 'Guardar Cambios' : 'Añadir Alumno'}
                                                     </button>
                                                     {isEditingStudent && (
-                                                        <button onClick={onConfirm} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                                        <button onClick={() => { setIsEditingStudent(false); setEditedStudentId(null); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                             Cancelar
                                                         </button>
                                                     )}
@@ -1446,7 +1446,7 @@ const classData = {
                                                         {isEditingPayment ? 'Guardar Cambios' : 'Añadir Pago'}
                                                     </button>
                                                     {isEditingPayment && (
-                                                        <button onClick={onConfirm} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                                        <button onClick={() => { setIsEditingPayment(false); setEditedPaymentId(null); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                             Cancelar
                                                         </button>
                                                     )}
@@ -1527,3 +1527,4 @@ const classData = {
     </script>
 </body>
 </html>
+
