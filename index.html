@@ -429,7 +429,9 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     setLoading(true);
                     const userDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'prices');
                     await window.setDoc(userDocRef, { prices: customPrices });
-                    setMessageBox({ show: true, title: 'Precios guardados', content: 'Los precios de las clases se han guardado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    setMessageBox({ show: true, title: 'Precios guardados', content: 'Los precios de las clases se han guardado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false ,
+        onConfirm: null
+}) });
                 } catch (error) {
                     setMessageBox({ show: true, title: 'Error al guardar', content: 'Hubo un error al guardar los precios.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     console.error("Error saving custom prices:", error);
