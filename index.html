@@ -234,6 +234,22 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
 
         const App = () => {
             const [email, setEmail] = useState('');
+
+// Estado para la semana actual
+const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = domingo
+  const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // lunes
+  return new Date(today.setDate(diff));
+});
+
+// Generar los días de la semana
+const weekDays = Array.from({ length: 7 }, (_, i) => {
+  const d = new Date(currentWeekStart);
+  d.setDate(currentWeekStart.getDate() + i);
+  return d;
+});
+
             const [password, setPassword] = useState('');
             const [userId, setUserId] = useState(null);
             const [userEmail, setUserEmail] = useState('');
@@ -1272,7 +1288,27 @@ const classData = {
                                                 <h3 className="text-xl font-bold">{selectedDate.toLocaleString('es-AR', { month: 'long', year: 'numeric' })}</h3>
                                                 <button onClick={() => handleCalendarNavigation(1)} className="text-blue-800 hover:text-blue-900 transition-colors p-2 rounded-full"><i className="fas fa-chevron-right"></i></button>
                                             </div>
-                                            <div className="grid grid-cols-7 gap-1 text-center font-bold text-gray-700 mb-2">
+                                            
+<div className="flex justify-between items-center mb-4">
+  <button
+    className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+    onClick={() => setCurrentWeekStart(new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate() - 7))}
+  >
+    Semana anterior
+  </button>
+  <div className="font-bold">
+    {weekDays[0].toLocaleDateString()} - {weekDays[6].toLocaleDateString()}
+  </div>
+  <button
+    className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+    onClick={() => setCurrentWeekStart(new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate() + 7))}
+  >
+    Semana siguiente
+  </button>
+</div>
+
+<div className="grid grid-cols-7 sm:grid-cols-7 gap-2">
+
                                                 {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => <div key={day} className="p-2">{day}</div>)}
                                             </div>
                                             <div className="grid grid-cols-7 gap-1">
