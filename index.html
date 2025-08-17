@@ -641,7 +641,7 @@
                 setIsEditing(true);
                 setEditedClassId(classToEdit.id);
                 setSelectedClassesForDay(null); // Close modal when editing
-                setView('list');
+                setView('add');
             };
             const generatePDF = () => {
                 if (!reportTableRef.current) return;
@@ -863,7 +863,7 @@
                                     <button onClick={() => setView('payments')} className={`px-4 py-2 rounded-lg font-bold transition-colors ${view === 'payments' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>Pagos</button>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    <button onClick={() => setShowConfigModal(true)} className="p-2 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"><i className="fas fa-cog"></i></button>
+                                    <button onClick={() => setShowConfigModal(true)} className="p-2 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300"><i className="fas fa-cog"></i></button>
                                     <button onClick={() => setView('calendar')} className={`px-4 py-2 rounded-lg font-bold transition-colors ${view === 'calendar' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}><i className="fas fa-calendar-alt"></i></button>
                                     <button onClick={() => setView('reports')} className={`px-4 py-2 rounded-lg font-bold transition-colors ${view === 'reports' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}><i className="fas fa-chart-bar"></i></button>
                                     <button onClick={() => setView('log')} className={`px-4 py-2 rounded-lg font-bold transition-colors ${view === 'log' ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}><i className="fas fa-history"></i></button>
@@ -1338,9 +1338,9 @@
                                         </div>
                                     </div>
                                 </div>
-                            </>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
                     {userId && (
                         <div className="mt-8 text-center text-gray-500">
                             ID de Usuario: <span className="font-mono">{userId}</span>
