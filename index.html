@@ -735,19 +735,20 @@
                                                                 <label className="block text-gray-700 font-medium text-sm">
                                                                     Alumno {index + 1}
                                                                 </label>
-                                                                <select
+                                                                <input
+                                                                    type="text"
                                                                     name={`studentName-${index}`}
                                                                     value={name}
                                                                     onChange={handleNewEntryChange}
                                                                     className="mt-1 p-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                                                >
-                                                                    <option value="">Selecciona un alumno</option>
+                                                                    placeholder="Nombre del alumno"
+                                                                    list="student-list"
+                                                                />
+                                                                <datalist id="student-list">
                                                                     {students.sort((a, b) => (a.firstName + ' ' + a.lastName).localeCompare(b.firstName + ' ' + b.lastName)).map(student => (
-                                                                        <option key={student.id} value={`${student.firstName} ${student.lastName}`}>
-                                                                            {student.firstName} {student.lastName}
-                                                                        </option>
+                                                                        <option key={student.id} value={`${student.firstName} ${student.lastName}`} />
                                                                     ))}
-                                                                </select>
+                                                                </datalist>
                                                             </div>
                                                         ))}
                                                         {newEntry.studentNames.length < 4 && (
