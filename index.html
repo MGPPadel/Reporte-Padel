@@ -436,9 +436,8 @@ onClose: () => setMessageBox({ ...messageBox, show: false })
                     setLoading(true);
                     const userDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'prices');
                     await window.setDoc(userDocRef, { prices: customPrices });
-                    setMessageBox({ show: true, title: 'Precios guardados', content: 'Los precios de las clases se han guardado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false ,
-        onConfirm: null
-}) });
+                    setMessageBox({ show: true, title: 'Precios guardados', content: 'Los precios de las clases se han guardado exitosamente.', type: 'success', onConfirm: null,
+  onClose: () => setMessageBox({ ...messageBox, show: false }) });
                 } catch (error) {
                     setMessageBox({ show: true, title: 'Error al guardar', content: 'Hubo un error al guardar los precios.', type: 'error', onConfirm: null,
 onClose: () => setMessageBox({ ...messageBox, show: false }) });
