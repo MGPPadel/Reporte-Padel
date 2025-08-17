@@ -239,7 +239,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
 const [currentWeekStart, setCurrentWeekStart] = useState(() => {
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0 = domingo
-  const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // lunes
+  const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // lunes como inicio
   return new Date(today.setDate(diff));
 });
 
@@ -1307,7 +1307,20 @@ const classData = {
   </button>
 </div>
 
+
+{/* Encabezado de días de la semana (solo en escritorio) */}
+<div className="hidden sm:grid grid-cols-7 gap-2 font-bold text-center mb-2">
+  <div>Lun</div>
+  <div>Mar</div>
+  <div>Mié</div>
+  <div>Jue</div>
+  <div>Vie</div>
+  <div>Sáb</div>
+  <div>Dom</div>
+</div>
+
 <div className="grid grid-cols-1 sm:grid-cols-7 gap-2">
+
 
                                                 {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => <div key={day} className="p-2">{day}</div>)}
                                             </div>
@@ -1489,3 +1502,4 @@ const classData = {
     </script>
 </body>
 </html>
+
