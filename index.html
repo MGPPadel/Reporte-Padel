@@ -234,22 +234,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
 
         const App = () => {
             const [email, setEmail] = useState('');
-
-// Estado para la semana actual
-const [currentWeekStart, setCurrentWeekStart] = useState(() => {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0 = domingo
-  const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // lunes como inicio
-  return new Date(today.setDate(diff));
-});
-
-// Generar los días de la semana
-const weekDays = Array.from({ length: 7 }, (_, i) => {
-  const d = new Date(currentWeekStart);
-  d.setDate(currentWeekStart.getDate() + i);
-  return d;
-});
-
             const [password, setPassword] = useState('');
             const [userId, setUserId] = useState(null);
             const [userEmail, setUserEmail] = useState('');
