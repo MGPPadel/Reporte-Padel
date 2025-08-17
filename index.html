@@ -1093,7 +1093,7 @@
                                                     {col.render(item)}
                                                 </td>
                                             ))}
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <td className="px-6 py-4 whitespace-now-rap text-right text-sm font-medium">
                                                 <div className="flex justify-end space-x-2">
                                                     <button onClick={() => onEdit(item)} className="text-blue-600 hover:text-blue-900 transition-colors">
                                                         <i className="fas fa-edit"></i>
@@ -1421,8 +1421,9 @@
                                                                     <span className="text-gray-700">{log.details}</span>
                                                                 </div>
                                                                 <span className="text-gray-500 text-xs">{formatDate(log.timestamp)}</span>
-                                                            </li>
-                                                        ))}
+                                                            </div>
+                                                        </li>
+                                                    ))}
                                                 </ul>
                                             </div>
                                         ) : (
