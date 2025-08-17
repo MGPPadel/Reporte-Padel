@@ -94,6 +94,16 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     }
   };
 
+  const handleSelect = (stu) => {
+    const newNames = [...newEntry.studentNames];
+    newNames[index] = `${stu.firstName} ${stu.lastName}`;
+    const newIds = [...(newEntry.studentIds || [])];
+    newIds[index] = stu.id;
+    setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
+    setActiveIndex(-1);
+    setOpen(false);
+  };
+
   return (
     <div className="relative mb-2" ref={containerRef}>
       <input
@@ -124,15 +134,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
           {filteredStudents.map((stu, i) => (
             <div
               key={stu.id}
-              onMouseDown={(e) => { e.preventDefault();
-                const newNames = [...newEntry.studentNames];
-                newNames[index] = `${stu.firstName} ${stu.lastName}`;
-                const newIds = [...(newEntry.studentIds || [])];
-                newIds[index] = stu.id;
-                setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
-                setActiveIndex(-1);
-                setOpen(false);
-              }}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(stu); }}
+  onTouchStart={(e) => { e.preventDefault(); handleSelect(stu); }}
               className={`px-3 py-2 cursor-pointer transition-colors ${
                 i === activeIndex ? "bg-blue-100 text-blue-800 font-semibold" : "hover:bg-gray-100"
               }`}
@@ -211,7 +214,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         <div className="mt-4">
                             {type === 'confirm' && (
                                 <button
-                                    onMouseDown={(e) => { e.preventDefault(); onConfirm(); onClose(); }}
+                                    onMouseDown={(e) => { e.preventDefault(); handleSelect(stu); }}
+  onTouchStart={(e) => { e.preventDefault(); handleSelect(stu); }}
                                     className={`py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md mr-2`}
                                 >
                                     Aceptar
@@ -992,7 +996,8 @@ const classData = {
                                     </div>
                                 ))}
                                 <div className="flex justify-end mt-6">
-                                    <button onMouseDown={(e) => { e.preventDefault(); saveCustomPrices(); setShowConfigModal(false); }} className="bg-blue-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-900 transition-colors mr-2">Guardar</button>
+                                    <button onMouseDown={(e) => { e.preventDefault(); handleSelect(stu); }}
+  onTouchStart={(e) => { e.preventDefault(); handleSelect(stu); }} className="bg-blue-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-900 transition-colors mr-2">Guardar</button>
                                     <button onClick={() => setShowConfigModal(false)} className="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition-colors">Cancelar</button>
                                 </div>
                             </div>
@@ -1135,8 +1140,8 @@ const classData = {
                                             {isEditing ? 'Guardar Cambios' : 'Añadir Clase'}
                                         </button>
                                         {isEditing && (
-                                            <button onMouseDown={(e) => { e.preventDefault(); setIsEditing(false); setNewEntry({ studentCount: 1, studentNames: [''],
-                studentIds: [''], date: new Date().toISOString().split('T')[0], day: daysOfWeek[new Date().getDay()], time: timesOfDay[0], price: customPrices[1] || 0 }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                            <button onMouseDown={(e) => { e.preventDefault(); handleSelect(stu); }}
+  onTouchStart={(e) => { e.preventDefault(); handleSelect(stu); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                 Cancelar
                                             </button>
                                         )}
@@ -1311,7 +1316,8 @@ const classData = {
                                                         {isEditingStudent ? 'Guardar Cambios' : 'Añadir Alumno'}
                                                     </button>
                                                     {isEditingStudent && (
-                                                        <button onMouseDown={(e) => { e.preventDefault(); setIsEditingStudent(false); setNewStudent({ firstName: '', lastName: '', phone: '' }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                                        <button onMouseDown={(e) => { e.preventDefault(); handleSelect(stu); }}
+  onTouchStart={(e) => { e.preventDefault(); handleSelect(stu); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                             Cancelar
                                                         </button>
                                                     )}
@@ -1370,7 +1376,8 @@ const classData = {
                                                         {isEditingPayment ? 'Guardar Cambios' : 'Añadir Pago'}
                                                     </button>
                                                     {isEditingPayment && (
-                                                        <button onMouseDown={(e) => { e.preventDefault(); setIsEditingPayment(false); setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                                        <button onMouseDown={(e) => { e.preventDefault(); handleSelect(stu); }}
+  onTouchStart={(e) => { e.preventDefault(); handleSelect(stu); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                             Cancelar
                                                         </button>
                                                     )}
