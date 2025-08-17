@@ -55,7 +55,8 @@
             appId: "1:731771747398:web:ebc8b723fe220869fade47"
         };
         const appId = typeof firebaseConfig.appId !== 'undefined' ? firebaseConfig.appId : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ?
+            __initial_auth_token : null;
 
         const { useState, useEffect, useRef, useMemo } = React;
         const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -140,7 +141,7 @@
             const [customPrices, setCustomPrices] = useState(defaultClassPrices);
             const [newEntry, setNewEntry] = useState({
                 studentCount: 1,
-                studentNames: [''],
+                studentNames: [],
                 date: new Date().toISOString().split('T')[0],
                 day: daysOfWeek[new Date().getDay()],
                 time: timesOfDay[0],
@@ -171,8 +172,6 @@
             const [selectedClassesForDay, setSelectedClassesForDay] = useState(null);
             const [selectedDate, setSelectedDate] = useState(new Date());
             const [isSigningUp, setIsSigningUp] = useState(false);
-            const [activeTab, setActiveTab] = useState('clases');
-
 
             const [messageBox, setMessageBox] = useState({
                 show: false,
@@ -554,15 +553,22 @@
                     const newNames = Array(count).fill('');
                     const newPrice = customPrices[count] || 0;
                     setNewEntry(prev => ({ ...prev, studentCount: count, studentNames: newNames, price: newPrice }));
-                } else if (name.startsWith('studentName-')) {
-                    const index = parseInt(name.split('-')[1]);
-                    const newNames = [...newEntry.studentNames];
-                    newNames[index] = value;
-                    setNewEntry(prev => ({ ...prev, studentNames: newNames }));
                 } else {
                     setNewEntry(prev => ({ ...prev, [name]: value }));
                 }
             };
+            
+            const handleStudentSelection = (e) => {
+                const selectedOptions = Array.from(e.target.selectedOptions);
+                const selectedNames = selectedOptions.map(option => option.value);
+                setNewEntry(prev => ({
+                    ...prev,
+                    studentNames: selectedNames,
+                    studentCount: selectedNames.length,
+                    price: customPrices[selectedNames.length] || 0
+                }));
+            };
+
             const handleDateChange = (e) => {
                 const dateString = e.target.value;
                 const dateObj = new Date(`${dateString}T00:00:00Z`);
@@ -572,8 +578,8 @@
             const handleCustomPriceChange = (studentCount, price) => setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 }));
             const addClass = async () => {
                 if (!dbRef.current || !userId) return;
-                if (newEntry.studentNames.some(name => name.trim() === '') || newEntry.price <= 0) {
-                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos de los alumnos y el precio.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                if (newEntry.studentNames.length === 0 || newEntry.price <= 0) {
+                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, selecciona al menos un alumno y asegúrate de que el precio sea válido.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     return;
                 }
                 try {
@@ -592,7 +598,7 @@
                     }
                     setNewEntry({
                         studentCount: 1,
-                        studentNames: [''],
+                        studentNames: [],
                         date: new Date().toISOString().split('T')[0],
                         day: daysOfWeek[new Date().getDay()],
                         time: timesOfDay[0],
@@ -632,7 +638,6 @@
                     onClose: () => setMessageBox({ ...messageBox, show: false })
                 });
             };
-
             const editClass = (classToEdit) => {
                 setNewEntry({
                     studentCount: classToEdit.studentCount,
@@ -645,7 +650,7 @@
                 setIsEditing(true);
                 setEditedClassId(classToEdit.id);
                 setSelectedClassesForDay(null); // Close modal when editing
-                setActiveTab('clases');
+                setView('list');
             };
             const generatePDF = () => {
                 if (!reportTableRef.current) return;
@@ -789,658 +794,671 @@
                     setMessageBox({ show: true, title: 'Importación exitosa', content: 'Los datos se han importado correctamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     addLogEntry('Datos importados', 'Se han reemplazado los datos con un archivo JSON.');
                 } catch (error) {
-                    setMessageBox({ show: true, title: 'Error de importación', content: 'Hubo un error al importar los datos. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    setMessageBox({ show: true, title: 'Error de importación', content: 'Hubo un error al importar los datos. Por favor, revisa el formato del archivo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     console.error("Error importing data:", error);
                 } finally {
                     setLoading(false);
                 }
             };
-            return (
-                <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
-                    <MessageBox show={messageBox.show} title={messageBox.title} content={messageBox.content} type={messageBox.type} onConfirm={messageBox.onConfirm} onClose={() => setMessageBox({ ...messageBox, show: false })} />
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
-                    {showConfigModal && (
-                        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-                            <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg transform transition-all duration-300 ease-in-out">
-                                <h3 className="text-xl font-bold mb-4">Configuración de Precios</h3>
-                                {peopleOptions.map(count => (
-                                    <div key={count} className="flex items-center justify-between mb-4">
-                                        <label className="block text-gray-700 font-bold mb-2">Precio para {count} {count > 1 ? 'alumnos' : 'alumno'}:</label>
-                                        <input
-                                            type="number"
-                                            value={customPrices[count] || ''}
-                                            onChange={(e) => handleCustomPriceChange(count, e.target.value)}
-                                            className="shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline w-32"
-                                            placeholder="Ej: 5000"
-                                        />
-                                    </div>
-                                ))}
-                                <div className="flex justify-end mt-6">
-                                    <button
-                                        onClick={saveCustomPrices}
-                                        className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded-lg mr-2"
-                                    >
-                                        Guardar Precios
-                                    </button>
-                                    <button
-                                        onClick={() => setShowConfigModal(false)}
-                                        className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg"
-                                    >
-                                        Cerrar
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+            const ClassList = () => {
+                const classesForSelectedDay = useMemo(() => {
+                    if (selectedClassesForDay) {
+                        return selectedClassesForDay.sort((a, b) => a.time.localeCompare(b.time));
+                    }
+                    return [];
+                }, [selectedClassesForDay]);
 
-                    {selectedClassesForDay && (
-                        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-                            <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg transform transition-all duration-300 ease-in-out">
-                                <h3 className="text-xl font-bold mb-4">Clases del Día</h3>
+                return (
+                    <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
+                        {selectedClassesForDay ? (
+                            <>
+                                <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">
+                                    Clases del día {selectedClassesForDay[0].date}
+                                </h3>
                                 <div className="space-y-4">
-                                    {selectedClassesForDay.map((cls, index) => (
-                                        <div key={index} className="bg-gray-50 p-4 rounded-lg shadow-sm">
-                                            <p className="text-sm font-bold text-gray-800">Fecha: <span className="font-normal">{cls.date}</span></p>
-                                            <p className="text-sm font-bold text-gray-800">Hora: <span className="font-normal">{cls.time}</span></p>
-                                            <p className="text-sm font-bold text-gray-800">Alumnos: </p>
-                                            <ul className="list-disc list-inside ml-4 mt-1 text-sm text-gray-700">
-                                                {cls.studentNames.map((name, nameIndex) => (
-                                                    <li key={nameIndex}>{name}</li>
-                                                ))}
-                                            </ul>
-                                            <p className="text-sm font-bold text-gray-800">Ingreso: <span className="font-normal">{formatPrice(cls.price)}</span></p>
-                                            <div className="mt-4 flex space-x-2">
-                                                <button
-                                                    onClick={() => editClass(cls)}
-                                                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-lg text-xs transition-colors"
-                                                >
-                                                    Editar
+                                    {classesForSelectedDay.length > 0 ? classesForSelectedDay.map(cls => (
+                                        <div key={cls.id} className="p-4 bg-gray-50 rounded-lg shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center transition-transform hover:scale-[1.01]">
+                                            <div className="mb-2 sm:mb-0 flex-1">
+                                                <p className="font-semibold text-gray-800">
+                                                    <i className="fas fa-users text-blue-500 mr-2"></i>
+                                                    {cls.studentNames.join(', ')}
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                    <i className="fas fa-clock text-blue-500 mr-2"></i>
+                                                    {cls.time}
+                                                </p>
+                                            </div>
+                                            <div className="flex-shrink-0">
+                                                <span className="font-bold text-lg text-blue-800 mr-4">{formatPrice(cls.price)}</span>
+                                                <button onClick={() => editClass(cls)} className="text-blue-500 hover:text-blue-700 transition-colors mr-2">
+                                                    <i className="fas fa-edit"></i>
                                                 </button>
-                                                <button
-                                                    onClick={() => deleteClass(cls.id, cls)}
-                                                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-lg text-xs transition-colors"
-                                                >
-                                                    Eliminar
+                                                <button onClick={() => deleteClass(cls.id, cls)} className="text-red-500 hover:text-red-700 transition-colors">
+                                                    <i className="fas fa-trash-alt"></i>
                                                 </button>
                                             </div>
                                         </div>
-                                    ))}
+                                    )) : (
+                                        <p className="text-center text-gray-500">No hay clases para este día.</p>
+                                    )}
                                 </div>
-                                <div className="flex justify-end mt-6">
+                                <div className="text-center mt-6">
                                     <button
                                         onClick={() => setSelectedClassesForDay(null)}
-                                        className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded-lg"
+                                        className="py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
                                     >
-                                        Cerrar
+                                        Volver al Calendario
                                     </button>
                                 </div>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="w-full max-w-7xl mx-auto space-y-8">
-                        {!userId ? (
-                            <div className="bg-white shadow-lg rounded-xl p-8 max-w-md mx-auto">
-                                <h2 className="text-2xl font-bold text-center text-blue-800 mb-6">
-                                    {isSigningUp ? 'Crear Cuenta' : 'Iniciar Sesión'}
-                                </h2>
-                                <form onSubmit={(e) => { e.preventDefault(); isSigningUp ? signUp() : signIn(); }}>
-                                    <div className="mb-4">
-                                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
-                                            Correo Electrónico
-                                        </label>
-                                        <input
-                                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                            id="email"
-                                            type="email"
-                                            placeholder="email@ejemplo.com"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="mb-6">
-                                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
-                                            Contraseña
-                                        </label>
-                                        <input
-                                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
-                                            id="password"
-                                            type="password"
-                                            placeholder="********"
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <button
-                                            className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline w-full"
-                                            type="submit"
-                                            disabled={loading}
-                                        >
-                                            {loading ? 'Cargando...' : (isSigningUp ? 'Crear Cuenta' : 'Iniciar Sesión')}
-                                        </button>
-                                    </div>
-                                </form>
-                                <div className="flex justify-between mt-4">
-                                    <button
-                                        className="inline-block align-baseline font-bold text-sm text-blue-800 hover:text-blue-900"
-                                        onClick={() => setIsSigningUp(!isSigningUp)}
-                                    >
-                                        {isSigningUp ? '¿Ya tienes una cuenta? Inicia sesión' : '¿No tienes una cuenta? Regístrate'}
-                                    </button>
-                                    <button
-                                        className="inline-block align-baseline font-bold text-sm text-gray-500 hover:text-gray-700"
-                                        onClick={handlePasswordReset}
-                                    >
-                                        ¿Olvidaste tu contraseña?
-                                    </button>
-                                </div>
-                            </div>
+                            </>
                         ) : (
                             <>
-                                <div className="bg-white shadow-lg rounded-xl p-6 sm:p-8 flex justify-between items-center flex-wrap gap-4">
-                                    <div className="flex items-center space-x-2">
-                                        <h1 className="text-2xl sm:text-3xl font-bold text-blue-800">
-                                            Panel de Control
-                                        </h1>
-                                        <span className="text-sm text-gray-500 hidden sm:inline-block">({userEmail})</span>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <button onClick={signOutUser} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Cerrar Sesión</button>
-                                        <button onClick={() => setShowConfigModal(true)} className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Precios</button>
-                                    </div>
+                                <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">Clases Recientes</h3>
+                                <div className="mb-4 flex flex-col md:flex-row gap-4 items-center">
+                                    <select
+                                        value={selectedMonthYear}
+                                        onChange={(e) => setSelectedMonthYear(e.target.value)}
+                                        className="w-full md:w-auto p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                                    >
+                                        <option value="">Todos los meses</option>
+                                        {uniqueMonths.map(month => (
+                                            <option key={month} value={month}>{formatMonthYear(month)}</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        type="text"
+                                        placeholder="Filtrar por nombre de alumno..."
+                                        value={filterText}
+                                        onChange={(e) => setFilterText(e.target.value)}
+                                        className="w-full md:flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                                    />
                                 </div>
-
-                                <div className="bg-white shadow-lg rounded-xl p-4 sm:p-6">
-                                    <div className="border-b border-gray-200">
-                                        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                                            <button
-                                                onClick={() => setActiveTab('clases')}
-                                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
-                                                    ${activeTab === 'clases' ? 'border-blue-800 text-blue-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-                                            >
-                                                Clases
-                                            </button>
-                                            <button
-                                                onClick={() => setActiveTab('alumnos')}
-                                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
-                                                    ${activeTab === 'alumnos' ? 'border-blue-800 text-blue-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-                                            >
-                                                Alumnos
-                                            </button>
-                                            <button
-                                                onClick={() => setActiveTab('pagos')}
-                                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
-                                                    ${activeTab === 'pagos' ? 'border-blue-800 text-blue-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-                                            >
-                                                Pagos
-                                            </button>
-                                            <button
-                                                onClick={() => setActiveTab('reportes')}
-                                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
-                                                    ${activeTab === 'reportes' ? 'border-blue-800 text-blue-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-                                            >
-                                                Reportes
-                                            </button>
-                                        </nav>
-                                    </div>
-
-                                    <div className="mt-6">
-                                        {activeTab === 'clases' && (
-                                            <>
-                                                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 flex items-center justify-between">
-                                                    <span>Nueva Clase</span>
-                                                    <span className="text-lg text-blue-800 font-normal">{isEditing ? ' (Editando)' : ''}</span>
-                                                </h2>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                                                    <div>
-                                                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="date">
-                                                            Fecha
-                                                        </label>
-                                                        <input
-                                                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                            id="date"
-                                                            type="date"
-                                                            name="date"
-                                                            value={newEntry.date}
-                                                            onChange={handleDateChange}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
-                                                            Día
-                                                        </label>
-                                                        <input
-                                                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 bg-gray-200 leading-tight focus:outline-none focus:shadow-outline"
-                                                            type="text"
-                                                            value={newEntry.day}
-                                                            readOnly
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="time">
-                                                            Hora
-                                                        </label>
-                                                        <select
-                                                            className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                            id="time"
-                                                            name="time"
-                                                            value={newEntry.time}
-                                                            onChange={handleNewEntryChange}
-                                                        >
-                                                            {timesOfDay.map(time => (
-                                                                <option key={time} value={time}>{time}</option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="studentCount">
-                                                            Cantidad de Alumnos
-                                                        </label>
-                                                        <select
-                                                            className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                            id="studentCount"
-                                                            name="studentCount"
-                                                            value={newEntry.studentCount}
-                                                            onChange={handleNewEntryChange}
-                                                        >
-                                                            {peopleOptions.map(count => (
-                                                                <option key={count} value={count}>{count}</option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    {newEntry.studentNames.map((name, index) => (
-                                                        <div key={index}>
-                                                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor={`studentName-${index}`}>
-                                                                Nombre del Alumno {index + 1}
-                                                            </label>
-                                                            <input
-                                                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                                id={`studentName-${index}`}
-                                                                type="text"
-                                                                name={`studentName-${index}`}
-                                                                placeholder={`Nombre del alumno ${index + 1}`}
-                                                                value={name}
-                                                                onChange={handleNewEntryChange}
-                                                                required
-                                                            />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <div className="mb-4">
-                                                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="price">
-                                                        Precio
-                                                    </label>
-                                                    <input
-                                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                        id="price"
-                                                        type="number"
-                                                        name="price"
-                                                        value={newEntry.price}
-                                                        onChange={handleNewEntryChange}
-                                                        required
-                                                    />
-                                                </div>
-                                                <div className="flex justify-end space-x-2">
-                                                    <button
-                                                        onClick={addClass}
-                                                        className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-                                                    >
-                                                        {isEditing ? 'Actualizar Clase' : 'Añadir Clase'}
-                                                    </button>
-                                                    {isEditing && (
-                                                        <button
-                                                            onClick={() => {
-                                                                setIsEditing(false);
-                                                                setEditedClassId(null);
-                                                                setNewEntry({
-                                                                    studentCount: 1,
-                                                                    studentNames: [''],
-                                                                    date: new Date().toISOString().split('T')[0],
-                                                                    day: daysOfWeek[new Date().getDay()],
-                                                                    time: timesOfDay[0],
-                                                                    price: customPrices[1] || 0,
-                                                                });
-                                                            }}
-                                                            className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-                                                        >
-                                                            Cancelar
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 my-4">Clases Registradas</h2>
-                                                <div className="overflow-x-auto rounded-lg shadow-md" ref={reportTableRef}>
-                                                    <table className="min-w-full bg-white">
-                                                        <thead className="bg-blue-800 text-white">
-                                                            <tr>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Fecha</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Hora</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Alumnos</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Precio</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Acciones</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-gray-200">
-                                                            {classes.length > 0 ? (
-                                                                classes.map(cls => (
-                                                                    <tr key={cls.id} className="hover:bg-gray-50">
-                                                                        <td className="p-2 border-t border-gray-200">{cls.date}</td>
-                                                                        <td className="p-2 border-t border-gray-200">{cls.time}</td>
-                                                                        <td className="p-2 border-t border-gray-200">
-                                                                            <ul className="list-none p-0 m-0">
-                                                                                {cls.studentNames.map((student, index) => (
-                                                                                    <li key={index} className="flex items-center text-sm text-gray-700">
-                                                                                        <span className="mr-2 text-gray-600">•</span>
-                                                                                        <span>{student}</span>
-                                                                                    </li>
-                                                                                ))}
-                                                                            </ul>
-                                                                        </td>
-                                                                        <td className="p-2 border-t border-gray-200 font-bold text-green-700">{formatPrice(cls.price)}</td>
-                                                                        <td className="p-2 border-t border-gray-200">
-                                                                            <div className="flex space-x-2">
-                                                                                <button
-                                                                                    onClick={() => editClass(cls)}
-                                                                                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded-lg text-xs"
-                                                                                >
-                                                                                    Editar
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() => deleteClass(cls.id, cls)}
-                                                                                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-lg text-xs"
-                                                                                >
-                                                                                    Eliminar
-                                                                                </button>
-                                                                            </div>
-                                                                        </td>
-                                                                    </tr>
-                                                                ))
-                                                            ) : (
-                                                                <tr>
-                                                                    <td colSpan="5" className="p-4 text-center text-gray-500">
-                                                                        No hay clases registradas.
-                                                                    </td>
-                                                                </tr>
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <div className="mt-4 flex flex-wrap gap-2 justify-end">
-                                                    <button onClick={generatePDF} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm">
-                                                        Generar PDF
-                                                    </button>
-                                                </div>
-                                            </>
-                                        )}
-                                        {activeTab === 'alumnos' && (
-                                            <>
-                                                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Gestión de Alumnos</h2>
-                                                <div className="mb-4">
-                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                                                        <input
-                                                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                            type="text"
-                                                            placeholder="Nombre"
-                                                            value={newStudent.firstName}
-                                                            onChange={(e) => setNewStudent({ ...newStudent, firstName: e.target.value })}
-                                                            required
-                                                        />
-                                                        <input
-                                                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                            type="text"
-                                                            placeholder="Apellido"
-                                                            value={newStudent.lastName}
-                                                            onChange={(e) => setNewStudent({ ...newStudent, lastName: e.target.value })}
-                                                            required
-                                                        />
-                                                        <input
-                                                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                            type="tel"
-                                                            placeholder="Teléfono"
-                                                            value={newStudent.phone}
-                                                            onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
-                                                            required
-                                                        />
-                                                    </div>
-                                                    <div className="flex justify-end space-x-2">
-                                                        <button onClick={addStudent} className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                                                            {isEditingStudent ? 'Actualizar Alumno' : 'Añadir Alumno'}
-                                                        </button>
-                                                        {isEditingStudent && (
-                                                            <button
-                                                                onClick={() => {
-                                                                    setIsEditingStudent(false);
-                                                                    setEditedStudentId(null);
-                                                                    setNewStudent({ firstName: '', lastName: '', phone: '' });
-                                                                }}
-                                                                className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-                                                            >
-                                                                Cancelar
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full bg-white rounded-lg shadow-md overflow-hidden">
+                                        <thead className="bg-blue-800 text-white">
+                                            <tr>
+                                                <th className="py-2 px-4 text-left font-semibold">Fecha</th>
+                                                <th className="py-2 px-4 text-left font-semibold">Alumnos</th>
+                                                <th className="py-2 px-4 text-left font-semibold">Hora</th>
+                                                <th className="py-2 px-4 text-right font-semibold">Precio</th>
+                                                <th className="py-2 px-4 text-center font-semibold">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredClasses.length > 0 ? (
+                                                filteredClasses.map(cls => (
+                                                    <tr key={cls.id} className="border-b border-gray-200 hover:bg-gray-50">
+                                                        <td className="py-2 px-4">{cls.date}</td>
+                                                        <td className="py-2 px-4">{cls.studentNames.join(', ')}</td>
+                                                        <td className="py-2 px-4">{cls.time}</td>
+                                                        <td className="py-2 px-4 text-right font-bold text-blue-800">{formatPrice(cls.price)}</td>
+                                                        <td className="py-2 px-4 flex justify-center items-center gap-2">
+                                                            <button onClick={() => editClass(cls)} className="text-blue-500 hover:text-blue-700 transition-colors">
+                                                                <i className="fas fa-edit"></i>
                                                             </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="overflow-x-auto rounded-lg shadow-md">
-                                                    <table className="min-w-full bg-white">
-                                                        <thead className="bg-blue-800 text-white">
-                                                            <tr>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Nombre</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Teléfono</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Acciones</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-gray-200">
-                                                            {students.length > 0 ? (
-                                                                students.map(student => (
-                                                                    <tr key={student.id} className="hover:bg-gray-50">
-                                                                        <td className="p-2 border-t border-gray-200">{student.firstName} {student.lastName}</td>
-                                                                        <td className="p-2 border-t border-gray-200">{student.phone}</td>
-                                                                        <td className="p-2 border-t border-gray-200">
-                                                                            <div className="flex flex-wrap gap-2">
-                                                                                <button
-                                                                                    onClick={() => editStudent(student)}
-                                                                                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded-lg text-xs"
-                                                                                >
-                                                                                    Editar
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() => deleteStudent(student.id)}
-                                                                                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-lg text-xs"
-                                                                                >
-                                                                                    Eliminar
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() => sendWhatsApp(student.phone)}
-                                                                                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-2 rounded-lg text-xs flex items-center"
-                                                                                >
-                                                                                    <i className="fab fa-whatsapp mr-1"></i> WhatsApp
-                                                                                </button>
-                                                                            </div>
-                                                                        </td>
-                                                                    </tr>
-                                                                ))
-                                                            ) : (
-                                                                <tr>
-                                                                    <td colSpan="3" className="p-4 text-center text-gray-500">No hay alumnos registrados.</td>
-                                                                </tr>
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </>
-                                        )}
-                                        {activeTab === 'pagos' && (
-                                            <>
-                                                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Gestión de Pagos del Club</h2>
-                                                <div className="mb-4">
-                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                                                        <input
-                                                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                            type="date"
-                                                            placeholder="Fecha"
-                                                            value={newPayment.date}
-                                                            onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
-                                                            required
-                                                        />
-                                                        <input
-                                                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                            type="number"
-                                                            placeholder="Monto"
-                                                            value={newPayment.amount}
-                                                            onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
-                                                            required
-                                                        />
-                                                        <input
-                                                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                            type="text"
-                                                            placeholder="Descripción (opcional)"
-                                                            value={newPayment.description}
-                                                            onChange={(e) => setNewPayment({ ...newPayment, description: e.target.value })}
-                                                        />
-                                                    </div>
-                                                    <div className="flex justify-end space-x-2">
-                                                        <button onClick={addPayment} className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                                                            {isEditingPayment ? 'Actualizar Pago' : 'Añadir Pago'}
-                                                        </button>
-                                                        {isEditingPayment && (
-                                                            <button
-                                                                onClick={() => {
-                                                                    setIsEditingPayment(false);
-                                                                    setEditedPaymentId(null);
-                                                                    setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' });
-                                                                }}
-                                                                className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-                                                            >
-                                                                Cancelar
+                                                            <button onClick={() => deleteClass(cls.id, cls)} className="text-red-500 hover:text-red-700 transition-colors">
+                                                                <i className="fas fa-trash-alt"></i>
                                                             </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="overflow-x-auto rounded-lg shadow-md">
-                                                    <table className="min-w-full bg-white">
-                                                        <thead className="bg-blue-800 text-white">
-                                                            <tr>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Fecha</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Monto</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Descripción</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Acciones</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-gray-200">
-                                                            {payments.length > 0 ? (
-                                                                payments.map(payment => (
-                                                                    <tr key={payment.id} className="hover:bg-gray-50">
-                                                                        <td className="p-2 border-t border-gray-200">{payment.date}</td>
-                                                                        <td className="p-2 border-t border-gray-200 font-bold text-green-700">{formatPrice(payment.amount)}</td>
-                                                                        <td className="p-2 border-t border-gray-200">{payment.description}</td>
-                                                                        <td className="p-2 border-t border-gray-200">
-                                                                            <div className="flex space-x-2">
-                                                                                <button
-                                                                                    onClick={() => editPayment(payment)}
-                                                                                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded-lg text-xs"
-                                                                                >
-                                                                                    Editar
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() => deletePayment(payment.id)}
-                                                                                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-lg text-xs"
-                                                                                >
-                                                                                    Eliminar
-                                                                                </button>
-                                                                            </div>
-                                                                        </td>
-                                                                    </tr>
-                                                                ))
-                                                            ) : (
-                                                                <tr>
-                                                                    <td colSpan="4" className="p-4 text-center text-gray-500">No hay pagos registrados.</td>
-                                                                </tr>
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </>
-                                        )}
-                                        {activeTab === 'reportes' && (
-                                            <>
-                                                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">Reporte Mensual</h2>
-                                                <div className="overflow-x-auto rounded-lg shadow-md mb-4">
-                                                    <table className="min-w-full bg-white">
-                                                        <thead className="bg-blue-800 text-white">
-                                                            <tr>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Mes</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Ingreso Total</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Total Clases</th>
-                                                                <th className="p-2 text-left text-xs font-semibold uppercase tracking-wider">Clases por Alumno</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-gray-200">
-                                                            {Object.keys(monthlyReports).length > 0 ? (
-                                                                Object.keys(monthlyReports).sort().map(monthYear => (
-                                                                    <tr key={monthYear} className="hover:bg-gray-50">
-                                                                        <td className="p-2 border-t border-gray-200 font-bold">{formatMonthYear(monthYear)}</td>
-                                                                        <td className="p-2 border-t border-gray-200 text-green-700 font-bold">{formatPrice(monthlyReports[monthYear].totalIncome)}</td>
-                                                                        <td className="p-2 border-t border-gray-200">{monthlyReports[monthYear].classCount}</td>
-                                                                        <td className="p-2 border-t border-gray-200 text-sm">
-                                                                            <ul className="list-none p-0 m-0">
-                                                                                {Object.keys(monthlyReports[monthYear].classCountByStudent).sort().map(studentCount => (
-                                                                                    <li key={studentCount} className="text-gray-700">
-                                                                                        {studentCount} {studentCount > 1 ? 'alumnos' : 'alumno'}: {monthlyReports[monthYear].classCountByStudent[studentCount]} clases
-                                                                                    </li>
-                                                                                ))}
-                                                                            </ul>
-                                                                        </td>
-                                                                    </tr>
-                                                                ))
-                                                            ) : (
-                                                                <tr>
-                                                                    <td colSpan="4" className="p-4 text-center text-gray-500">No hay datos para generar un reporte.</td>
-                                                                </tr>
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <div className="flex justify-between items-center flex-wrap gap-2">
-                                                    <button onClick={exportData} className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg text-sm">
-                                                        Exportar Datos
-                                                    </button>
-                                                    <button onClick={() => fileInputRef.current.click()} className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg text-sm">
-                                                        Importar Datos
-                                                    </button>
-                                                </div>
-                                                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 mt-6">Registro de Actividad</h2>
-                                                {activityLog.length > 0 ? (
-                                                    <div className="overflow-y-auto max-h-64">
-                                                        <ul className="divide-y divide-gray-200">
-                                                            {activityLog.map((log, index) => (
-                                                                <li key={index} className="py-2">
-                                                                    <div className="flex items-center space-x-2">
-                                                                        <span className="font-bold text-blue-800 uppercase mr-2">{log.action}:</span>
-                                                                        <span className="text-gray-700">{log.details}</span>
-                                                                    </div>
-                                                                    <span className="text-gray-500 text-xs">{formatDate(log.timestamp)}</span>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-center text-gray-500 p-8 bg-white">No hay actividad reciente.</p>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="5" className="text-center py-4 text-gray-500">No hay clases registradas.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </>
                         )}
                     </div>
-                    {userId && (
-                        <div className="mt-8 text-center text-gray-500">
-                            ID de Usuario: <span className="font-mono">{userId}</span>
+                );
+            };
+
+            const CalendarView = () => (
+                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
+                    <div className="flex justify-between items-center mb-6">
+                        <button onClick={() => handleCalendarNavigation(-1)} className="p-2 rounded-full bg-blue-800 text-white hover:bg-blue-900 transition-colors">
+                            <i className="fas fa-chevron-left"></i>
+                        </button>
+                        <h3 className="text-2xl font-extrabold text-blue-800 text-center">
+                            {selectedDate.toLocaleString('es-AR', { month: 'long', year: 'numeric' })}
+                        </h3>
+                        <button onClick={() => handleCalendarNavigation(1)} className="p-2 rounded-full bg-blue-800 text-white hover:bg-blue-900 transition-colors">
+                            <i className="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1 text-center">
+                        {daysOfWeek.map(day => (
+                            <div key={day} className="font-bold text-sm text-blue-800 p-2">{day.substring(0, 3)}</div>
+                        ))}
+                        {calendarDays.map((day, index) => (
+                            <div key={index} className={`p-2 rounded-lg transition-transform hover:scale-[1.02] cursor-pointer
+                                ${day.isCurrentMonth ? (day.classes.length > 0 ? `bg-blue-200 hover:bg-blue-300` : `bg-gray-200 hover:bg-gray-300`) : `bg-gray-100 text-gray-400`}
+                            `}
+                                onClick={() => handleDayClick(day.classes)}
+                            >
+                                <span className="font-semibold">{day.day}</span>
+                                {day.dailyIncome > 0 && (
+                                    <div className="text-xs font-bold text-green-700 mt-1">
+                                        {formatPrice(day.dailyIncome)}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+
+            const StudentList = () => (
+                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
+                    <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">Gestión de Alumnos</h3>
+                    <div className="mb-6 bg-gray-50 p-6 rounded-xl shadow-inner">
+                        <h4 className="text-xl font-bold text-blue-800 mb-4">{isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}</h4>
+                        <div className="flex flex-col md:flex-row gap-4 mb-4">
+                            <input
+                                type="text"
+                                placeholder="Nombre"
+                                value={newStudent.firstName}
+                                onChange={(e) => setNewStudent({ ...newStudent, firstName: e.target.value })}
+                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                            />
+                            <input
+                                type="text"
+                                placeholder="Apellido"
+                                value={newStudent.lastName}
+                                onChange={(e) => setNewStudent({ ...newStudent, lastName: e.target.value })}
+                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                            />
+                            <input
+                                type="tel"
+                                placeholder="Teléfono"
+                                value={newStudent.phone}
+                                onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
+                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                            />
                         </div>
+                        <button
+                            onClick={addStudent}
+                            className="w-full py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
+                        >
+                            {isEditingStudent ? 'Actualizar Alumno' : 'Guardar Alumno'}
+                        </button>
+                        {isEditingStudent && (
+                            <button
+                                onClick={() => { setIsEditingStudent(false); setNewStudent({ firstName: '', lastName: '', phone: '' }); }}
+                                className="w-full mt-2 py-2 px-4 rounded-lg font-bold transition-colors text-blue-800 bg-gray-200 hover:bg-gray-300 shadow-md"
+                            >
+                                Cancelar
+                            </button>
+                        )}
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full bg-white rounded-lg shadow-md overflow-hidden">
+                            <thead className="bg-blue-800 text-white">
+                                <tr>
+                                    <th className="py-2 px-4 text-left font-semibold">Nombre</th>
+                                    <th className="py-2 px-4 text-left font-semibold">Apellido</th>
+                                    <th className="py-2 px-4 text-left font-semibold">Teléfono</th>
+                                    <th className="py-2 px-4 text-center font-semibold">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {students.length > 0 ? (
+                                    students.map(student => (
+                                        <tr key={student.id} className="border-b border-gray-200 hover:bg-gray-50">
+                                            <td className="py-2 px-4">{student.firstName}</td>
+                                            <td className="py-2 px-4">{student.lastName}</td>
+                                            <td className="py-2 px-4">{student.phone}</td>
+                                            <td className="py-2 px-4 flex justify-center items-center gap-2">
+                                                <button onClick={() => editStudent(student)} className="text-blue-500 hover:text-blue-700 transition-colors">
+                                                    <i className="fas fa-edit"></i>
+                                                </button>
+                                                <button onClick={() => deleteStudent(student.id)} className="text-red-500 hover:text-red-700 transition-colors">
+                                                    <i className="fas fa-trash-alt"></i>
+                                                </button>
+                                                <button onClick={() => sendWhatsApp(student.phone)} className="text-green-500 hover:text-green-700 transition-colors">
+                                                    <i className="fab fa-whatsapp"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="4" className="text-center py-4 text-gray-500">No hay alumnos registrados.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+
+            const PaymentList = () => (
+                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
+                    <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">Gestión de Pagos</h3>
+                    <div className="mb-6 bg-gray-50 p-6 rounded-xl shadow-inner">
+                        <h4 className="text-xl font-bold text-blue-800 mb-4">{isEditingPayment ? 'Editar Pago' : 'Añadir Nuevo Pago'}</h4>
+                        <div className="flex flex-col md:flex-row gap-4 mb-4">
+                            <input
+                                type="date"
+                                value={newPayment.date}
+                                onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
+                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                            />
+                            <input
+                                type="number"
+                                placeholder="Monto"
+                                value={newPayment.amount}
+                                onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
+                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                            />
+                            <input
+                                type="text"
+                                placeholder="Descripción (opcional)"
+                                value={newPayment.description}
+                                onChange={(e) => setNewPayment({ ...newPayment, description: e.target.value })}
+                                className="flex-1 p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                            />
+                        </div>
+                        <button
+                            onClick={addPayment}
+                            className="w-full py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
+                        >
+                            {isEditingPayment ? 'Actualizar Pago' : 'Guardar Pago'}
+                        </button>
+                        {isEditingPayment && (
+                            <button
+                                onClick={() => { setIsEditingPayment(false); setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' }); }}
+                                className="w-full mt-2 py-2 px-4 rounded-lg font-bold transition-colors text-blue-800 bg-gray-200 hover:bg-gray-300 shadow-md"
+                            >
+                                Cancelar
+                            </button>
+                        )}
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full bg-white rounded-lg shadow-md overflow-hidden">
+                            <thead className="bg-blue-800 text-white">
+                                <tr>
+                                    <th className="py-2 px-4 text-left font-semibold">Fecha</th>
+                                    <th className="py-2 px-4 text-left font-semibold">Monto</th>
+                                    <th className="py-2 px-4 text-left font-semibold">Descripción</th>
+                                    <th className="py-2 px-4 text-center font-semibold">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {payments.length > 0 ? (
+                                    payments.map(payment => (
+                                        <tr key={payment.id} className="border-b border-gray-200 hover:bg-gray-50">
+                                            <td className="py-2 px-4">{payment.date}</td>
+                                            <td className="py-2 px-4 font-bold text-green-600">{formatPrice(payment.amount)}</td>
+                                            <td className="py-2 px-4">{payment.description || '-'}</td>
+                                            <td className="py-2 px-4 flex justify-center items-center gap-2">
+                                                <button onClick={() => editPayment(payment)} className="text-blue-500 hover:text-blue-700 transition-colors">
+                                                    <i className="fas fa-edit"></i>
+                                                </button>
+                                                <button onClick={() => deletePayment(payment.id)} className="text-red-500 hover:text-red-700 transition-colors">
+                                                    <i className="fas fa-trash-alt"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="4" className="text-center py-4 text-gray-500">No hay pagos registrados.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+
+            const Report = () => (
+                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
+                    <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">Informes Mensuales</h3>
+                    <div className="flex justify-center items-center gap-4 mb-6">
+                        <label htmlFor="reportMonth" className="font-semibold text-gray-700">Seleccionar Mes:</label>
+                        <select
+                            id="reportMonth"
+                            value={selectedMonthYear}
+                            onChange={(e) => setSelectedMonthYear(e.target.value)}
+                            className="p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                        >
+                            <option value="">Selecciona un mes</option>
+                            {uniqueMonths.map(month => (
+                                <option key={month} value={month}>{formatMonthYear(month)}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {selectedMonthYear && monthlyReports[selectedMonthYear] ? (
+                        <div ref={reportTableRef} className="p-6 rounded-lg border border-gray-200 bg-gray-50">
+                            <div className="text-center mb-4">
+                                <h4 className="text-xl font-bold text-blue-800">Informe de {formatMonthYear(selectedMonthYear)}</h4>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center mb-4">
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <p className="text-sm text-gray-500">Ingreso Total</p>
+                                    <p className="text-xl font-extrabold text-green-600">{formatPrice(monthlyReports[selectedMonthYear].totalIncome)}</p>
+                                </div>
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <p className="text-sm text-gray-500">Clases Totales</p>
+                                    <p className="text-xl font-extrabold text-blue-600">{monthlyReports[selectedMonthYear].classCount}</p>
+                                </div>
+                            </div>
+                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                <p className="text-lg font-bold text-gray-700 mb-2">Clases por cantidad de alumnos:</p>
+                                {Object.keys(monthlyReports[selectedMonthYear].classCountByStudent).sort().map(count => (
+                                    <div key={count} className="flex justify-between items-center py-1">
+                                        <span className="font-semibold text-gray-600">{count} {count === '1' ? 'alumno' : 'alumnos'}:</span>
+                                        <span className={`font-bold ${colorMap[count].replace('bg', 'text')}`}>{monthlyReports[selectedMonthYear].classCountByStudent[count]}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-6 flex justify-center">
+                                <button
+                                    onClick={generatePDF}
+                                    className="py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
+                                >
+                                    Generar PDF <i className="fas fa-file-pdf ml-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-center text-gray-500 p-8">Selecciona un mes para ver el informe.</p>
+                    )}
+                </div>
+            );
+
+            const Settings = () => (
+                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-4xl mx-auto my-8">
+                    <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">Configuración</h3>
+                    <div className="bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
+                        <h4 className="text-xl font-bold text-blue-800 mb-4">Precios de Clases</h4>
+                        {peopleOptions.map(count => (
+                            <div key={count} className="flex items-center justify-between mb-4 last:mb-0">
+                                <label className="text-gray-700 font-semibold">{count} {count === 1 ? 'Alumno' : 'Alumnos'}:</label>
+                                <input
+                                    type="number"
+                                    value={customPrices[count] || ''}
+                                    onChange={(e) => handleCustomPriceChange(count, e.target.value)}
+                                    className="p-2 rounded-lg border border-gray-300 shadow-sm w-32 text-right"
+                                />
+                            </div>
+                        ))}
+                        <button
+                            onClick={saveCustomPrices}
+                            className="w-full mt-4 py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
+                        >
+                            Guardar Precios
+                        </button>
+                    </div>
+                    <div className="bg-gray-50 p-6 rounded-xl shadow-inner mb-6">
+                        <h4 className="text-xl font-bold text-blue-800 mb-4">Exportar/Importar Datos</h4>
+                        <button
+                            onClick={exportData}
+                            className="w-full py-2 px-4 rounded-lg font-bold transition-colors text-white bg-green-600 hover:bg-green-700 shadow-md"
+                        >
+                            Exportar Datos
+                        </button>
+                        <label htmlFor="file-upload" className="block w-full text-center py-2 px-4 rounded-lg font-bold transition-colors text-white bg-yellow-600 hover:bg-yellow-700 shadow-md mt-4 cursor-pointer">
+                            Importar Datos
+                        </label>
+                        <input
+                            id="file-upload"
+                            type="file"
+                            onChange={handleFileChange}
+                            className="hidden"
+                            accept=".json"
+                        />
+                    </div>
+                </div>
+            );
+
+            const AddClass = () => (
+                <div className="p-4 md:p-8 rounded-2xl bg-white shadow-xl max-w-xl mx-auto my-8">
+                    <h3 className="text-2xl font-extrabold text-blue-800 text-center mb-6">
+                        {isEditing ? 'Editar Clase' : 'Añadir Clase'}
+                    </h3>
+                    <div className="flex flex-col gap-4 mb-4">
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">Fecha</label>
+                            <input
+                                type="date"
+                                name="date"
+                                value={newEntry.date}
+                                onChange={handleDateChange}
+                                className="w-full p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">Hora</label>
+                            <select
+                                name="time"
+                                value={newEntry.time}
+                                onChange={handleNewEntryChange}
+                                className="w-full p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                            >
+                                {timesOfDay.map(time => (
+                                    <option key={time} value={time}>{time}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">Seleccionar Alumnos</label>
+                            <select
+                                multiple
+                                size={students.length > 5 ? 8 : students.length}
+                                name="studentNames"
+                                value={newEntry.studentNames}
+                                onChange={handleStudentSelection}
+                                className="w-full p-2 rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 min-h-24"
+                            >
+                                {students.map(student => (
+                                    <option key={student.id} value={`${student.firstName} ${student.lastName}`}>
+                                        {student.firstName} {student.lastName}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-xs text-gray-500 mt-1">Mantén presionada la tecla Ctrl (o Cmd en Mac) para seleccionar múltiples alumnos.</p>
+                        </div>
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">Precio</label>
+                            <div className="flex items-center p-2 rounded-lg border border-gray-300 bg-gray-200 shadow-sm">
+                                <span className="font-bold text-blue-800">{formatPrice(newEntry.price)}</span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">El precio se actualiza automáticamente según el número de alumnos seleccionados, basado en la configuración de precios.</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={addClass}
+                        className="w-full py-3 px-4 rounded-lg font-bold text-lg transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md"
+                    >
+                        {isEditing ? 'Actualizar Clase' : 'Guardar Clase'}
+                    </button>
+                    {isEditing && (
+                        <button
+                            onClick={() => {
+                                setIsEditing(false);
+                                setEditedClassId(null);
+                                setNewEntry({
+                                    studentCount: 1,
+                                    studentNames: [],
+                                    date: new Date().toISOString().split('T')[0],
+                                    day: daysOfWeek[new Date().getDay()],
+                                    time: timesOfDay[0],
+                                    price: customPrices[1] || 0,
+                                });
+                            }}
+                            className="w-full mt-2 py-2 px-4 rounded-lg font-bold transition-colors text-blue-800 bg-gray-200 hover:bg-gray-300 shadow-md"
+                        >
+                            Cancelar
+                        </button>
+                    )}
+                </div>
+            );
+
+            const MainContent = () => {
+                switch (view) {
+                    case 'list':
+                        return <ClassList />;
+                    case 'calendar':
+                        return <CalendarView />;
+                    case 'add':
+                        return <AddClass />;
+                    case 'students':
+                        return <StudentList />;
+                    case 'payments':
+                        return <PaymentList />;
+                    case 'report':
+                        return <Report />;
+                    case 'settings':
+                        return <Settings />;
+                    default:
+                        return <ClassList />;
+                }
+            };
+            const Login = () => (
+                <div className="flex justify-center items-center h-screen bg-gray-100 p-4">
+                    <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-center">
+                        <div className="flex justify-center mb-6">
+                            <img src="https://i.imgur.com/G35L8vX.png" alt="Padel Perfect Logo" className="w-32" />
+                        </div>
+                        <h2 className="text-3xl font-extrabold text-blue-800 mb-4">
+                            {isSigningUp ? 'Crear Cuenta' : 'Iniciar Sesión'}
+                        </h2>
+                        <p className="text-gray-500 mb-6">{isSigningUp ? 'Regístrate para empezar a gestionar tus clases.' : 'Ingresa a tu cuenta para continuar.'}</p>
+                        <div className="space-y-4">
+                            <input
+                                type="email"
+                                placeholder="Email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                            />
+                            <input
+                                type="password"
+                                placeholder="Contraseña"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                            />
+                            {!isSigningUp && (
+                                <button
+                                    onClick={signIn}
+                                    className="w-full bg-blue-800 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-900 transition-colors"
+                                >
+                                    Iniciar Sesión
+                                </button>
+                            )}
+                            {isSigningUp && (
+                                <button
+                                    onClick={signUp}
+                                    className="w-full bg-blue-800 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-900 transition-colors"
+                                >
+                                    Crear Cuenta
+                                </button>
+                            )}
+                        </div>
+                        <div className="mt-6 text-sm">
+                            <button
+                                onClick={() => setIsSigningUp(!isSigningUp)}
+                                className="text-blue-800 hover:text-blue-900 font-semibold transition-colors"
+                            >
+                                {isSigningUp ? '¿Ya tienes una cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
+                            </button>
+                        </div>
+                        {!isSigningUp && (
+                            <div className="mt-4">
+                                <button
+                                    onClick={handlePasswordReset}
+                                    className="text-gray-500 hover:text-gray-700 transition-colors text-xs"
+                                >
+                                    ¿Olvidaste tu contraseña?
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+            
+            const Header = () => (
+                <header className="bg-white shadow-lg p-4 md:p-6 sticky top-0 z-40">
+                    <div className="container mx-auto flex flex-col md:flex-row items-center justify-between">
+                        <div className="flex items-center mb-4 md:mb-0">
+                            <img src="https://i.imgur.com/G35L8vX.png" alt="Padel Perfect Logo" className="h-10 mr-4" />
+                            <h1 className="text-2xl md:text-3xl font-extrabold text-blue-800">
+                                Padel Perfect
+                            </h1>
+                        </div>
+                        <nav className="flex flex-wrap justify-center md:justify-end gap-2 md:gap-4 text-sm font-semibold text-gray-600">
+                            <button onClick={() => setView('list')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'list' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
+                                <i className="fas fa-list-ul mr-2"></i>
+                                Listado
+                            </button>
+                            <button onClick={() => setView('calendar')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'calendar' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
+                                <i className="fas fa-calendar-alt mr-2"></i>
+                                Calendario
+                            </button>
+                            <button onClick={() => setView('add')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'add' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
+                                <i className="fas fa-plus-circle mr-2"></i>
+                                Añadir Clase
+                            </button>
+                            <button onClick={() => setView('students')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'students' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
+                                <i className="fas fa-user-friends mr-2"></i>
+                                Alumnos
+                            </button>
+                            <button onClick={() => setView('payments')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'payments' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
+                                <i className="fas fa-credit-card mr-2"></i>
+                                Pagos
+                            </button>
+                            <button onClick={() => setView('report')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'report' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
+                                <i className="fas fa-chart-bar mr-2"></i>
+                                Reporte
+                            </button>
+                            <button onClick={() => setView('settings')} className={`flex items-center p-2 rounded-lg transition-colors ${view === 'settings' ? 'bg-blue-800 text-white' : 'hover:bg-gray-200'}`}>
+                                <i className="fas fa-cog mr-2"></i>
+                                Configuración
+                            </button>
+                            <button onClick={signOutUser} className="flex items-center p-2 rounded-lg transition-colors bg-red-500 text-white hover:bg-red-600">
+                                <i className="fas fa-sign-out-alt mr-2"></i>
+                                Salir
+                            </button>
+                        </nav>
+                    </div>
+                </header>
+            );
+
+            return (
+                <div className="min-h-screen bg-gray-100">
+                    <MessageBox
+                        show={messageBox.show}
+                        title={messageBox.title}
+                        content={messageBox.content}
+                        type={messageBox.type}
+                        onConfirm={messageBox.onConfirm}
+                        onClose={messageBox.onClose}
+                    />
+
+                    {loading && (
+                        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+                            <i className="fas fa-spinner fa-spin text-4xl text-white"></i>
+                        </div>
+                    )}
+                    
+                    {!userId ? (
+                        <Login />
+                    ) : (
+                        <>
+                            <Header />
+                            <div className="container mx-auto p-4 md:p-6">
+                                <MainContent />
+                            </div>
+                            <div className="mt-8 text-center text-gray-500">
+                                ID de Usuario: <span className="font-mono">{userId}</span>
+                            </div>
+                        </>
                     )}
                 </div>
             );
