@@ -996,7 +996,7 @@ const classData = {
                                 ))}
                                 <div className="flex justify-end mt-6">
                                     <button onClick={() => { saveCustomPrices(); setShowConfigModal(false); }} className="bg-blue-800 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-900 transition-colors mr-2">Guardar</button>
-                                    <button onClick={() => setShowConfigModal(false)} className="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition-colors">Cancelar</button>
+                                    <button onClick={() => setShowConfigModal(false)} className="bg-secondary text-neutral-dark font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-secondary/80 transition">Cancelar</button>
                                 </div>
                             </div>
                         </div>
@@ -1031,7 +1031,7 @@ const classData = {
                                     <p className="text-gray-500">No hay clases para este día.</p>
                                 )}
                                 <div className="flex justify-end mt-4">
-                                    <button onClick={() => setSelectedClassesForDay(null)} className="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition-colors">Cerrar</button>
+                                    <button onClick={() => setSelectedClassesForDay(null)} className="bg-secondary text-neutral-dark font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-secondary/80 transition">Cerrar</button>
                                 </div>
                             </div>
                         </div>
@@ -1063,7 +1063,7 @@ const classData = {
 
                         {!userId && (
                             <div className="flex flex-col space-y-4">
-                                <h2 className="text-2xl font-bold text-gray-800">{isSigningUp ? 'Crear Nueva Cuenta' : 'Iniciar Sesión'}</h2>
+                                <h2 className="text-2xl font-bold text-primary text-gray-800">{isSigningUp ? 'Crear Nueva Cuenta' : 'Iniciar Sesión'}</h2>
                                 <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
                                 <input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
                                 {isSigningUp ? (
@@ -1087,7 +1087,7 @@ const classData = {
                         {userId && (
                             <>
                                 <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner" style={{ display: view === 'list' || view === 'report' || view === 'calendar' ? 'block' : 'none' }}>
-                                    <h2 className="text-2xl font-bold text-gray-800 mb-4">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
+                                    <h2 className="text-2xl font-bold text-primary text-gray-800 mb-4">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
                                     <div className="flex flex-col md:flex-row gap-4 mb-4">
                                         <div className="w-full md:w-1/3">
                                             <label className="block text-gray-700 font-medium">Fecha:</label>
@@ -1138,7 +1138,7 @@ const classData = {
                                             {isEditing ? 'Guardar Cambios' : 'Añadir Clase'}
                                         </button>
                                         {isEditing && (
-                                            <button onClick={() => { setIsEditing(false); setEditedClassId(null); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                            <button onClick={() => { setIsEditing(false); setEditedClassId(null); }} className="bg-secondary text-neutral-dark font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-secondary/80 transition">
                                                 Cancelar
                                             </button>
                                         )}
@@ -1147,7 +1147,7 @@ const classData = {
 
                                 <div className="mt-8">
                                     <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-                                        <h2 className="text-2xl font-bold text-gray-800">Sección de {view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : view === 'calendar' ? 'Calendario' : view === 'students' ? 'Alumnos' : 'Pagos del Club'}</h2>
+                                        <h2 className="text-2xl font-bold text-primary text-gray-800">Sección de {view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : view === 'calendar' ? 'Calendario' : view === 'students' ? 'Alumnos' : 'Pagos del Club'}</h2>
                                         <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
                                             <button onClick={() => setView('list')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'list' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de clases">
                                                 <i className="fas fa-list"></i>
@@ -1164,13 +1164,13 @@ const classData = {
                                             <button onClick={() => setView('payments')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'payments' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver pagos del club">
                                                 <i className="fas fa-money-bill-alt"></i>
                                             </button>
-                                            <button onClick={() => setShowConfigModal(true)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Configurar precios">
+                                            <button onClick={() => setShowConfigModal(true)} className="bg-secondary text-neutral-dark font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-secondary/80 transition" title="Configurar precios">
                                                 <i className="fas fa-dollar-sign"></i>
                                             </button>
-                                            <button onClick={exportData} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Exportar datos a JSON">
+                                            <button onClick={exportData} className="bg-secondary text-neutral-dark font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-secondary/80 transition" title="Exportar datos a JSON">
                                                 <i className="fas fa-file-export"></i>
                                             </button>
-                                            <button onClick={() => fileInputRef.current.click()} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Importar datos desde JSON">
+                                            <button onClick={() => fileInputRef.current.click()} className="bg-secondary text-neutral-dark font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-secondary/80 transition" title="Importar datos desde JSON">
                                                 <i className="fas fa-file-import"></i>
                                             </button>
                                         </div>
@@ -1241,7 +1241,7 @@ const classData = {
                                                 <button onClick={generatePDF} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Generar PDF</button>
                                             </div>
                                             <div ref={reportTableRef} className="bg-white p-4 rounded-xl shadow-lg">
-                                                <h3 className="text-2xl font-bold mb-4">Reporte Mensual</h3>
+                                                <h3 className="text-2xl font-bold text-primary mb-4">Reporte Mensual</h3>
                                                 {Object.keys(monthlyReports).length > 0 ? (
                                                     <div className="space-y-6">
                                                         {Object.keys(monthlyReports).sort().map(monthYear => (
@@ -1302,7 +1302,7 @@ const classData = {
                                     {view === 'students' && (
                                         <div className="mt-8">
                                             <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
-                                                <h3 className="text-2xl font-bold text-gray-800 mb-4">{isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}</h3>
+                                                <h3 className="text-2xl font-bold text-primary text-gray-800 mb-4">{isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}</h3>
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                                                     <input type="text" placeholder="Nombre" value={newStudent.firstName} onChange={(e) => setNewStudent(prev => ({ ...prev, firstName: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
                                                     <input type="text" placeholder="Apellido" value={newStudent.lastName} onChange={(e) => setNewStudent(prev => ({ ...prev, lastName: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
@@ -1313,7 +1313,7 @@ const classData = {
                                                         {isEditingStudent ? 'Guardar Cambios' : 'Añadir Alumno'}
                                                     </button>
                                                     {isEditingStudent && (
-                                                        <button onClick={() => { setIsEditingStudent(false); setEditedStudentId(null); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                                        <button onClick={() => { setIsEditingStudent(false); setEditedStudentId(null); }} className="bg-secondary text-neutral-dark font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-secondary/80 transition">
                                                             Cancelar
                                                         </button>
                                                     )}
@@ -1361,7 +1361,7 @@ const classData = {
                                     {view === 'payments' && (
                                         <div className="mt-8">
                                             <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
-                                                <h3 className="text-2xl font-bold text-gray-800 mb-4">{isEditingPayment ? 'Editar Pago' : 'Añadir Nuevo Pago'}</h3>
+                                                <h3 className="text-2xl font-bold text-primary text-gray-800 mb-4">{isEditingPayment ? 'Editar Pago' : 'Añadir Nuevo Pago'}</h3>
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                                                     <input type="date" name="date" value={newPayment.date} onChange={(e) => setNewPayment(prev => ({ ...prev, date: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
                                                     <input type="number" placeholder="Monto (ej: 50000)" value={newPayment.amount || ''} onChange={(e) => setNewPayment(prev => ({ ...prev, amount: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
@@ -1372,7 +1372,7 @@ const classData = {
                                                         {isEditingPayment ? 'Guardar Cambios' : 'Añadir Pago'}
                                                     </button>
                                                     {isEditingPayment && (
-                                                        <button onClick={() => { setIsEditingPayment(false); setEditedPaymentId(null); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                                        <button onClick={() => { setIsEditingPayment(false); setEditedPaymentId(null); }} className="bg-secondary text-neutral-dark font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-secondary/80 transition">
                                                             Cancelar
                                                         </button>
                                                     )}
@@ -1415,7 +1415,7 @@ const classData = {
                                     )}
 
                                     <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
-                                        <h2 className="text-2xl font-bold text-gray-800 mb-4">Historial de Actividad</h2>
+                                        <h2 className="text-2xl font-bold text-primary text-gray-800 mb-4">Historial de Actividad</h2>
                                         <div className="overflow-x-auto rounded-xl shadow-lg">
                                             {activityLog.length > 0 ? (
                                                 <div className="bg-white p-4">
