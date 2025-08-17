@@ -955,8 +955,7 @@ const classData = {
                                             <i className="fas fa-sign-out-alt"></i>
                                         </button>
                                     </div>
-                                )}
-                            </div>
+                                ))}
                         </div>
 
                         {!userId && (
@@ -977,9 +976,7 @@ const classData = {
                                         <button onClick={() => setIsSigningUp(true)} className="mt-2 text-blue-800 hover:underline">¿No tienes una cuenta? Crear una</button>
                                         <button onClick={handlePasswordReset} className="mt-2 text-blue-800 hover:underline">¿No recuerdas la contraseña?</button>
                                     
-                                )}
-
-                            </div>
+                                ))}
                         )}
 
                         {userId && (
@@ -1128,8 +1125,7 @@ const classData = {
           </div>
         ))}
 ))}
-))}
-                                        </div>
+)))}
                                         <div className="w-full md:w-1/2 flex flex-col justify-between">
                                             <div>
                                                 <label className="block text-gray-700 font-medium">Hora:</label>
@@ -1153,8 +1149,7 @@ const classData = {
                 studentIds: [''], date: new Date().toISOString().split('T')[0], day: daysOfWeek[new Date().getDay()], time: timesOfDay[0], price: customPrices[1] || 0 }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                 Cancelar
                                             </button>
-                                        )}
-                                    </div>
+                                        ))}
 <div className="mt-8">
                                     <div className="flex flex-col md:flex-row justify-between items-center mb-6">
                                         <h2 className="text-2xl font-bold text-gray-800">Sección de {view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : view === 'calendar' ? 'Calendario' : view === 'students' ? 'Alumnos' : 'Pagos del Club'}</h2>
@@ -1195,8 +1190,7 @@ const classData = {
                                                         <button key={monthYear} onClick={() => setSelectedMonthYear(monthYear)} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === monthYear ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>
                                                             {formatMonthYear(monthYear)}
                                                         </button>
-                                                    ))}
-                                                </div>
+                                                    )))}
                                                 <input type="text" placeholder="Buscar por alumno..." value={filterText} onChange={(e) => setFilterText(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full"/>
                                             </div>
                                             <div className="overflow-x-auto rounded-xl shadow-lg">
@@ -1223,9 +1217,8 @@ const classData = {
                                                                             </ul>
                                                                         ) : (
                                                                             <span>{cls.studentNames[0]}</span>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
+                                                                        ))}
+                                                                    <div className="font-bold md:text-base">{formatPrice(cls.price))}
                                                                     <div className="flex justify-end md:justify-center space-x-2 mt-2 md:mt-0">
                                                                         <button onClick={() => editClass(cls)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar clase">
                                                                             <i className="fas fa-edit"></i>
@@ -1235,12 +1228,10 @@ const classData = {
                                                                         </button>
                                                                     </div>
                                                                 </div>
-                                                            ))}
-</div>
+                                                            )))}
 ) : (
                                                     <p className="text-center text-gray-500 p-8 bg-white">No hay clases para los criterios seleccionados.</p>
-                                                )}
-                                            </div>
+                                                ))}
                                         
                                     )}
 
@@ -1265,12 +1256,10 @@ const classData = {
                                                                     </ul>
                                                                 </div>
                                                             </div>
-                                                        ))}
-                                                    </div>
+                                                        )))}
                                                 ) : (
                                                     <p className="text-center text-gray-500">No hay reportes disponibles.</p>
-                                                )}
-                                            </div>
+                                                ))}
                                         </div>
                                     )}
 
@@ -1282,8 +1271,7 @@ const classData = {
                                                 <button onClick={() => handleCalendarNavigation(1)} className="text-blue-800 hover:text-blue-900 transition-colors p-2 rounded-full"><i className="fas fa-chevron-right"></i></button>
                                             </div>
                                             <div className="grid grid-cols-7 gap-1 text-center font-bold text-gray-700 mb-2">
-                                                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => <div key={day} className="p-2">{day}</div>)}
-                                            </div>
+                                                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => <div key={day} className="p-2">{day}</div>))}
                                             <div className="grid grid-cols-7 gap-1">
                                                 {calendarDays.map((day, index) => (
                                                     <div key={index} onClick={() => handleDayClick(day.classes)} className={`relative h-24 p-1 rounded-lg transition-colors cursor-pointer ${day.isCurrentMonth ? 'bg-gray-100' : 'bg-gray-50 text-gray-400'}`}>
@@ -1299,12 +1287,9 @@ const classData = {
                                                                     <div key={cls.id} className={`rounded-md p-1 text-xs truncate font-medium text-gray-800 shadow-md transition-transform transform hover:scale-105 ${colorMap[cls.studentCount]}`}>
                                                                         {cls.time}
                                                                     </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-</div>
+                                                                )))}
+                                                        ))}
+                                                )))}
 )}
 
                                     {view === 'students' && (
@@ -1324,8 +1309,7 @@ const classData = {
                                                         <button onClick={() => { setIsEditingStudent(false); setNewStudent({ firstName: '', lastName: '', phone: '' }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                             Cancelar
                                                         </button>
-                                                    )}
-                                                </div>
+                                                    ))}
                                             </div>
 
                                             <div className="overflow-x-auto rounded-xl shadow-lg">
@@ -1356,12 +1340,10 @@ const classData = {
                                                                         </button>
                                                                     </div>
                                                                 </div>
-                                                            ))}
-</div>
+                                                            )))}
 ) : (
                                                     <p className="text-center text-gray-500 p-8 bg-white">No hay alumnos registrados.</p>
-                                                )}
-                                            </div>
+                                                ))}
                                         </div>
                                     )}
 
@@ -1382,8 +1364,7 @@ const classData = {
                                                         <button onClick={() => { setIsEditingPayment(false); setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
                                                             Cancelar
                                                         </button>
-                                                    )}
-                                                </div>
+                                                    ))}
                                             </div>
 
                                             <div className="overflow-x-auto rounded-xl shadow-lg">
@@ -1400,7 +1381,7 @@ const classData = {
                                                             {payments.map(payment => (
                                                                 <div key={payment.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-center">
                                                                     <div className="text-gray-600">{payment.date}</div>
-                                                                    <div className="font-bold text-gray-800">{formatPrice(payment.amount)}</div>
+                                                                    <div className="font-bold text-gray-800">{formatPrice(payment.amount))}
                                                                     <div className="text-gray-600">{payment.description || '-'}</div>
                                                                     <div className="flex justify-end md:justify-center space-x-2">
                                                                         <button onClick={() => editPayment(payment)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar pago">
@@ -1411,12 +1392,10 @@ const classData = {
                                                                         </button>
                                                                     </div>
                                                                 </div>
-                                                            ))}
-</div>
+                                                            )))}
 ) : (
                                                     <p className="text-center text-gray-500 p-8 bg-white">No hay pagos registrados.</p>
-                                                )}
-                                            </div>
+                                                ))}
                                         </div>
                                     )}
 
@@ -1439,19 +1418,16 @@ const classData = {
                                                 </div>
                                             ) : (
                                                 <p className="text-center text-gray-500 p-8 bg-white">No hay actividad reciente.</p>
-                                            )}
-                                        </div>
+                                            ))}
                                     </div>
                                 </div>
                             
-                        )}
-                    </div>
+                        ))}
                     {userId && (
                         <div className="mt-8 text-center text-gray-500">
                             ID de Usuario: <span className="font-mono">{userId}</span>
                         </div>
-                    )}
-                </div>
+                    ))}
             );
         };
 
