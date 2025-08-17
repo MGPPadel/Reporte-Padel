@@ -876,19 +876,17 @@
                         )}
                         {userId && (
                             <>
-                                <div className="flex flex-wrap justify-center sm:justify-between items-center mb-6 space-y-2 sm:space-y-0">
-                                    <div className="flex flex-wrap space-x-2 space-y-2 sm:space-y-0">
+                                <div className="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0">
+                                    <div className="flex flex-row overflow-x-auto whitespace-nowrap space-x-2 pb-2">
                                         <button onClick={() => setView('list')} className={`px-4 py-2 rounded-lg font-bold shadow-md transition-colors ${view === 'list' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Lista de Clases</button>
                                         <button onClick={() => setView('calendar')} className={`px-4 py-2 rounded-lg font-bold shadow-md transition-colors ${view === 'calendar' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Calendario</button>
                                         <button onClick={() => setView('reports')} className={`px-4 py-2 rounded-lg font-bold shadow-md transition-colors ${view === 'reports' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Reportes</button>
                                         <button onClick={() => setView('config')} className={`px-4 py-2 rounded-lg font-bold shadow-md transition-colors ${view === 'config' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Precios</button>
-                                    </div>
-                                    <div className="flex flex-wrap space-x-2 space-y-2 sm:space-y-0">
                                         <button onClick={() => setView('students')} className={`px-4 py-2 rounded-lg font-bold shadow-md transition-colors ${view === 'students' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Alumnos</button>
                                         <button onClick={() => setView('payments')} className={`px-4 py-2 rounded-lg font-bold shadow-md transition-colors ${view === 'payments' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Pagos</button>
                                         <button onClick={() => setView('log')} className={`px-4 py-2 rounded-lg font-bold shadow-md transition-colors ${view === 'log' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Actividad</button>
                                     </div>
-                                    <div className="flex flex-wrap space-x-2 space-y-2 sm:space-y-0">
+                                    <div className="flex flex-row overflow-x-auto whitespace-nowrap space-x-2 pb-2">
                                         <button onClick={() => fileInputRef.current.click()} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-bold shadow-md hover:bg-gray-300 transition-colors">Importar</button>
                                         <button onClick={exportData} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-bold shadow-md hover:bg-gray-300 transition-colors">Exportar</button>
                                     </div>
