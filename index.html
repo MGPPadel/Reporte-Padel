@@ -1170,7 +1170,7 @@ const classData = {
                                             <button onClick={() => setView('report')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'report' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver reporte mensual">
                                                 <i className="fas fa-chart-bar"></i>
                                             </button>
-                                            <button onClick={() => setView('calendar')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'calendar' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver calendario">
+                                            <button onClick={() => setView('dailyReport')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'calendar' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver calendario">
                                                 <i className="fas fa-calendar-alt"></i>
                                             </button>
                                             <button onClick={() => setView('students')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'students' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de alumnos">
@@ -1280,10 +1280,59 @@ const classData = {
                                         </div>
                                     )}
 
-                                    {view === 'calendar' && (
-                                        <div className="bg-white p-6 rounded-xl shadow-lg">
-                                            <div className="flex justify-between items-center mb-4">
-                                                <button onClick={() => handleCalendarNavigation(-1)} className="text-blue-800 hover:text-blue-900 transition-colors p-2 rounded-full"><i className="fas fa-chevron-left"></i></button>
+                                    
+          {/* Informe Diario (reemplaza Calendario) */}
+          {view === 'dailyReport' && (
+            <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-2xl">
+              <h3 className="text-2xl font-bold mb-4">Informe Diario</h3>
+
+              {/* Selector de fecha */}
+              <div className="flex items-center gap-4 mb-6">
+                <label className="font-medium text-gray-700">Seleccionar fecha:</label>
+                <input
+                  type="date"
+                  value={selectedDate.toISOString().split('T')[0]}
+                  onChange={(e) => setSelectedDate(new Date(e.target.value))}
+                  className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <p className="mb-4 font-medium">
+                Fecha: {selectedDate.toLocaleDateString("es-AR")}
+              </p>
+
+              {/* Resumen rápido: cantidad de clases + total del día */}
+              {(() => {
+                const filtered = classes.filter(cls => cls.date === selectedDate.toISOString().split('T')[0]);
+                const total = filtered.reduce((sum, cls) => sum + (cls.price || 0), 0);
+                return (
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm text-blue-800 font-semibold">
+                    {filtered.length > 0 
+                      ? `Total: ${filtered.length} ${filtered.length === 1 ? "clase" : "clases"} · ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(total)}`
+                      : "No hay clases para esta fecha"}
+                  </div>
+                );
+              })()}
+
+              {/* Listado de clases del día */}
+              {classes.filter(cls => cls.date === selectedDate.toISOString().split('T')[0]).length > 0 ? (
+                <>
+                  {classes
+                    .filter(cls => cls.date === selectedDate.toISOString().split('T')[0])
+                    .map(cls => (
+                      <div key={cls.id} className="p-4 mb-4 border rounded-lg shadow-sm">
+                        <p><span className="font-bold">Hora:</span> {cls.time}</p>
+                        <p><span className="font-bold">Alumnos:</span> {(cls.studentNames || cls.alumnos || []).join ? (cls.studentNames || cls.alumnos).join(", ") : cls.studentNames || cls.alumnos || "-"}</p>
+                        <p><span className="font-bold">Precio:</span> {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(cls.price || 0)}</p>
+                      </div>
+                    ))}
+                </>
+              ) : (
+                <p className="text-gray-500">No hay clases registradas para esta fecha.</p>
+              )}
+            </div>
+          )}
+ className="text-blue-800 hover:text-blue-900 transition-colors p-2 rounded-full"><i className="fas fa-chevron-left"></i></button>
                                                 <h3 className="text-xl font-bold">{selectedDate.toLocaleString('es-AR', { month: 'long', year: 'numeric' })}</h3>
                                                 <button onClick={() => handleCalendarNavigation(1)} className="text-blue-800 hover:text-blue-900 transition-colors p-2 rounded-full"><i className="fas fa-chevron-right"></i></button>
                                             </div>
