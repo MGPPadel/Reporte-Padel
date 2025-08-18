@@ -345,11 +345,11 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             }, []);
 
             const signIn = async () => {
-                try {
-                    setLoading(true);
-                    const auth = authRef.current;
-                    await window.setPersistence(auth, window.browserLocalPersistence);
-                    await window.signInWithEmailAndPassword(auth, email, password);
+    try {
+        setLoading(true);
+        const auth = authRef.current;
+        await window.setPersistence(auth, window.browserLocalPersistence); // Esta es la línea que debes cambiar
+        await window.signInWithEmailAndPassword(auth, email, password);
                 } catch (error) {
                     setMessageBox({
                         show: true,
@@ -360,9 +360,9 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     });
                     console.error("Error signing in:", error);
                 } finally {
-                    setLoading(false);
-                }
-            };
+        setLoading(false);
+    }
+};
 
             const signUp = async () => {
                 try {
@@ -1429,4 +1429,5 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     </script>
 </body>
 </html>
+
 
