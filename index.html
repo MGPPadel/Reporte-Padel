@@ -1454,3 +1454,165 @@ const classData = {
 </body>
 </html>
 
+
+
+
+// ================== CAMBIOS INTEGRADOS ==================
+
+// Estados para WhatsApp y Agenda
+const [view, setView] = useState("clasesPorDia");
+const [selectedDate, setSelectedDate] = useState(new Date());
+const [whatsappModal, setWhatsappModal] = useState({
+  show: false,
+  student: null,
+  classData: null,
+  message: "",
+});
+const [whatsappTemplate, setWhatsappTemplate] = useState(
+  "Hola {nombre}, te recuerdo tu clase de pádel el {fecha} a las {hora}. ¡Nos vemos en la cancha!"
+);
+const [showTemplateModal, setShowTemplateModal] = useState(false);
+
+// Cargar plantilla de Firebase
+useEffect(() => {
+  const loadTemplate = async () => {
+    const settingsRef = doc(
+      dbRef.current,
+      "artifacts",
+      appId,
+      "users",
+      userId,
+      "settings",
+      "whatsapp"
+    );
+    const snap = await getDoc(settingsRef);
+    if (snap.exists()) {
+      setWhatsappTemplate(snap.data().template);
+    }
+  };
+  loadTemplate();
+}, [userId]);
+
+// Guardar plantilla
+const saveWhatsappTemplate = async (template) => {
+  const settingsRef = doc(
+    dbRef.current,
+    "artifacts",
+    appId,
+    "users",
+    userId,
+    "settings",
+    "whatsapp"
+  );
+  await setDoc(settingsRef, { template });
+  setWhatsappTemplate(template);
+  setShowTemplateModal(false);
+};
+
+// ================== RENDER CLASES POR DÍA ==================
+
+// En el menú agregar un botón más:
+// <button onClick={() => setView("clasesPorDia")}>Clases por día</button>
+
+// En el return agregar este bloque:
+{view === "clasesPorDia" && (
+  <div className="bg-white p-6 rounded-xl shadow-lg">
+    <div className="flex justify-between items-center mb-4">
+      <button onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate()-1)))}>⬅️</button>
+      <h3 className="text-xl font-bold">
+        {selectedDate.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
+      </h3>
+      <button onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate()+1)))}>➡️</button>
+    </div>
+
+    {classes
+      .filter(cls => cls.date === selectedDate.toISOString().split("T")[0])
+      .map(cls => (
+        <div key={cls.id} className="p-4 mb-4 border rounded-lg shadow-md">
+          <p><strong>Hora:</strong> {cls.time}</p>
+          <div className="mb-2">
+            <span className="font-bold block">Alumnos:</span>
+            <ul>
+              {cls.studentIds?.map(id => {
+                const stu = students.find(s => s.id === id);
+                if (!stu) return null;
+                return (
+                  <li key={id} className="flex justify-between">
+                    <span onClick={() => {
+                      const msg = whatsappTemplate
+                        .replace("{nombre}", stu.firstName)
+                        .replace("{fecha}", cls.date)
+                        .replace("{hora}", cls.time);
+                      setWhatsappModal({ show: true, student: stu, classData: cls, message: msg });
+                    }} className="cursor-pointer text-blue-600 hover:underline">
+                      {stu.firstName} {stu.lastName}
+                    </span>
+                    <button onClick={async () => {
+                      const updatedIds = cls.studentIds.filter(sid => sid !== stu.id);
+                      const updatedNames = cls.studentNames.filter(name => name !== stu.firstName+" "+stu.lastName);
+                      await setDoc(doc(dbRef.current, "artifacts", appId, "users", userId, "classes", cls.id), {
+                        ...cls,
+                        studentIds: updatedIds,
+                        studentNames: updatedNames,
+                      });
+                    }}>❌</button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+
+          <div className="mt-2">
+            <label>Agregar alumno:</label>
+            <select onChange={async e => {
+              const stu = students.find(s => s.id === e.target.value);
+              if (!stu) return;
+              const updatedIds = [...(cls.studentIds||[]), stu.id];
+              const updatedNames = [...(cls.studentNames||[]), stu.firstName+" "+stu.lastName];
+              await setDoc(doc(dbRef.current, "artifacts", appId, "users", userId, "classes", cls.id), {
+                ...cls,
+                studentIds: updatedIds,
+                studentNames: updatedNames,
+              });
+            }}>
+              <option value="">Seleccionar alumno</option>
+              {students.filter(s => !(cls.studentIds||[]).includes(s.id)).map(s => (
+                <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      ))}
+  </div>
+)}
+
+// ================== MODAL WHATSAPP ==================
+{whatsappModal.show && (
+  <div className="fixed inset-0 flex items-center justify-center bg-gray-700 bg-opacity-50">
+    <div className="bg-white p-6 rounded-lg">
+      <h3>Enviar WhatsApp</h3>
+      <textarea value={whatsappModal.message} onChange={e => setWhatsappModal({...whatsappModal, message:e.target.value})} />
+      <button onClick={() => setWhatsappModal({show:false})}>Cancelar</button>
+      <button onClick={() => {
+        const phone = whatsappModal.student.phone.replace(/\D/g,"");
+        window.open(\`https://wa.me/\${phone}?text=\${encodeURIComponent(whatsappModal.message)}\`,"_blank");
+        setWhatsappModal({show:false});
+      }}>Enviar</button>
+    </div>
+  </div>
+)}
+
+// ================== MODAL PLANTILLA ==================
+{showTemplateModal && (
+  <div className="fixed inset-0 flex items-center justify-center bg-gray-700 bg-opacity-50">
+    <div className="bg-white p-6 rounded-lg">
+      <h3>Configurar plantilla</h3>
+      <textarea value={whatsappTemplate} onChange={e=>setWhatsappTemplate(e.target.value)} />
+      <p>Puedes usar {`{nombre}`}, {`{fecha}`}, {`{hora}`}</p>
+      <button onClick={() => setShowTemplateModal(false)}>Cancelar</button>
+      <button onClick={() => saveWhatsappTemplate(whatsappTemplate)}>Guardar</button>
+    </div>
+  </div>
+)}
+
+// ================== FIN CAMBIOS ==================
