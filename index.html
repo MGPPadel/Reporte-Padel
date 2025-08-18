@@ -256,9 +256,24 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 firstName: '',
                 lastName: '',
                 phone: '',
+                description: '',
+                status: 'Activo',
             });
             const [isEditingStudent, setIsEditingStudent] = useState(false);
             const [editedStudentId, setEditedStudentId] = useState(null);
+            const [filterStatus, setFilterStatus] = useState('Todos');
+            const [studentSearch, setStudentSearch] = useState('');
+            const filteredStudentsList = React.useMemo(() => {
+                const term = (studentSearch || '').toLowerCase();
+                return students.filter(s => {
+                    const status = s.status || 'Activo';
+                    const matchesStatus = filterStatus === 'Todos' || status === filterStatus;
+                    const haystack = `${s.firstName || ''} ${s.lastName || ''} ${s.phone || ''} ${s.description || ''}`.toLowerCase();
+                    const matchesSearch = !term || haystack.includes(term);
+                    return matchesStatus && matchesSearch;
+                });
+            }, [students, studentSearch, filterStatus]);
+
             const [newPayment, setNewPayment] = useState({
                 date: new Date().toISOString().split('T')[0],
                 amount: 0,
@@ -480,7 +495,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         await window.addDoc(studentsColRef, newStudent);
                         setMessageBox({ show: true, title: 'Alumno añadido', content: 'El nuevo alumno se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     }
-                    setNewStudent({ firstName: '', lastName: '', phone: '' });
+                    setNewStudent({ firstName: '', lastName: '', phone: '', description: '', status: 'Activo' });
                     setIsEditingStudent(false);
                     setEditedStudentId(null);
                 } catch (error) {
@@ -1158,188 +1173,118 @@ const classData = {
                                             <button onClick={() => setView('calendar')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'calendar' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver calendario">
                                                 <i className="fas fa-calendar-alt"></i>
                                             </button>
-                                            <button onClick={() => setView('students')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md $
-{view === 'students' && (
-  <div className="mt-8">
-    <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
-      <h3 className="text-2xl font-bold text-gray-800 mb-4">
-        {isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}
-      </h3>
+                                            <button onClick={() => setView('students')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'students' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver lista de alumnos">
+                                                <i className="fas fa-user-friends"></i>
+                                            </button>
+                                            <button onClick={() => setView('payments')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'payments' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver pagos del club">
+                                                <i className="fas fa-money-bill-alt"></i>
+                                            </button>
+                                            <button onClick={() => setShowConfigModal(true)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Configurar precios">
+                                                <i className="fas fa-dollar-sign"></i>
+                                            </button>
+                                            <button onClick={exportData} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Exportar datos a JSON">
+                                                <i className="fas fa-file-export"></i>
+                                            </button>
+                                            <button onClick={() => fileInputRef.current.click()} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Importar datos desde JSON">
+                                                <i className="fas fa-file-import"></i>
+                                            </button>
+                                        </div>
+                                    </div>
 
-      {/* Inputs básicos */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-        <input
-          type="text"
-          placeholder="Nombre"
-          value={newStudent.firstName}
-          onChange={(e) =>
-            setNewStudent((prev) => ({ ...prev, firstName: e.target.value }))
-          }
-          className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-        />
-        <input
-          type="text"
-          placeholder="Apellido"
-          value={newStudent.lastName}
-          onChange={(e) =>
-            setNewStudent((prev) => ({ ...prev, lastName: e.target.value }))
-          }
-          className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-        />
-        <input
-          type="tel"
-          placeholder="Teléfono (ej: 549381XXXXXXX)"
-          value={newStudent.phone}
-          onChange={(e) =>
-            setNewStudent((prev) => ({ ...prev, phone: e.target.value }))
-          }
-          className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-        />
-      </div>
+                                    {view === 'list' && (
+                                        <>
+                                            <div className="mb-6">
+                                                <div className="flex flex-wrap gap-2 mb-4">
+                                                    <button onClick={() => setSelectedMonthYear('')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === '' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Todos</button>
+                                                    {uniqueMonths.map(monthYear => (
+                                                        <button key={monthYear} onClick={() => setSelectedMonthYear(monthYear)} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === monthYear ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>
+                                                            {formatMonthYear(monthYear)}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <input type="text" placeholder="Buscar por alumno..." value={filterText} onChange={(e) => setFilterText(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full"/>
+                                            </div>
+                                            <div className="overflow-x-auto rounded-xl shadow-lg">
+                                                {filteredClasses.length > 0 ? (
+                                                    <div className="bg-white">
+                                                        <div className="hidden md:grid grid-cols-7 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
+                                                            <div>Fecha</div>
+                                                            <div>Día</div>
+                                                            <div>Hora</div>
+                                                            <div className="col-span-2">Alumnos</div>
+                                                            <div>Precio</div>
+                                                            <div className="text-center">Acciones</div>
+                                                        </div>
+                                                        <div className="divide-y divide-gray-200">
+                                                            {filteredClasses.map(cls => (
+                                                                <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center ${colorMap[cls.studentCount]} md:rounded-none`}>
+                                                                    <div className="text-sm text-gray-600 md:text-base">{cls.date}</div>
+                                                                    <div className="text-sm text-gray-600 md:text-base">{cls.day}</div>
+                                                                    <div className="text-sm text-gray-600 md:text-base">{cls.time}</div>
+                                                                    <div className="md:col-span-2">
+                                                                        {cls.studentCount > 1 ? (
+                                                                            <ul className="list-disc list-inside">
+                                                                                {cls.studentNames.map((name, index) => <li key={index}>{name}</li>)}
+                                                                            </ul>
+                                                                        ) : (
+                                                                            <span>{cls.studentNames[0]}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
+                                                                    <div className="flex justify-end md:justify-center space-x-2 mt-2 md:mt-0">
+                                                                        <button onClick={() => editClass(cls)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar clase">
+                                                                            <i className="fas fa-edit"></i>
+                                                                        </button>
+                                                                        <button onClick={() => deleteClass(cls.id, cls)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar clase">
+                                                                            <i className="fas fa-trash-alt"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-center text-gray-500 p-8 bg-white">No hay clases para los criterios seleccionados.</p>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
 
-      {/* Campo descripción */}
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Descripción"
-          value={newStudent.description || ''}
-          onChange={(e) =>
-            setNewStudent((prev) => ({ ...prev, description: e.target.value }))
-          }
-          className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-        />
-      </div>
+                                    {view === 'report' && (
+                                        <div>
+                                            <div className="flex justify-end mb-4">
+                                                <button onClick={generatePDF} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Generar PDF</button>
+                                            </div>
+                                            <div ref={reportTableRef} className="bg-white p-4 rounded-xl shadow-lg">
+                                                <h3 className="text-2xl font-bold mb-4">Reporte Mensual</h3>
+                                                {Object.keys(monthlyReports).length > 0 ? (
+                                                    <div className="space-y-6">
+                                                        {Object.keys(monthlyReports).sort().map(monthYear => (
+                                                            <div key={monthYear} className="border-b pb-4">
+                                                                <h4 className="text-xl font-bold text-gray-700 mb-2">{formatMonthYear(monthYear)}</h4>
+                                                                <p className="text-gray-600">Ingreso total: <span className="font-bold text-blue-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
+                                                                <p className="text-gray-600">Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span></p>
+                                                                <div className="mt-2 text-sm text-gray-500">
+                                                                    <p className="font-bold">Clases por cantidad de alumnos:</p>
+                                                                    <ul className="list-disc list-inside ml-4">
+                                                                        {Object.entries(monthlyReports[monthYear].classCountByStudent).map(([count, numClasses]) => (<li key={count}>{count} {count === '1' ? 'persona' : 'personas'}: {numClasses}</li>))}
+                                                                    </ul>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-center text-gray-500">No hay reportes disponibles.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
 
-      {/* Selector de estado */}
-      <div className="mb-4">
-        <select
-          value={newStudent.status || 'Activo'}
-          onChange={(e) =>
-            setNewStudent((prev) => ({ ...prev, status: e.target.value }))
-          }
-          className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-        >
-          <option value="Activo">Activo</option>
-          <option value="Probable">Probable</option>
-        </select>
-      </div>
-
-      {/* Botones */}
-      <div className="flex space-x-4">
-        <button
-          onClick={addStudent}
-          className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-        >
-          {isEditingStudent ? 'Guardar Cambios' : 'Añadir Alumno'}
-        </button>
-        {isEditingStudent && (
-          <button
-            onClick={() => {
-              setIsEditingStudent(false);
-              setEditedStudentId(null);
-              setNewStudent({
-                firstName: '',
-                lastName: '',
-                phone: '',
-                description: '',
-                status: 'Activo',
-              });
-            }}
-            className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors"
-          >
-            Cancelar
-          </button>
-        )}
-      </div>
-    </div>
-
-    {/* Lista de alumnos */}
-    <div className="overflow-x-auto rounded-xl shadow-lg">
-      <div className="flex flex-col md:flex-row justify-between items-center p-4 bg-white border-b-2 gap-2">
-        <h3 className="text-xl font-bold text-gray-800">Lista de Alumnos</h3>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Buscar..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-          />
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-          >
-            <option value="Todos">Todos</option>
-            <option value="Activo">Solo Activos</option>
-            <option value="Probable">Solo Probables</option>
-          </select>
-        </div>
-      </div>
-
-      {filteredStudents.length > 0 ? (
-        <div className="bg-white">
-          {/* Cabecera */}
-          <div className="hidden md:grid grid-cols-6 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2">
-            <div>Nombre</div>
-            <div>Apellido</div>
-            <div>Teléfono</div>
-            <div>Descripción</div>
-            <div>Estado</div>
-            <div className="text-center">Acciones</div>
-          </div>
-
-          {/* Filas */}
-          <div className="divide-y divide-gray-200">
-            {filteredStudents.map((student) => (
-              <div
-                key={student.id}
-                className={"grid grid-cols-1 md:grid-cols-6 gap-4 p-4 items-center transition-all " + (editedStudentId === student.id ? "bg-blue-50 border-l-4 border-blue-600" : "")}
-              >
-                <div className="font-medium text-gray-800">{student.firstName}</div>
-                <div className="text-gray-600">{student.lastName}</div>
-                <div className="text-gray-600">{student.phone}</div>
-                <div className="text-gray-600 italic">{student.description || '-'}</div>
-                <div
-                  className={`font-bold ${
-                    student.status === 'Activo' ? 'text-green-600' : 'text-yellow-600'
-                  }`}
-                >
-                  {student.status}
-                </div>
-                <div className="flex justify-end md:justify-center space-x-2">
-                  <button
-                    onClick={() => sendWhatsApp(student.phone)}
-                    className="text-green-600 hover:text-green-700"
-                  >
-                    <i className="fab fa-whatsapp"></i>
-                  </button>
-                  <button
-                    onClick={() => editStudent(student)}
-                    className="text-blue-800 hover:text-blue-900"
-                  >
-                    <i className="fas fa-edit"></i>
-                  </button>
-                  <button
-                    onClick={() => deleteStudent(student.id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <i className="fas fa-trash-alt"></i>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <p className="text-center text-gray-500 p-8 bg-white">
-          No hay alumnos registrados.
-        </p>
-      )}
-    </div>
-  </div>
-)}
-}</h3>
+                                    {view === 'calendar' && (
+                                        <div className="bg-white p-6 rounded-xl shadow-lg">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <button onClick={() => handleCalendarNavigation(-1)} className="text-blue-800 hover:text-blue-900 transition-colors p-2 rounded-full"><i className="fas fa-chevron-left"></i></button>
+                                                <h3 className="text-xl font-bold">{selectedDate.toLocaleString('es-AR', { month: 'long', year: 'numeric' })}</h3>
                                                 <button onClick={() => handleCalendarNavigation(1)} className="text-blue-800 hover:text-blue-900 transition-colors p-2 rounded-full"><i className="fas fa-chevron-right"></i></button>
                                             </div>
                                             <div className="grid grid-cols-7 gap-1 text-center font-bold text-gray-700 mb-2">
@@ -1369,240 +1314,87 @@ const classData = {
                                         </div>
                                     )}
 
-                                    
-{view === 'students' && (
-  <div className="mt-8">
-    <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
-      <h3 className="text-2xl font-bold text-gray-800 mb-4">
-        {isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}
-      </h3>
-
-      {/* Inputs básicos */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-        <input
-          type="text"
-          placeholder="Nombre"
-          value={newStudent.firstName}
-          onChange={(e) =>
-            setNewStudent((prev) => ({ ...prev, firstName: e.target.value }))
-          }
-          className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-        />
-        <input
-          type="text"
-          placeholder="Apellido"
-          value={newStudent.lastName}
-          onChange={(e) =>
-            setNewStudent((prev) => ({ ...prev, lastName: e.target.value }))
-          }
-          className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-        />
-        <input
-          type="tel"
-          placeholder="Teléfono (ej: 549381XXXXXXX)"
-          value={newStudent.phone}
-          onChange={(e) =>
-            setNewStudent((prev) => ({ ...prev, phone: e.target.value }))
-          }
-          className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-        />
-      </div>
-
-      {/* Campo descripción */}
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Descripción"
-          value={newStudent.description || ''}
-          onChange={(e) =>
-            setNewStudent((prev) => ({ ...prev, description: e.target.value }))
-          }
-          className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-        />
-      </div>
-
-      {/* Selector de estado */}
-      <div className="mb-4">
-        <select
-          value={newStudent.status || 'Activo'}
-          onChange={(e) =>
-            setNewStudent((prev) => ({ ...prev, status: e.target.value }))
-          }
-          className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-        >
-          <option value="Activo">Activo</option>
-          <option value="Probable">Probable</option>
-        </select>
-      </div>
-
-      {/* Botones */}
-      <div className="flex space-x-4">
-        <button
-          onClick={addStudent}
-          className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-        >
-          {isEditingStudent ? 'Guardar Cambios' : 'Añadir Alumno'}
-        </button>
-        {isEditingStudent && (
-          <button
-            onClick={() => {
-              setIsEditingStudent(false);
-              setEditedStudentId(null);
-              setNewStudent({
-                firstName: '',
-                lastName: '',
-                phone: '',
-                description: '',
-                status: 'Activo',
-              });
-            }}
-            className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors"
-          >
-            Cancelar
-          </button>
-        )}
-      </div>
-    </div>
-
-    {/* Lista de alumnos */}
-    <div className="overflow-x-auto rounded-xl shadow-lg">
-      <div className="flex flex-col md:flex-row justify-between items-center p-4 bg-white border-b-2 gap-2">
-        <h3 className="text-xl font-bold text-gray-800">Lista de Alumnos</h3>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Buscar..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-          />
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-          >
-            <option value="Todos">Todos</option>
-            <option value="Activo">Solo Activos</option>
-            <option value="Probable">Solo Probables</option>
-          </select>
+                                    {view === 'students' && 
+(
+    <div className="mt-8">
+        <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">{isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}</h3>
+            {isEditingStudent && (
+                <p className="mb-4 text-blue-700 font-medium">
+                    ✏️ Estás editando a: <span className="font-bold">{newStudent.firstName} {newStudent.lastName}</span>
+                </p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                <input type="text" placeholder="Nombre" value={newStudent.firstName} onChange={(e) => setNewStudent(prev => ({ ...prev, firstName: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                <input type="text" placeholder="Apellido" value={newStudent.lastName} onChange={(e) => setNewStudent(prev => ({ ...prev, lastName: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                <input type="tel" placeholder="Teléfono (ej: 549381XXXXXXX)" value={newStudent.phone} onChange={(e) => setNewStudent(prev => ({ ...prev, phone: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+            </div>
+            <div className="mb-4">
+                <input type="text" placeholder="Descripción" value={newStudent.description || ''} onChange={(e) => setNewStudent(prev => ({ ...prev, description: e.target.value }))} className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+            </div>
+            <div className="mb-4">
+                <select value={newStudent.status || 'Activo'} onChange={(e) => setNewStudent(prev => ({ ...prev, status: e.target.value }))} className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow">
+                    <option value="Activo">Activo</option>
+                    <option value="Probable">Probable</option>
+                </select>
+            </div>
+            <div className="flex space-x-4">
+                <button onClick={addStudent} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                    {isEditingStudent ? 'Guardar Cambios' : 'Añadir Alumno'}
+                </button>
+                {isEditingStudent && (
+                    <button onClick={() => { setIsEditingStudent(false); setEditedStudentId(null); setNewStudent({ firstName: '', lastName: '', phone: '', description: '', status: 'Activo' }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                        Cancelar
+                    </button>
+                )}
+            </div>
         </div>
-      </div>
-
-      {filteredStudents.length > 0 ? (
-        <div className="bg-white">
-          {/* Cabecera */}
-          <div className="hidden md:grid grid-cols-6 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2">
-            <div>Nombre</div>
-            <div>Apellido</div>
-            <div>Teléfono</div>
-            <div>Descripción</div>
-            <div>Estado</div>
-            <div className="text-center">Acciones</div>
-          </div>
-
-          {/* Filas */}
-          <div className="divide-y divide-gray-200">
-            {filteredStudents.map((student) => (
-              <div
-                key={student.id}
-                className={"grid grid-cols-1 md:grid-cols-6 gap-4 p-4 items-center transition-all " + (editedStudentId === student.id ? "bg-blue-50 border-l-4 border-blue-600" : "")}
-              >
-                <div className="font-medium text-gray-800">{student.firstName}</div>
-                <div className="text-gray-600">{student.lastName}</div>
-                <div className="text-gray-600">{student.phone}</div>
-                <div className="text-gray-600 italic">{student.description || '-'}</div>
-                <div
-                  className={`font-bold ${
-                    student.status === 'Activo' ? 'text-green-600' : 'text-yellow-600'
-                  }`}
-                >
-                  {student.status}
+        <div className="overflow-x-auto rounded-xl shadow-lg">
+            <div className="flex flex-col md:flex-row justify-between items-center p-4 bg-white border-b-2 gap-2">
+                <h3 className="text-xl font-bold text-gray-800">Lista de Alumnos</h3>
+                <div className="flex gap-2">
+                    <input type="text" placeholder="Buscar..." value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} className="p-2 border rounded-lg"/>
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="p-2 border rounded-lg">
+                        <option value="Todos">Todos</option>
+                        <option value="Activo">Solo Activos</option>
+                        <option value="Probable">Solo Probables</option>
+                    </select>
                 </div>
-                <div className="flex justify-end md:justify-center space-x-2">
-                  <button
-                    onClick={() => sendWhatsApp(student.phone)}
-                    className="text-green-600 hover:text-green-700"
-                  >
-                    <i className="fab fa-whatsapp"></i>
-                  </button>
-                  <button
-                    onClick={() => editStudent(student)}
-                    className="text-blue-800 hover:text-blue-900"
-                  >
-                    <i className="fas fa-edit"></i>
-                  </button>
-                  <button
-                    onClick={() => deleteStudent(student.id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <i className="fas fa-trash-alt"></i>
-                  </button>
+            </div>
+            {filteredStudentsList.length > 0 ? (
+                <div className="bg-white">
+                    <div className="hidden md:grid grid-cols-6 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2">
+                        <div>Nombre</div>
+                        <div>Apellido</div>
+                        <div>Teléfono</div>
+                        <div>Descripción</div>
+                        <div>Estado</div>
+                        <div className="text-center">Acciones</div>
+                    </div>
+                    <div className="divide-y divide-gray-200">
+                        {filteredStudentsList.map(student => (
+                            <div key={student.id} className={"grid grid-cols-1 md:grid-cols-6 gap-4 p-4 items-center transition-all " + (editedStudentId === student.id ? "bg-blue-50 border-l-4 border-blue-600" : "")}>
+                                <div className="font-medium text-gray-800">{student.firstName}</div>
+                                <div className="text-gray-600">{student.lastName}</div>
+                                <div className="text-gray-600">{student.phone}</div>
+                                <div className="text-gray-600 italic">{student.description || '-'}</div>
+                                <div className={"font-bold " + (((student.status || 'Activo') === 'Activo') ? 'text-green-600' : 'text-yellow-600')}>{student.status || 'Activo'}</div>
+                                <div className="flex justify-end md:justify-center space-x-2">
+                                    <button onClick={() => sendWhatsApp(student.phone)} className="text-blue-600" title="WhatsApp"><i className="fab fa-whatsapp"></i></button>
+                                    <button onClick={() => editStudent(student)} className="text-blue-800" title="Editar"><i className="fas fa-edit"></i></button>
+                                    <button onClick={() => deleteStudent(student.id)} className="text-red-600" title="Eliminar"><i className="fas fa-trash-alt"></i></button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-              </div>
-            ))}
-          </div>
+            ) : (
+                <p className="text-center text-gray-500 p-8 bg-white">No hay alumnos registrados.</p>
+            )}
         </div>
-      ) : (
-        <p className="text-center text-gray-500 p-8 bg-white">
-          No hay alumnos registrados.
-        </p>
-      )}
     </div>
-  </div>
-)}
-)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                                    <input type="text" placeholder="Apellido" value={newStudent.lastName} onChange={(e) => setNewStudent(prev => ({ ...prev, lastName: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                                    <input type="tel" placeholder="Teléfono (ej: 549381XXXXXXX)" value={newStudent.phone} onChange={(e) => setNewStudent(prev => ({ ...prev, phone: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                                </div>
-                                                <div className="flex space-x-4">
-                                                    <button onClick={addStudent} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                                                        {isEditingStudent ? 'Guardar Cambios' : 'Añadir Alumno'}
-                                                    </button>
-                                                    {isEditingStudent && (
-                                                        <button onClick={() => { setIsEditingStudent(false); setEditedStudentId(null); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
-                                                            Cancelar
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <div className="overflow-x-auto rounded-xl shadow-lg">
-                                                <h3 className="text-xl font-bold text-gray-800 p-4 bg-white border-b-2">Lista de Alumnos</h3>
-                                                {students.length > 0 ? (
-                                                    <div className="bg-white">
-                                                        <div className="hidden md:grid grid-cols-4 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
-                                                            <div>Nombre</div>
-                                                            <div>Apellido</div>
-                                                            <div>Teléfono</div>
-                                                            <div className="text-center">Acciones</div>
-                                                        </div>
-                                                        <div className="divide-y divide-gray-200">
-                                                            {students.map(student => (
-                                                                <div key={student.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-center">
-                                                                    <div className="font-medium text-gray-800">{student.firstName}</div>
-                                                                    <div className="text-gray-600">{student.lastName}</div>
-                                                                    <div className="text-gray-600">{student.phone}</div>
-                                                                    <div className="flex justify-end md:justify-center space-x-2">
-                                                                        <button onClick={() => sendWhatsApp(student.phone)} className="text-blue-600 hover:text-blue-800 transition-colors" title="Enviar WhatsApp">
-                                                                            <i className="fab fa-whatsapp"></i>
-                                                                        </button>
-                                                                        <button onClick={() => editStudent(student)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar alumno">
-                                                                            <i className="fas fa-edit"></i>
-                                                                        </button>
-                                                                        <button onClick={() => deleteStudent(student.id)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar alumno">
-                                                                            <i className="fas fa-trash-alt"></i>
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-center text-gray-500 p-8 bg-white">No hay alumnos registrados.</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
+)
+}
 
                                     {view === 'payments' && (
                                         <div className="mt-8">
