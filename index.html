@@ -46,113 +46,100 @@
 <body class="bg-gray-100 font-sans">
     <div id="root"></div>
     <script type="text/babel">
-// Componente aislado para el input con autocompletado (teclado + click + cierre al hacer clic fuera)
 const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, students }) => {
-  const [activeIndex, setActiveIndex] = React.useState(-1);
-  const [open, setOpen] = React.useState(false);
-  const containerRef = React.useRef(null);
+    const [activeIndex, setActiveIndex] = React.useState(-1);
+    const [open, setOpen] = React.useState(false);
+    const containerRef = React.useRef(null);
+    const filteredStudents = React.useMemo(() => {
+        const term = (newEntry.studentNames[index] || "").toLowerCase();
+        if (!term) return [];
+        return students
+            .filter(stu => (`${stu.firstName} ${stu.lastName}`).toLowerCase().includes(term))
+            .slice(0, 5);
+    }, [students, newEntry.studentNames, index]);
 
-  const filteredStudents = React.useMemo(() => {
-    const term = (newEntry.studentNames[index] || "").toLowerCase();
-    if (!term) return [];
-    return students
-      .filter(stu => (`${stu.firstName} ${stu.lastName}`).toLowerCase().includes(term))
-      .slice(0, 5);
-  }, [students, newEntry.studentNames, index]);
-  // Cerrar al hacer clic fuera
-  React.useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-        setActiveIndex(-1);
-      }
+    React.useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setOpen(false);
+                setActiveIndex(-1);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+    const handleKeyDown = (e) => {
+        if (!open || filteredStudents.length === 0) return;
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActiveIndex((prev) => (prev + 1) % filteredStudents.length);
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActiveIndex((prev) => (prev <= 0 ? filteredStudents.length - 1 : prev - 1));
+        } else if (e.key === "Enter" && activeIndex >= 0) {
+            e.preventDefault();
+            const stu = filteredStudents[activeIndex];
+            const newNames = [...newEntry.studentNames];
+            newNames[index] = `${stu.firstName} ${stu.lastName}`;
+            const newIds = [...(newEntry.studentIds || [])];
+            newIds[index] = stu.id;
+            setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
+            setActiveIndex(-1);
+            setOpen(false);
+        }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-  const handleKeyDown = (e) => {
-    if (!open || filteredStudents.length === 0) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIndex((prev) => (prev + 1) % filteredStudents.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIndex((prev) => (prev <= 0 ? filteredStudents.length - 1 : prev - 1));
-    } else if (e.key === "Enter" && activeIndex >= 0) {
-      e.preventDefault();
-      const stu = filteredStudents[activeIndex];
-      const newNames = [...newEntry.studentNames];
-      newNames[index] = `${stu.firstName} ${stu.lastName}`;
-      const newIds = [...(newEntry.studentIds || [])];
-      newIds[index] = stu.id;
-      setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
-      setActiveIndex(-1);
-      setOpen(false);
-    }
-  };
-  const handleSelect = (stu) => {
-    const newNames = [...newEntry.studentNames];
-    newNames[index] = `${stu.firstName} ${stu.lastName}`;
-    const newIds = [...(newEntry.studentIds || [])];
-    newIds[index] = stu.id;
-    setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
-    setActiveIndex(-1);
-    setOpen(false);
-  };
+    const handleSelect = (stu) => {
+        const newNames = [...newEntry.studentNames];
+        newNames[index] = `${stu.firstName} ${stu.lastName}`;
+        const newIds = [...(newEntry.studentIds || [])];
+        newIds[index] = stu.id;
+        setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
+        setActiveIndex(-1);
+        setOpen(false);
+    };
 
-  return (
-    <div className="relative mb-2" ref={containerRef}>
-      <input
-        type="text"
-        placeholder={`Alumno ${index + 1}`}
-        value={newEntry.studentNames[index] || ""}
-        onChange={(e) => {
-          const val = e.target.value;
-          const newNames = [...newEntry.studentNames];
-          newNames[index] = val;
-        
-          setNewEntry((prev) => ({ ...prev, studentNames: newNames }));
-          setActiveIndex(-1);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={handleKeyDown}
-        className="peer p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-      />
-
-      {/* Contenedor de sugerencias */}
-      {open 
-      && newEntry.studentNames[index] && filteredStudents.length > 0 && (
- 
-        <div
-          className="absolute left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto z-50
+    return (
+        <div className="relative mb-2" ref={containerRef}>
+            <input
+                type="text"
+                placeholder={`Alumno ${index + 1}`}
+                value={newEntry.studentNames[index] || ""}
+                onChange={(e) => {
+                    const val = e.target.value;
+                    const newNames = [...newEntry.studentNames];
+                    newNames[index] = val;
+                    setNewEntry((prev) => ({ ...prev, studentNames: newNames }));
+                    setActiveIndex(-1);
+                    setOpen(true);
+                }}
+                onFocus={() => setOpen(true)}
+                onKeyDown={handleKeyDown}
+                className="peer p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+            />
+            {open && newEntry.studentNames[index] && filteredStudents.length > 0 && (
+                <div
+                    className="absolute left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto z-50
                      opacity-0 translate-y-1 scale-95 pointer-events-none
                      transition-all duration-200 ease-out
-                 
-          peer-focus:opacity-100 peer-focus:translate-y-0 peer-focus:scale-100 peer-focus:pointer-events-auto"
-  
-        >
-          {filteredStudents.map((stu, i) => (
-            <div
-              key={stu.id}
-              onMouseDown={(e) => { e.preventDefault();
-          handleSelect(stu); }}
-              onTouchStart={(e) => { e.preventDefault(); handleSelect(stu);
-          }}
-              className={`px-3 py-2 cursor-pointer transition-colors ${
-                i === activeIndex ?
-          "bg-blue-100 text-blue-800 font-semibold" : "hover:bg-gray-100"
-              }`}
-            >
-              {stu.firstName} {stu.lastName}
-            </div>
-          ))}
+                     peer-focus:opacity-100 peer-focus:translate-y-0 peer-focus:scale-100 peer-focus:pointer-events-auto"
+                >
+                    {filteredStudents.map((stu, i) => (
+                        <div
+                            key={stu.id}
+                            onMouseDown={(e) => { e.preventDefault(); handleSelect(stu); }}
+                            onTouchStart={(e) => { e.preventDefault(); handleSelect(stu); }}
+                            className={`px-3 py-2 cursor-pointer transition-colors ${
+                                i === activeIndex ? "bg-blue-100 text-blue-800 font-semibold" : "hover:bg-gray-100"
+                            }`}
+                        >
+                            {stu.firstName} {stu.lastName}
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 };
-
 
         const firebaseConfig = {
             apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
@@ -163,34 +150,19 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             appId: "1:731771747398:web:ebc8b723fe220869fade47"
         };
         const appId = typeof firebaseConfig.appId !== 'undefined' ? firebaseConfig.appId : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ?
-        __initial_auth_token : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         const { useState, useEffect, useRef, useMemo } = React;
         const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-        const defaultClassPrices = {
-            1: 5000,
-            2: 3000,
-            3: 2500,
-            4: 2000,
-        };
+        const defaultClassPrices = { 1: 5000, 2: 3000, 3: 2500, 4: 2000, };
         const peopleOptions = [1, 2, 3, 4];
         const timesOfDay = [
-            '8:00 a.
-        m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p.
-        m.',
-            '1:00 p. m.', '2:00 p. m.', '3:00 p.
-        m.', '4:00 p. m.', '5:00 p. m.',
-            '6:00 p.
-        m.', '7:00 p. m.', '8:00 p. m.', '9:00 p. m.', '10:00 p.
-        m.',
+            '8:00 a.m.', '9:00 a.m.', '10:00 a.m.', '11:00 a.m.', '12:00 p.m.',
+            '1:00 p.m.', '2:00 p.m.', '3:00 p.m.', '4:00 p.m.', '5:00 p.m.',
+            '6:00 p.m.', '7:00 p.m.', '8:00 p.m.', '9:00 p.m.', '10:00 p.m.',
         ];
-        const colorMap = {
-            1: 'bg-yellow-100',
-            2: 'bg-green-100',
-            3: 'bg-blue-100',
-            4: 'bg-purple-100',
-        };
+        const colorMap = { 1: 'bg-yellow-100', 2: 'bg-green-100', 3: 'bg-blue-100', 4: 'bg-purple-100', };
+        
         const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
             if (!show) return null;
             let icon, bgColor, titleColor;
@@ -218,40 +190,143 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
                     <div className={`p-6 rounded-xl shadow-xl w-full max-w-sm text-center ${bgColor} transform transition-all duration-300 ease-in-out scale-100`}>
                         <div className="mb-4">{icon}</div>
-   
-                         <h3 className={`text-lg font-bold mb-2 ${titleColor}`}>{title}</h3>
+                        <h3 className={`text-lg font-bold mb-2 ${titleColor}`}>{title}</h3>
                         <p className="text-sm text-gray-500 mb-4">{content}</p>
                         <div className="mt-4">
-                   
-                         {type === 'confirm' && (
+                            {type === 'confirm' && (
                                 <button
-                                   
-                                 onClick={onConfirm}
-                       
-                                 className={`py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md mr-2`}
+                                    onClick={onConfirm}
+                                    className={`py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md mr-2`}
                                 >
-  
-                                   Aceptar
-          
-                               </button>
-                         
-                )}
+                                    Aceptar
+                                </button>
+                            )}
                             <button
-                      
-                         onClick={onClose}
-                      
-                          className={`py-2 px-4 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ?
-                'bg-gray-400 hover:bg-gray-500' : type === 'success' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-500 hover:bg-red-600'} shadow-md`}
+                                onClick={onClose}
+                                className={`py-2 px-4 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ? 'bg-gray-400 hover:bg-gray-500' : type === 'success' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-500 hover:bg-red-600'} shadow-md`}
                             >
-                                {type === 'confirm' ?
-                'Cancelar' : 'Cerrar'}
+                                {type === 'confirm' ? 'Cancelar' : 'Cerrar'}
                             </button>
                         </div>
                     </div>
                 </div>
-          
-             );
+            );
         };
+        
+        const WeeklyCalendar = ({ classes, handleAddClassFromCalendar }) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const [currentWeekStart, setCurrentWeekStart] = useState(today);
+        
+            const startOfWeek = (date) => {
+                const day = date.getDay();
+                const diff = date.getDate() - day; // ajusta para Domingo
+                return new Date(date.getFullYear(), date.getMonth(), diff);
+            };
+        
+            const getWeekDays = () => {
+                const weekStart = startOfWeek(currentWeekStart);
+                const weekDays = [];
+                for (let i = 0; i < 7; i++) {
+                    const day = new Date(weekStart);
+                    day.setDate(weekStart.getDate() + i);
+                    weekDays.push(day);
+                }
+                return weekDays;
+            };
+        
+            const weekDays = getWeekDays();
+        
+            const nextWeek = () => {
+                const next = new Date(currentWeekStart);
+                next.setDate(next.getDate() + 7);
+                setCurrentWeekStart(next);
+            };
+        
+            const prevWeek = () => {
+                const prev = new Date(currentWeekStart);
+                prev.setDate(prev.getDate() - 7);
+                setCurrentWeekStart(prev);
+            };
+        
+            const goToToday = () => {
+                setCurrentWeekStart(today);
+            };
+        
+            const formatHeaderDate = (date) => {
+                return date.toLocaleString('es-AR', { day: 'numeric', month: 'short' });
+            };
+        
+            const getClassesForDayAndTime = (day, time) => {
+                const formattedDate = day.toISOString().split('T')[0];
+                return classes.filter(cls => cls.date === formattedDate && cls.time === time);
+            };
+        
+            const handleCellClick = (day, time) => {
+                const formattedDate = day.toISOString().split('T')[0];
+                const dayName = daysOfWeek[day.getDay()];
+                handleAddClassFromCalendar(formattedDate, dayName, time);
+            };
+        
+            return (
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                    <div className="flex justify-between items-center mb-4">
+                        <button onClick={prevWeek} className="p-2 rounded-full bg-gray-200 hover:bg-gray-300">
+                            <i className="fas fa-chevron-left text-gray-700"></i>
+                        </button>
+                        <h2 className="text-xl font-bold text-gray-800">
+                            Semana de {formatHeaderDate(weekDays[0])} a {formatHeaderDate(weekDays[6])}
+                        </h2>
+                        <button onClick={nextWeek} className="p-2 rounded-full bg-gray-200 hover:bg-gray-300">
+                            <i className="fas fa-chevron-right text-gray-700"></i>
+                        </button>
+                        <button onClick={goToToday} className="py-2 px-4 rounded-lg bg-blue-800 text-white hover:bg-blue-900 transition-colors">Hoy</button>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora</th>
+                                    {weekDays.map((day, index) => (
+                                        <th key={index} className="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            {daysOfWeek[day.getDay()]}<br />
+                                            {formatHeaderDate(day)}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {timesOfDay.map(time => (
+                                    <tr key={time}>
+                                        <td className="py-4 px-2 text-sm font-semibold text-gray-800 whitespace-nowrap">{time}</td>
+                                        {weekDays.map((day, dayIndex) => {
+                                            const classesForSlot = getClassesForDayAndTime(day, time);
+                                            return (
+                                                <td
+                                                    key={dayIndex}
+                                                    onClick={() => handleCellClick(day, time)}
+                                                    className="py-2 px-2 border border-gray-200 align-top cursor-pointer hover:bg-gray-50 transition-colors"
+                                                >
+                                                    {classesForSlot.map(cls => (
+                                                        <div
+                                                            key={cls.id}
+                                                            className={`p-1 rounded-md text-xs font-bold text-gray-800 mb-1 ${colorMap[cls.studentCount] || 'bg-gray-200'}`}
+                                                        >
+                                                            {cls.studentNames.join(', ')} ({cls.studentCount})
+                                                        </div>
+                                                    ))}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+        
         const App = () => {
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
@@ -269,7 +344,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 studentIds: [''],
                 date: new Date().toISOString().split('T')[0],
                 day: daysOfWeek[new Date().getDay()],
-    
                 time: timesOfDay[0],
                 price: defaultClassPrices[1] || 0,
             });
@@ -279,8 +353,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 phone: '',
                 description: '',
                 status: 'Activo',
-           
-             });
+            });
             const [isEditingStudent, setIsEditingStudent] = useState(false);
             const [editedStudentId, setEditedStudentId] = useState(null);
             const [filterStatus, setFilterStatus] = useState('Todos');
@@ -290,12 +363,9 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 return students.filter(s => {
                     const status = s.status || 'Activo';
                     const matchesStatus = filterStatus === 'Todos' || status === filterStatus;
- 
                     const haystack = `${s.firstName || ''} ${s.lastName || ''} ${s.phone || ''} ${s.description || ''}`.toLowerCase();
                     const matchesSearch = !term || haystack.includes(term);
                     return matchesStatus && matchesSearch;
-              
-     
                 });
             }, [students, studentSearch, filterStatus]);
             const [newPayment, setNewPayment] = useState({
@@ -305,7 +375,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             });
             const [isEditingPayment, setIsEditingPayment] = useState(false);
             const [editedPaymentId, setEditedPaymentId] = useState(null);
-
             const [monthlyReports, setMonthlyReports] = useState({});
             const [annualPaymentsReport, setAnnualPaymentsReport] = useState({});
             const [selectedMonthYear, setSelectedMonthYear] = useState('');
@@ -321,9 +390,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 content: '',
                 type: 'confirm',
                 onConfirm: null,
-           
-             });
-
+            });
             const dbRef = useRef(null);
             const authRef = useRef(null);
             const fileInputRef = useRef(null);
@@ -343,16 +410,13 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     const app = window.initializeApp(firebaseConfig);
                     dbRef.current = window.getFirestore(app);
                     authRef.current = window.getAuth(app);
-
                     const unsubscribe = window.onAuthStateChanged(authRef.current, (user) => {
                         if (user) {
                             setUserId(user.uid);
                             setUserEmail(user.email);
-      
-                         } else {
+                        } else {
                             setUserId(null);
                             setUserEmail('');
-                 
                         }
                         setLoading(false);
                     });
@@ -363,8 +427,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         show: true,
                         title: 'Error de configuración',
                         content: 'Error al inicializar Firebase. Revisa tu configuración.',
-                 
-                       type: 'error',
+                        type: 'error',
                         onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                     setLoading(false);
@@ -383,8 +446,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     setMessageBox({
                         show: true,
                         title: 'Error de autenticación',
-                        content: 
-                'Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.',
+                        content: 'Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.',
                         type: 'error',
                         onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
@@ -402,20 +464,17 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         show: true,
                         title: 'Cuenta creada',
                         content: 'Tu cuenta se ha creado exitosamente. ¡Ya puedes iniciar sesión!',
-       
-                         type: 'success',
+                        type: 'success',
                         onClose: () => {
                             setMessageBox({ ...messageBox, show: false });
-               
-                          setIsSigningUp(false);
+                            setIsSigningUp(false);
                         }
                     });
                 } catch (error) {
                     setMessageBox({
                         show: true,
                         title: 'Error de registro',
-                        content: 
-                'Hubo un error al crear la cuenta. Puede que el email ya esté en uso o la contraseña sea demasiado débil.',
+                        content: 'Hubo un error al crear la cuenta. Puede que el email ya esté en uso o la contraseña sea demasiado débil.',
                         type: 'error',
                         onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
@@ -429,12 +488,10 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     setMessageBox({
                         show: true,
                         title: 'Error de validación',
-    
-                         content: 'Por favor, ingresa tu email para restablecer la contraseña.',
+                        content: 'Por favor, ingresa tu email para restablecer la contraseña.',
                         type: 'error',
                         onClose: () => setMessageBox({ ...messageBox, show: false })
-          
-                      });
+                    });
                     return;
                 }
                 try {
@@ -444,20 +501,17 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         show: true,
                         title: 'Correo enviado',
                         content: 'Se ha enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.',
-        
-                         type: 'success',
+                        type: 'success',
                         onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                 } catch (error) {
                     setMessageBox({
                         show: true,
                         title: 'Error al enviar correo',
-                        
                         content: 'Hubo un error al enviar el correo. Asegúrate de que el email sea correcto.',
                         type: 'error',
                         onClose: () => setMessageBox({ ...messageBox, show: false })
-      
-                      });
+                    });
                     console.error("Error sending password reset email:", error);
                 } finally {
                     setLoading(false);
@@ -543,28 +597,21 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 setIsEditingStudent(true);
                 setEditedStudentId(studentToEdit.id);
             };
-
             const deleteStudent = (studentId) => {
                 setMessageBox({
                     show: true,
                     title: 'Confirmar eliminación',
-                    content: '¿Estás seguro de que quieres eliminar a este alumno? Esta acción es 
- irreversible.',
+                    content: '¿Estás seguro de que quieres eliminar a este alumno? Esta acción es irreversible.',
                     type: 'confirm',
                     onConfirm: async () => {
                         if (!dbRef.current || !userId) return;
                         try {
-  
-                                                     setLoading(true);
+                            setLoading(true);
                             const studentDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'students', studentId);
-          
-                          await window.deleteDoc(studentDocRef);
-        
-                                                 setMessageBox({ show: true, title: 'Alumno eliminado', content: 'El alumno ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
- 
+                            await window.deleteDoc(studentDocRef);
+                            setMessageBox({ show: true, title: 'Alumno eliminado', content: 'El alumno ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                         } catch (error) {
-                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar al alumno.
- Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar al alumno. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                             console.error("Error deleting student:", error);
                         } finally {
                             setLoading(false);
@@ -573,13 +620,11 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     onClose: () => setMessageBox({ ...messageBox, show: false })
                 });
             };
-
             const sendWhatsApp = (phone) => {
                 const formattedPhone = phone.replace(/\D/g, '');
                 const url = `https://wa.me/${formattedPhone}`;
                 window.open(url, '_blank');
             };
-
             const addPayment = async () => {
                 if (!dbRef.current || !userId) return;
                 if (!newPayment.date || !newPayment.amount || newPayment.amount <= 0) {
@@ -593,8 +638,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         ...newPayment,
                         amount: parseFloat(newPayment.amount),
                         date: newPayment.date,
-              
-                         timestamp: window.Timestamp.fromDate(new Date(newPayment.date))
+                        timestamp: window.Timestamp.fromDate(new Date(newPayment.date))
                     };
                     if (isEditingPayment) {
                         const paymentDocRef = window.doc(paymentsColRef, editedPaymentId);
@@ -624,20 +668,14 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     show: true,
                     title: 'Confirmar eliminación',
                     content: '¿Estás seguro de que quieres eliminar este pago? Esta acción es irreversible.',
- 
-                                       type: 'confirm',
+                    type: 'confirm',
                     onConfirm: async () => {
                         if (!dbRef.current || !userId) return;
-        
                         try {
-   
-                                                     setLoading(true);
-                           
-                           const paymentDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments', paymentId);
+                            setLoading(true);
+                            const paymentDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments', paymentId);
                             await window.deleteDoc(paymentDocRef);
-         
-                                                 setMessageBox({ show: true, 
-                title: 'Pago eliminado', content: 'El pago ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                            setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                         } catch (error) {
                             setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar el pago. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                             console.error("Error deleting payment:", error);
@@ -648,49 +686,36 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     onClose: () => setMessageBox({ ...messageBox, show: false })
                 });
             };
-
             useEffect(() => {
                 if (userId && dbRef.current) {
                     loadCustomPrices();
-
                     const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
                     const classesQuery = window.query(classesColRef);
-      
-                                 const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
+                    const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
                         const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        const sortedClasses = fetchedClasses.sort((a, 
-                b) => new Date(b.date) - new Date(a.date));
-             
-                                     setClasses(sortedClasses);
+                        const sortedClasses = fetchedClasses.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        setClasses(sortedClasses);
                     });
-
-                    const studentsColRef = window.collection(dbRef.current, 
-                'artifacts', appId, 'users', userId, 'students');
+                    const studentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'students');
                     const studentsQuery = window.query(studentsColRef);
-                  
-                     const unsubscribeStudents = window.onSnapshot(studentsQuery, (snapshot) => {
-                        const fetchedStudents = snapshot.docs.map(doc 
-                => ({ id: doc.id, ...doc.data() }));
+                    const unsubscribeStudents = window.onSnapshot(studentsQuery, (snapshot) => {
+                        const fetchedStudents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         setStudents(fetchedStudents.sort((a, b) => a.lastName.localeCompare(b.lastName)));
                     });
-
                     const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
                     const paymentsQuery = window.query(paymentsColRef);
                     const unsubscribePayments = window.onSnapshot(paymentsQuery, (snapshot) => {
                         const fetchedPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         const sortedPayments = fetchedPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
-                       
-                         setPayments(sortedPayments);
-   
-                                     });
+                        setPayments(sortedPayments);
+                    });
                     const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
                     const logQuery = window.query(logColRef);
                     const unsubscribeLog = window.onSnapshot(logQuery, (snapshot) => {
                         const fetchedLog = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         const sortedLog = fetchedLog.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
                         setActivityLog(sortedLog);
-     
-                                     });
+                    });
                     return () => {
                         unsubscribeClasses();
                         unsubscribeStudents();
@@ -768,13 +793,16 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 try {
                     setLoading(true);
                     const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
-                    const selectedStudents = newEntry.studentIds.map(id => {
-                        const stu = students.find(s => s.id === id);
-                        return stu ? `${stu.firstName} ${stu.lastName}` : "";
+                    const selectedStudents = newEntry.studentNames.map((name, index) => {
+                        const studentId = newEntry.studentIds[index];
+                        if (studentId) {
+                            const stu = students.find(s => s.id === studentId);
+                            return stu ? `${stu.firstName} ${stu.lastName}` : name;
+                        }
+                        return name;
                     });
                     const classData = {
                         ...newEntry,
-                        studentIds: newEntry.studentIds,
                         studentNames: selectedStudents,
                         timestamp: window.Timestamp.fromDate(new Date(newEntry.date)),
                     };
@@ -798,15 +826,26 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     setLoading(false);
                 }
             };
+            const handleAddClassFromCalendar = (date, day, time) => {
+                setNewEntry({
+                    studentCount: 1,
+                    studentNames: [''],
+                    studentIds: [''],
+                    date: date,
+                    day: day,
+                    time: time,
+                    price: customPrices[1] || 0
+                });
+                setView('add');
+            };
             const deleteClass = (id, classData) => {
-                setMessageBox({ show: true, title: 'Confirmar eliminación', content: '¿Estás seguro de que quieres eliminar esta clase? Esta acción es irreversible.', type: 'confirm', onConfirm: async () => { if (!dbRef.current || !userId) return; try { setLoading(true); const classDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'classes', id); await window.deleteDoc(classDocRef); setMessageBox({ show: true, title: 'Clase eliminada', content: 'La clase ha sido eliminada exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) }); addLogEntry('Clase eliminada', `Clase con ${classData.studentNames.join(', ')} del día ${classData.date} a las ${classData.time} ha sido eliminada.`); } catch (error) { setMessageBox({ show: true, title: 
-                'Error al eliminar', content: 'Hubo un error al eliminar la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) }); console.error("Error deleting class:", error);
+                setMessageBox({ show: true, title: 'Confirmar eliminación', content: '¿Estás seguro de que quieres eliminar esta clase? Esta acción es irreversible.', type: 'confirm', onConfirm: async () => { if (!dbRef.current || !userId) return; try { setLoading(true); const classDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'classes', id); await window.deleteDoc(classDocRef); setMessageBox({ show: true, title: 'Clase eliminada', content: 'La clase ha sido eliminada exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) }); addLogEntry('Clase eliminada', `Clase con ${classData.studentNames.join(', ')} del día ${classData.date} a las ${classData.time} ha sido eliminada.`); } catch (error) { setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) }); console.error("Error deleting class:", error);
                 } finally { setLoading(false); } }, onClose: () => setMessageBox({ ...messageBox, show: false }) }); };
             const editClass = (classToEdit) => {
-                setNewEntry({ studentCount: classToEdit.studentCount, studentNames: classToEdit.studentNames, date: classToEdit.date, day: classToEdit.day, time: classToEdit.time, price: classToEdit.price, });
+                setNewEntry({ studentCount: classToEdit.studentCount, studentNames: classToEdit.studentNames, studentIds: classToEdit.studentIds, date: classToEdit.date, day: classToEdit.day, time: classToEdit.time, price: classToEdit.price, });
                 setIsEditing(true);
                 setEditedClassId(classToEdit.id);
-                setView('list');
+                setView('add');
             };
             const generatePDF = () => {
                 if (!reportTableRef.current) return;
@@ -872,7 +911,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 }
                 return filtered;
             }, [classes, selectedMonthYear, filterText]);
-
             const totalMonthlyIncome = useMemo(() => {
                 let total = 0;
                 if (selectedMonthYear) {
@@ -883,7 +921,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 }
                 return total;
             }, [selectedMonthYear, monthlyReports]);
-
             const DailyReportView = () => {
                 const today = new Date().toISOString().split('T')[0];
                 const todayClasses = useMemo(() => classes.filter(cls => cls.date === today), [classes]);
@@ -910,7 +947,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     </div>
                 );
             };
-
             const ClassListView = () => (
                 <>
                     <h2 className="text-2xl font-bold mb-4">Listado de Clases</h2>
@@ -978,7 +1014,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     </button>
                 </>
             );
-
             const StudentListView = () => (
                 <>
                     <h2 className="text-2xl font-bold mb-4">Listado de Alumnos</h2>
@@ -1031,7 +1066,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     )}
                 </>
             );
-
             const PaymentsView = () => (
                 <>
                     <h2 className="text-2xl font-bold mb-4">Pagos de Club</h2>
@@ -1067,7 +1101,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             {isEditingPayment ? 'Actualizar Pago' : 'Añadir Pago'}
                         </button>
                     </div>
-
                     <h3 className="text-xl font-bold mb-2">Historial de Pagos ({payments.length})</h3>
                     <div ref={annualPaymentsReportRef} className="bg-white p-6 rounded-lg shadow-md mb-4">
                         <h4 className="text-lg font-bold mb-2">Reporte Anual de Pagos</h4>
@@ -1084,7 +1117,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             Descargar Reporte Anual PDF
                         </button>
                     </div>
-
                     {payments.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {payments.map(payment => (
@@ -1108,7 +1140,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     )}
                 </>
             );
-
             const ConfigView = () => (
                 <>
                     <h2 className="text-2xl font-bold mb-4">Configuración de Precios</h2>
@@ -1134,7 +1165,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     </div>
                 </>
             );
-
             const ActivityLogView = () => (
                 <>
                     <h2 className="text-2xl font-bold mb-4">Registro de Actividad</h2>
@@ -1154,15 +1184,15 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     )}
                 </>
             );
-
             const renderLoggedInView = () => {
                 const navItems = [
-                    { name: "Clases", icon: "fas fa-calendar-day", view: "list" },
+                    { name: "Clases", icon: "fas fa-list-alt", view: "list" },
                     { name: "Añadir Clase", icon: "fas fa-plus-circle", view: "add" },
+                    { name: "Calendario", icon: "fas fa-calendar-alt", view: "calendar" },
+                    { name: "Reporte Diario", icon: "fas fa-calendar-day", view: "dailyReport" },
                     { name: "Alumnos", icon: "fas fa-users", view: "students" },
                     { name: "Añadir Alumno", icon: "fas fa-user-plus", view: "addStudent" },
                     { name: "Pagos de Club", icon: "fas fa-money-bill-wave", view: "payments" },
-                    { name: "Calendario", icon: "fas fa-calendar-alt", view: "calendar" },
                     { name: "Registro", icon: "fas fa-history", view: "log" },
                     { name: "Config", icon: "fas fa-cogs", view: "config" },
                 ];
@@ -1204,7 +1234,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                 </button>
                             </div>
                             <h1 className="text-3xl font-bold text-gray-800 mb-6">Panel de Control</h1>
-
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                                 <div className="bg-white p-4 rounded-lg shadow-md">
                                     <i className="fas fa-calendar-alt text-blue-600 text-2xl mb-2"></i>
@@ -1227,7 +1256,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                     <p className="text-xl font-bold">{formatPrice(annualPaymentsReport[new Date().getFullYear()]?.totalAmount || 0)}</p>
                                 </div>
                             </div>
-                            {isEditing && view === 'list' && (
+                            {isEditing && view === 'add' && (
                                 <div className="mb-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700">
                                     Estás editando una clase.
                                 </div>
@@ -1239,7 +1268,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                             const today = new Date().toISOString().split('T')[0];
                                             return (
                                                 <>
-                                                    <h2 className="text-2xl font-bold mb-4">Añadir Nueva Clase</h2>
+                                                    <h2 className="text-2xl font-bold mb-4">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
                                                     <div className="bg-white p-6 rounded-lg shadow-md">
                                                         <div className="mb-4">
                                                             <label className="block text-sm font-bold text-gray-700 mb-1">Fecha</label>
@@ -1394,8 +1423,10 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                             );
                                         case 'payments':
                                             return <PaymentsView />;
-                                        case 'calendar':
+                                        case 'dailyReport':
                                             return <DailyReportView />;
+                                        case 'calendar':
+                                            return <WeeklyCalendar classes={classes} handleAddClassFromCalendar={handleAddClassFromCalendar} />;
                                         case 'log':
                                             return <ActivityLogView />;
                                         case 'config':
@@ -1409,7 +1440,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     </div>
                 );
             };
-
             const renderLoginView = () => {
                 return (
                     <div className="flex items-center justify-center min-h-screen bg-gray-200">
@@ -1461,7 +1491,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     </div>
                 );
             };
-
             return (
                 <div className="min-h-screen">
                     {messageBox.show && <MessageBox {...messageBox} />}
@@ -1471,7 +1500,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 </div>
             );
         };
-
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
