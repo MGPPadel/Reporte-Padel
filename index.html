@@ -1380,142 +1380,137 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                                                         </button>
                                                                         <button onClick={() => deleteStudent(student.id)} className="w-6 h-6 transform hover:text-red-500 hover:scale-110 transition-transform">
                                                                             <i className="fas fa-trash-alt"></i>
-                                                                        </button>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        ))
-                                                    ) : (
-                                                        <tr>
-                                                            <td colSpan="5" className="text-center py-4 text-gray-500">No se encontraron alumnos.</td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {view === 'reports' && <MainReportView />}
-
-                            {view === 'calendar' && <DailyReportView />}
-
-                            {view === 'payments' && (
-                                <>
-                                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl mx-auto mb-8">
-                                        <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">{isEditingPayment ? 'Editar Pago' : 'Añadir Nuevo Pago'}</h2>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700">Fecha</label>
-                                                <input
-                                                    type="date"
-                                                    name="date"
-                                                    value={newPayment.date}
-                                                    onChange={(e) => setNewPayment(prev => ({ ...prev, date: e.target.value }))}
-                                                    className="p-3 w-full border rounded-lg"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700">Monto</label>
-                                                <input
-                                                    type="number"
-                                                    name="amount"
-                                                    placeholder="Monto"
-                                                    value={newPayment.amount}
-                                                    onChange={(e) => setNewPayment(prev => ({ ...prev, amount: e.target.value }))}
-                                                    className="p-3 w-full border rounded-lg"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="mt-4">
-                                            <label className="block text-sm font-medium text-gray-700">Descripción (opcional)</label>
-                                            <textarea
-                                                name="description"
-                                                placeholder="Descripción del pago..."
-                                                value={newPayment.description}
-                                                onChange={(e) => setNewPayment(prev => ({ ...prev, description: e.target.value }))}
-                                                className="p-3 w-full border rounded-lg h-20"
-                                            ></textarea>
-                                        </div>
-                                        <button
-                                            onClick={addPayment}
-                                            className="mt-6 py-3 px-4 w-full rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold transition-colors shadow-md"
-                                        >
-                                            {isEditingPayment ? 'Guardar Cambios' : 'Añadir Pago'}
-                                        </button>
-                                        {isEditingPayment && (
-                                            <button
-                                                onClick={() => { setIsEditingPayment(false); setEditedPaymentId(null); setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' }); }}
-                                                className="mt-2 py-3 px-4 w-full rounded-lg bg-gray-400 hover:bg-gray-500 text-white font-bold transition-colors shadow-md"
-                                            >
-                                                Cancelar
-                                            </button>
-                                        )}
-                                    </div>
-                                    <AnnualPaymentsReportView />
-                                </>
-                            )}
-                            {view === 'config' && (
-                                <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl mx-auto">
-                                    <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">Configuración</h2>
-                                    <div className="mb-6">
-                                        <h3 className="text-xl font-bold text-gray-700 mb-4">Precios de Clases</h3>
-                                        {peopleOptions.map(p => (
-                                            <div key={p} className="flex items-center mb-4">
-                                                <span className="w-1/2 font-semibold">{p} {p > 1 ? 'Alumnos' : 'Alumno'}:</span>
-                                                <div className="w-1/2 flex items-center">
-                                                    <span className="mr-2 text-gray-600">$</span>
-                                                    <input
-                                                        type="number"
-                                                        value={customPrices[p] || ''}
-                                                        onChange={(e) => handleCustomPriceChange(p, e.target.value)}
-                                                        className="p-2 w-full border rounded-lg"
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
-                                        <button
-                                            onClick={saveCustomPrices}
-                                            className="mt-6 py-3 px-4 w-full rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors shadow-md"
-                                        >
-                                            Guardar Precios
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                            {view === 'log' && (
-                                <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl mx-auto">
-                                    <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">Registro de Actividad</h2>
-                                    {activityLog.length > 0 ? (
-                                        <div className="overflow-y-auto max-h-96">
-                                            <ul className="divide-y divide-gray-200">
-                                                {activityLog.map(log => (
-                                                    <li key={log.id} className="py-4 flex justify-between items-center">
-                                                        <div className="flex-1">
-                                                            <p className="text-sm font-semibold text-gray-900">{log.action}</p>
-                                                            <p className="text-xs text-gray-500">{log.details}</p>
-                                                        </div>
-                                                        <span className="text-xs text-gray-400">{formatDate(log.timestamp)}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
                                     ) : (
-                                        <p className="text-center text-gray-500 p-8">No hay actividad reciente.</p>
+                                        <tr>
+                                            <td colSpan="5" className="text-center py-4 text-gray-500">No se encontraron alumnos.</td>
+                                        </tr>
                                     )}
-                                </div>
-                            </>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {view === 'reports' && <MainReportView />}
+
+            {view === 'calendar' && <DailyReportView />}
+
+            {view === 'payments' && (
+                <div className="w-full">
+                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl mx-auto mb-8">
+                        <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">{isEditingPayment ? 'Editar Pago' : 'Añadir Nuevo Pago'}</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Fecha</label>
+                                <input
+                                    type="date"
+                                    name="date"
+                                    value={newPayment.date}
+                                    onChange={(e) => setNewPayment(prev => ({ ...prev, date: e.target.value }))}
+                                    className="p-3 w-full border rounded-lg"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Monto</label>
+                                <input
+                                    type="number"
+                                    name="amount"
+                                    placeholder="Monto"
+                                    value={newPayment.amount}
+                                    onChange={(e) => setNewPayment(prev => ({ ...prev, amount: e.target.value }))}
+                                    className="p-3 w-full border rounded-lg"
+                                />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-700">Descripción (opcional)</label>
+                            <textarea
+                                name="description"
+                                placeholder="Descripción del pago..."
+                                value={newPayment.description}
+                                onChange={(e) => setNewPayment(prev => ({ ...prev, description: e.target.value }))}
+                                className="p-3 w-full border rounded-lg h-20"
+                            ></textarea>
+                        </div>
+                        <button
+                            onClick={addPayment}
+                            className="mt-6 py-3 px-4 w-full rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold transition-colors shadow-md"
+                        >
+                            {isEditingPayment ? 'Guardar Cambios' : 'Añadir Pago'}
+                        </button>
+                        {isEditingPayment && (
+                            <button
+                                onClick={() => { setIsEditingPayment(false); setEditedPaymentId(null); setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' }); }}
+                                className="mt-2 py-3 px-4 w-full rounded-lg bg-gray-400 hover:bg-gray-500 text-white font-bold transition-colors shadow-md"
+                            >
+                                Cancelar
+                            </button>
                         )}
                     </div>
-                    {userId && (
-                        <div className="mt-8 text-center text-gray-500">
-                            ID de Usuario: <span className="font-mono">{userId}</span>
+                    <AnnualPaymentsReportView />
+                </div>
+            )}
+            {view === 'config' && (
+                <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl mx-auto">
+                    <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">Configuración</h2>
+                    <div className="mb-6">
+                        <h3 className="text-xl font-bold text-gray-700 mb-4">Precios de Clases</h3>
+                        {peopleOptions.map(p => (
+                            <div key={p} className="flex items-center mb-4">
+                                <span className="w-1/2 font-semibold">{p} {p > 1 ? 'Alumnos' : 'Alumno'}:</span>
+                                <div className="w-1/2 flex items-center">
+                                    <span className="mr-2 text-gray-600">$</span>
+                                    <input
+                                        type="number"
+                                        value={customPrices[p] || ''}
+                                        onChange={(e) => handleCustomPriceChange(p, e.target.value)}
+                                        className="p-2 w-full border rounded-lg"
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                        <button
+                            onClick={saveCustomPrices}
+                            className="mt-6 py-3 px-4 w-full rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors shadow-md"
+                        >
+                            Guardar Precios
+                        </button>
+                    </div>
+                </div>
+            )}
+            {view === 'log' && (
+                <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl mx-auto">
+                    <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">Registro de Actividad</h2>
+                    {activityLog.length > 0 ? (
+                        <div className="overflow-y-auto max-h-96">
+                            <ul className="divide-y divide-gray-200">
+                                {activityLog.map(log => (
+                                    <li key={log.id} className="py-4 flex justify-between items-center">
+                                        <div className="flex-1">
+                                            <p className="text-sm font-semibold text-gray-900">{log.action}</p>
+                                            <p className="text-xs text-gray-500">{log.details}</p>
+                                        </div>
+                                        <span className="text-xs text-gray-400">{formatDate(log.timestamp)}</span>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
+                    ) : (
+                        <p className="text-center text-gray-500 p-8">No hay actividad reciente.</p>
                     )}
                 </div>
-            );
-        };
+            )}
+        </>
+        )}
+    </div>
+);
+};
 
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
