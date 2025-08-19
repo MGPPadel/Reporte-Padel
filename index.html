@@ -898,7 +898,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 return filtered;
             }, [classes, selectedMonthYear, filterText]);
             const DailyReportView = () => {
-                const todayStr = new Date().toISOString().split('T')[0];
+                const today = new Date(); 
+                const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
                 const todaysClasses = classes.filter(cls => cls.date === todayStr);
                 const totalEarnings = todaysClasses.reduce((sum, cls) => sum + cls.price, 0);
                 return (
@@ -1691,3 +1692,4 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     </script>
 </body>
 </html>
+
