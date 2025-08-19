@@ -804,8 +804,7 @@ const firebaseConfig = {
                     const studentsQuery = window.query(studentsColRef);
                   
                      const unsubscribeStudents = window.onSnapshot(studentsQuery, (snapshot) => {
-                        const fetchedStudents = snapshot.docs.map(doc 
- => ({ id: doc.id, ...doc.data() }));
+                        const fetchedStudents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         setStudents(fetchedStudents.sort((a, b) => a.lastName.localeCompare(b.lastName)));
                     });
 
@@ -1020,7 +1019,6 @@ const firebaseConfig = {
                             title={messageBox.title}
                             content={messageBox.content}
                             type={messageBox.type}
-                            onConfirm={messageBox.onConfirm}
                             onClose={() => setMessageBox({ ...messageBox, show: false })}
                         />
                     </div>
