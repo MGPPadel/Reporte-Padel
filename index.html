@@ -46,100 +46,101 @@
 <body class="bg-gray-100 font-sans">
     <div id="root"></div>
     <script type="text/babel">
-const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, students }) => {
-    const [activeIndex, setActiveIndex] = React.useState(-1);
-    const [open, setOpen] = React.useState(false);
-    const containerRef = React.useRef(null);
-    const filteredStudents = React.useMemo(() => {
-        const term = (newEntry.studentNames[index] || "").toLowerCase();
-        if (!term) return [];
-        return students
-            .filter(stu => (`${stu.firstName} ${stu.lastName}`).toLowerCase().includes(term))
-            .slice(0, 5);
-    }, [students, newEntry.studentNames, index]);
+        const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, students }) => {
+            const [activeIndex, setActiveIndex] = React.useState(-1);
+            const [open, setOpen] = React.useState(false);
+            const containerRef = React.useRef(null);
+            const filteredStudents = React.useMemo(() => {
+                const term = (newEntry.studentNames[index] || "").toLowerCase();
+                if (!term) return [];
+                return students
+                    .filter(stu => (`${stu.firstName} ${stu.lastName}`).toLowerCase().includes(term))
+                    .slice(0, 5);
+            }, [students, newEntry.studentNames, index]);
 
-    React.useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (containerRef.current && !containerRef.current.contains(e.target)) {
-                setOpen(false);
-                setActiveIndex(-1);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-    const handleKeyDown = (e) => {
-        if (!open || filteredStudents.length === 0) return;
-        if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setActiveIndex((prev) => (prev + 1) % filteredStudents.length);
-        } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setActiveIndex((prev) => (prev <= 0 ? filteredStudents.length - 1 : prev - 1));
-        } else if (e.key === "Enter" && activeIndex >= 0) {
-            e.preventDefault();
-            const stu = filteredStudents[activeIndex];
-            const newNames = [...newEntry.studentNames];
-            newNames[index] = `${stu.firstName} ${stu.lastName}`;
-            const newIds = [...(newEntry.studentIds || [])];
-            newIds[index] = stu.id;
-            setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
-            setActiveIndex(-1);
-            setOpen(false);
-        }
-    };
-    const handleSelect = (stu) => {
-        const newNames = [...newEntry.studentNames];
-        newNames[index] = `${stu.firstName} ${stu.lastName}`;
-        const newIds = [...(newEntry.studentIds || [])];
-        newIds[index] = stu.id;
-        setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
-        setActiveIndex(-1);
-        setOpen(false);
-    };
+            React.useEffect(() => {
+                const handleClickOutside = (e) => {
+                    if (containerRef.current && !containerRef.current.contains(e.target)) {
+                        setOpen(false);
+                        setActiveIndex(-1);
+                    }
+                };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
 
-    return (
-        <div className="relative mb-2" ref={containerRef}>
-            <input
-                type="text"
-                placeholder={`Alumno ${index + 1}`}
-                value={newEntry.studentNames[index] || ""}
-                onChange={(e) => {
-                    const val = e.target.value;
+            const handleKeyDown = (e) => {
+                if (!open || filteredStudents.length === 0) return;
+                if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setActiveIndex((prev) => (prev + 1) % filteredStudents.length);
+                } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActiveIndex((prev) => (prev <= 0 ? filteredStudents.length - 1 : prev - 1));
+                } else if (e.key === "Enter" && activeIndex >= 0) {
+                    e.preventDefault();
+                    const stu = filteredStudents[activeIndex];
                     const newNames = [...newEntry.studentNames];
-                    newNames[index] = val;
-                    setNewEntry((prev) => ({ ...prev, studentNames: newNames }));
+                    newNames[index] = `${stu.firstName} ${stu.lastName}`;
+                    const newIds = [...(newEntry.studentIds || [])];
+                    newIds[index] = stu.id;
+                    setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
                     setActiveIndex(-1);
-                    setOpen(true);
-                }}
-                onFocus={() => setOpen(true)}
-                onKeyDown={handleKeyDown}
-                className="peer p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-            />
-            {open && newEntry.studentNames[index] && filteredStudents.length > 0 && (
-                <div
-                    className="absolute left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto z-50
-                     opacity-0 translate-y-1 scale-95 pointer-events-none
-                     transition-all duration-200 ease-out
-                     peer-focus:opacity-100 peer-focus:translate-y-0 peer-focus:scale-100 peer-focus:pointer-events-auto"
-                >
-                    {filteredStudents.map((stu, i) => (
+                    setOpen(false);
+                }
+            };
+            const handleSelect = (stu) => {
+                const newNames = [...newEntry.studentNames];
+                newNames[index] = `${stu.firstName} ${stu.lastName}`;
+                const newIds = [...(newEntry.studentIds || [])];
+                newIds[index] = stu.id;
+                setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
+                setActiveIndex(-1);
+                setOpen(false);
+            };
+
+            return (
+                <div className="relative mb-2" ref={containerRef}>
+                    <input
+                        type="text"
+                        placeholder={`Alumno ${index + 1}`}
+                        value={newEntry.studentNames[index] || ""}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            const newNames = [...newEntry.studentNames];
+                            newNames[index] = val;
+                            setNewEntry((prev) => ({ ...prev, studentNames: newNames }));
+                            setActiveIndex(-1);
+                            setOpen(true);
+                        }}
+                        onFocus={() => setOpen(true)}
+                        onKeyDown={handleKeyDown}
+                        className="peer p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                    />
+                    {open && newEntry.studentNames[index] && filteredStudents.length > 0 && (
                         <div
-                            key={stu.id}
-                            onMouseDown={(e) => { e.preventDefault(); handleSelect(stu); }}
-                            onTouchStart={(e) => { e.preventDefault(); handleSelect(stu); }}
-                            className={`px-3 py-2 cursor-pointer transition-colors ${
-                                i === activeIndex ? "bg-blue-100 text-blue-800 font-semibold" : "hover:bg-gray-100"
-                            }`}
+                            className="absolute left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto z-50
+                             opacity-0 translate-y-1 scale-95 pointer-events-none
+                             transition-all duration-200 ease-out
+                             peer-focus:opacity-100 peer-focus:translate-y-0 peer-focus:scale-100 peer-focus:pointer-events-auto"
                         >
-                            {stu.firstName} {stu.lastName}
+                            {filteredStudents.map((stu, i) => (
+                                <div
+                                    key={stu.id}
+                                    onMouseDown={(e) => { e.preventDefault(); handleSelect(stu); }}
+                                    onTouchStart={(e) => { e.preventDefault(); handleSelect(stu); }}
+                                    className={`px-3 py-2 cursor-pointer transition-colors ${
+                                        i === activeIndex ? "bg-blue-100 text-blue-800 font-semibold" : "hover:bg-gray-100"
+                                    }`}
+                                >
+                                    {stu.firstName} {stu.lastName}
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    )}
                 </div>
-            )}
-        </div>
-    );
-};
+            );
+        };
 
         const firebaseConfig = {
             apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
@@ -161,49 +162,52 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             '1:00 p.m.', '2:00 p.m.', '3:00 p.m.', '4:00 p.m.', '5:00 p.m.',
             '6:00 p.m.', '7:00 p.m.', '8:00 p.m.', '9:00 p.m.', '10:00 p.m.',
         ];
-        const colorMap = { 1: 'bg-yellow-100', 2: 'bg-green-100', 3: 'bg-blue-100', 4: 'bg-purple-100', };
+        const colorMap = { 1: 'bg-yellow-200', 2: 'bg-green-200', 3: 'bg-blue-200', 4: 'bg-purple-200', };
         
         const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
             if (!show) return null;
-            let icon, bgColor, titleColor;
+            let icon, bgColor, titleColor, buttonColor;
             switch (type) {
                 case 'success':
                     icon = <i className="fas fa-check-circle text-4xl text-green-600"></i>;
                     bgColor = 'bg-white';
                     titleColor = 'text-green-600';
+                    buttonColor = 'bg-blue-800 hover:bg-blue-900';
                     break;
                 case 'error':
                     icon = <i className="fas fa-times-circle text-4xl text-red-500"></i>;
                     bgColor = 'bg-white';
                     titleColor = 'text-red-600';
+                    buttonColor = 'bg-red-500 hover:bg-red-600';
                     break;
                 case 'confirm':
                     icon = <i className="fas fa-question-circle text-4xl text-blue-800"></i>;
                     bgColor = 'bg-white';
                     titleColor = 'text-blue-800';
+                    buttonColor = 'bg-blue-800 hover:bg-blue-900';
                     break;
                 default:
                     icon = null;
             }
 
             return (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-                    <div className={`p-6 rounded-xl shadow-xl w-full max-w-sm text-center ${bgColor} transform transition-all duration-300 ease-in-out scale-100`}>
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center z-50 transition-opacity duration-300">
+                    <div className={`p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center ${bgColor} transform transition-all duration-300 ease-in-out scale-100`}>
                         <div className="mb-4">{icon}</div>
-                        <h3 className={`text-lg font-bold mb-2 ${titleColor}`}>{title}</h3>
-                        <p className="text-sm text-gray-500 mb-4">{content}</p>
-                        <div className="mt-4">
+                        <h3 className={`text-xl font-bold mb-2 ${titleColor}`}>{title}</h3>
+                        <p className="text-sm text-gray-600 mb-6">{content}</p>
+                        <div className="mt-4 flex justify-center gap-4">
                             {type === 'confirm' && (
                                 <button
                                     onClick={onConfirm}
-                                    className={`py-2 px-4 rounded-lg font-bold transition-colors text-white bg-blue-800 hover:bg-blue-900 shadow-md mr-2`}
+                                    className={`py-2 px-6 rounded-lg font-bold transition-colors text-white ${buttonColor} shadow-md`}
                                 >
                                     Aceptar
                                 </button>
                             )}
                             <button
                                 onClick={onClose}
-                                className={`py-2 px-4 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ? 'bg-gray-400 hover:bg-gray-500' : type === 'success' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-500 hover:bg-red-600'} shadow-md`}
+                                className={`py-2 px-6 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ? 'bg-gray-400 hover:bg-gray-500' : buttonColor} shadow-md`}
                             >
                                 {type === 'confirm' ? 'Cancelar' : 'Cerrar'}
                             </button>
@@ -220,7 +224,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
         
             const startOfWeek = (date) => {
                 const day = date.getDay();
-                const diff = date.getDate() - day; // ajusta para Domingo
+                const diff = date.getDate() - day;
                 return new Date(date.getFullYear(), date.getMonth(), diff);
             };
         
@@ -269,26 +273,26 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             };
         
             return (
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <div className="flex justify-between items-center mb-4">
-                        <button onClick={prevWeek} className="p-2 rounded-full bg-gray-200 hover:bg-gray-300">
+                <div className="bg-white p-8 rounded-2xl shadow-xl">
+                    <div className="flex justify-between items-center mb-6">
+                        <button onClick={prevWeek} className="p-3 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors">
                             <i className="fas fa-chevron-left text-gray-700"></i>
                         </button>
-                        <h2 className="text-xl font-bold text-gray-800">
+                        <h2 className="text-2xl font-bold text-gray-800">
                             Semana de {formatHeaderDate(weekDays[0])} a {formatHeaderDate(weekDays[6])}
                         </h2>
-                        <button onClick={nextWeek} className="p-2 rounded-full bg-gray-200 hover:bg-gray-300">
+                        <button onClick={nextWeek} className="p-3 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors">
                             <i className="fas fa-chevron-right text-gray-700"></i>
                         </button>
-                        <button onClick={goToToday} className="py-2 px-4 rounded-lg bg-blue-800 text-white hover:bg-blue-900 transition-colors">Hoy</button>
+                        <button onClick={goToToday} className="py-2 px-6 rounded-lg bg-blue-800 text-white hover:bg-blue-900 transition-colors font-semibold shadow-md">Hoy</button>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora</th>
+                                    <th className="py-4 px-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hora</th>
                                     {weekDays.map((day, index) => (
-                                        <th key={index} className="py-3 px-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th key={index} className="py-4 px-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                             {daysOfWeek[day.getDay()]}<br />
                                             {formatHeaderDate(day)}
                                         </th>
@@ -298,19 +302,19 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {timesOfDay.map(time => (
                                     <tr key={time}>
-                                        <td className="py-4 px-2 text-sm font-semibold text-gray-800 whitespace-nowrap">{time}</td>
+                                        <td className="py-3 px-3 text-sm font-semibold text-gray-800 whitespace-nowrap">{time}</td>
                                         {weekDays.map((day, dayIndex) => {
                                             const classesForSlot = getClassesForDayAndTime(day, time);
                                             return (
                                                 <td
                                                     key={dayIndex}
                                                     onClick={() => handleCellClick(day, time)}
-                                                    className="py-2 px-2 border border-gray-200 align-top cursor-pointer hover:bg-gray-50 transition-colors"
+                                                    className="py-3 px-3 border border-gray-200 align-top cursor-pointer hover:bg-gray-100 transition-colors"
                                                 >
                                                     {classesForSlot.map(cls => (
                                                         <div
                                                             key={cls.id}
-                                                            className={`p-1 rounded-md text-xs font-bold text-gray-800 mb-1 ${colorMap[cls.studentCount] || 'bg-gray-200'}`}
+                                                            className={`p-2 rounded-lg text-xs font-bold text-gray-800 mb-1 ${colorMap[cls.studentCount] || 'bg-gray-200'}`}
                                                         >
                                                             {cls.studentNames.join(', ')} ({cls.studentCount})
                                                         </div>
@@ -927,33 +931,39 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 const totalToday = useMemo(() => todayClasses.reduce((sum, cls) => sum + cls.price, 0), [todayClasses]);
                 return (
                     <div>
-                        <h2 className="text-2xl font-bold mb-4">Reporte Diario</h2>
-                        <div className="bg-white p-6 rounded-lg shadow-md mb-4">
-                            <p className="text-xl font-bold text-gray-700">Total Recaudado Hoy: {formatPrice(totalToday)}</p>
+                        <h2 className="text-3xl font-extrabold text-gray-900 mb-6">Reporte Diario</h2>
+                        <div className="bg-white p-8 rounded-2xl shadow-xl mb-6">
+                            <p className="text-2xl font-bold text-gray-800">Total Recaudado Hoy: <span className="text-blue-600">{formatPrice(totalToday)}</span></p>
                         </div>
-                        <h3 className="text-xl font-semibold mb-2">Clases de Hoy ({todayClasses.length})</h3>
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">Clases de Hoy ({todayClasses.length})</h3>
                         {todayClasses.length > 0 ? (
                             <ul className="space-y-4">
                                 {todayClasses.map(cls => (
-                                    <li key={cls.id} className="bg-gray-50 p-4 rounded-lg shadow-sm">
-                                        <p><strong>{cls.time}</strong> - <span className="text-blue-600">{cls.studentNames.join(', ')}</span> ({cls.studentCount} alumno{cls.studentCount > 1 ? 's' : ''})</p>
-                                        <p>Precio: {formatPrice(cls.price)}</p>
+                                    <li key={cls.id} className="bg-white p-6 rounded-2xl shadow-lg transition-transform duration-200 hover:scale-[1.02]">
+                                        <p className="text-lg font-bold text-blue-800 mb-1">{cls.time}</p>
+                                        <p className="text-gray-700">
+                                            <span className="font-semibold">{cls.studentNames.join(', ')}</span> ({cls.studentCount} alumno{cls.studentCount > 1 ? 's' : ''})
+                                        </p>
+                                        <p className="mt-2 text-md font-semibold text-gray-600">Precio: {formatPrice(cls.price)}</p>
                                     </li>
                                 ))}
                             </ul>
                         ) : (
-                            <p className="text-center text-gray-500 p-8 bg-white rounded-lg">No hay clases programadas para hoy.</p>
+                            <div className="text-center text-gray-500 p-12 bg-white rounded-2xl shadow-lg">
+                                <i className="fas fa-calendar-day text-5xl mb-4 text-gray-300"></i>
+                                <p className="text-lg font-semibold">No hay clases programadas para hoy.</p>
+                            </div>
                         )}
                     </div>
                 );
             };
             const ClassListView = () => (
                 <>
-                    <h2 className="text-2xl font-bold mb-4">Listado de Clases</h2>
-                    <div className="bg-white p-6 rounded-lg shadow-md mb-4">
+                    <h2 className="text-3xl font-extrabold text-gray-900 mb-6">Listado de Clases</h2>
+                    <div className="bg-white p-8 rounded-2xl shadow-xl mb-6">
                         <div className="flex flex-col md:flex-row gap-4">
                             <select
-                                className="p-3 border rounded-lg w-full md:w-1/2"
+                                className="p-4 border rounded-xl w-full md:w-1/2 focus:ring-2 focus:ring-blue-500 transition-shadow"
                                 value={selectedMonthYear}
                                 onChange={(e) => setSelectedMonthYear(e.target.value)}
                             >
@@ -965,21 +975,21 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             <input
                                 type="text"
                                 placeholder="Filtrar por nombre..."
-                                className="p-3 border rounded-lg w-full md:w-1/2"
+                                className="p-4 border rounded-xl w-full md:w-1/2 focus:ring-2 focus:ring-blue-500 transition-shadow"
                                 value={filterText}
                                 onChange={(e) => setFilterText(e.target.value)}
                             />
                         </div>
                         {selectedMonthYear && (
-                            <p className="mt-4 text-xl font-bold text-gray-700">Ingreso total del mes: {formatPrice(totalMonthlyIncome)}</p>
+                            <p className="mt-6 text-xl font-bold text-gray-800">Ingreso total del mes: <span className="text-blue-600">{formatPrice(totalMonthlyIncome)}</span></p>
                         )}
                     </div>
                     {filteredClasses.length > 0 ? (
                         <div ref={reportTableRef}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {filteredClasses.map(cls => (
-                                    <div key={cls.id} className="bg-white p-4 rounded-lg shadow-md">
-                                        <div className="flex justify-between items-start mb-2">
+                                    <div key={cls.id} className="bg-white p-6 rounded-2xl shadow-xl transition-transform duration-200 hover:scale-[1.02]">
+                                        <div className="flex justify-between items-start mb-4">
                                             <div>
                                                 <p className="text-sm font-semibold text-gray-500">{cls.day}, {cls.date}</p>
                                                 <p className="text-2xl font-bold text-gray-800">{cls.time}</p>
@@ -988,18 +998,18 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                                 <span className="text-lg">{cls.studentCount}</span>
                                             </div>
                                         </div>
-                                        <div className="mb-2">
+                                        <div className="mb-4">
                                             {cls.studentNames.map(name => (
                                                 <p key={name} className="text-sm text-gray-700">{name}</p>
                                             ))}
                                         </div>
-                                        <p className="text-lg font-bold text-blue-800 mb-4">{formatPrice(cls.price)}</p>
-                                        <div className="flex justify-end gap-2 text-sm">
+                                        <p className="text-xl font-bold text-blue-800 mb-4">{formatPrice(cls.price)}</p>
+                                        <div className="flex justify-end gap-3 text-sm">
                                             <button onClick={() => editClass(cls)} className="text-blue-600 hover:text-blue-800 transition-colors">
-                                                <i className="fas fa-edit"></i>
+                                                <i className="fas fa-edit text-lg"></i>
                                             </button>
                                             <button onClick={() => deleteClass(cls.id, cls)} className="text-red-600 hover:text-red-800 transition-colors">
-                                                <i className="fas fa-trash-alt"></i>
+                                                <i className="fas fa-trash-alt text-lg"></i>
                                             </button>
                                         </div>
                                     </div>
@@ -1007,29 +1017,32 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             </div>
                         </div>
                     ) : (
-                        <p className="text-center text-gray-500 p-8 bg-white rounded-lg">No hay clases registradas para este filtro.</p>
+                        <div className="text-center text-gray-500 p-12 bg-white rounded-2xl shadow-lg">
+                            <i className="fas fa-list-alt text-5xl mb-4 text-gray-300"></i>
+                            <p className="text-lg font-semibold">No hay clases registradas para este filtro.</p>
+                        </div>
                     )}
-                    <button onClick={generatePDF} className="mt-4 w-full bg-blue-800 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-900 transition-colors">
+                    <button onClick={generatePDF} className="mt-6 w-full bg-blue-800 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:bg-blue-900 transition-colors transform hover:scale-[1.01]">
                         Descargar Reporte PDF
                     </button>
                 </>
             );
             const StudentListView = () => (
                 <>
-                    <h2 className="text-2xl font-bold mb-4">Listado de Alumnos</h2>
-                    <div className="bg-white p-6 rounded-lg shadow-md mb-4 flex flex-col md:flex-row gap-4">
+                    <h2 className="text-3xl font-extrabold text-gray-900 mb-6">Listado de Alumnos</h2>
+                    <div className="bg-white p-8 rounded-2xl shadow-xl mb-6 flex flex-col md:flex-row gap-4">
                         <div className="w-full md:w-1/2">
                             <input
                                 type="text"
                                 placeholder="Buscar por nombre o teléfono..."
-                                className="p-3 border rounded-lg w-full"
+                                className="p-4 border rounded-xl w-full focus:ring-2 focus:ring-blue-500 transition-shadow"
                                 value={studentSearch}
                                 onChange={(e) => setStudentSearch(e.target.value)}
                             />
                         </div>
                         <div className="w-full md:w-1/2">
                             <select
-                                className="p-3 border rounded-lg w-full"
+                                className="p-4 border rounded-xl w-full focus:ring-2 focus:ring-blue-500 transition-shadow"
                                 value={filterStatus}
                                 onChange={(e) => setFilterStatus(e.target.value)}
                             >
@@ -1040,14 +1053,14 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         </div>
                     </div>
                     {filteredStudentsList.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredStudentsList.map(stu => (
-                                <div key={stu.id} className="bg-white p-4 rounded-lg shadow-md">
-                                    <p className="font-bold text-lg mb-1">{stu.firstName} {stu.lastName}</p>
+                                <div key={stu.id} className="bg-white p-6 rounded-2xl shadow-xl transition-transform duration-200 hover:scale-[1.02]">
+                                    <p className="font-bold text-xl mb-1 text-gray-800">{stu.firstName} {stu.lastName}</p>
                                     <p className="text-sm text-gray-600 mb-1"><i className="fas fa-phone-alt mr-2 text-blue-800"></i>{stu.phone}</p>
                                     <p className="text-sm text-gray-600 mb-2"><i className="fas fa-info-circle mr-2 text-blue-800"></i>{stu.description || 'Sin descripción'}</p>
-                                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${stu.status === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{stu.status}</span>
-                                    <div className="flex justify-end gap-2 mt-4 text-sm">
+                                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${stu.status === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{stu.status}</span>
+                                    <div className="flex justify-end gap-3 mt-4 text-lg">
                                         <button onClick={() => sendWhatsApp(stu.phone)} className="text-green-600 hover:text-green-800 transition-colors">
                                             <i className="fab fa-whatsapp"></i>
                                         </button>
@@ -1062,21 +1075,24 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             ))}
                         </div>
                     ) : (
-                        <p className="text-center text-gray-500 p-8 bg-white rounded-lg">No se encontraron alumnos con esos filtros.</p>
+                        <div className="text-center text-gray-500 p-12 bg-white rounded-2xl shadow-lg">
+                            <i className="fas fa-users text-5xl mb-4 text-gray-300"></i>
+                            <p className="text-lg font-semibold">No se encontraron alumnos con esos filtros.</p>
+                        </div>
                     )}
                 </>
             );
             const PaymentsView = () => (
                 <>
-                    <h2 className="text-2xl font-bold mb-4">Pagos de Club</h2>
-                    <div className="bg-white p-6 rounded-lg shadow-md mb-4">
-                        <h3 className="text-xl font-bold mb-2">Ingresar Nuevo Pago</h3>
+                    <h2 className="text-3xl font-extrabold text-gray-900 mb-6">Pagos de Club</h2>
+                    <div className="bg-white p-8 rounded-2xl shadow-xl mb-6">
+                        <h3 className="text-xl font-bold mb-4 text-gray-800">Ingresar Nuevo Pago</h3>
                         <input
                             type="date"
                             name="date"
                             value={newPayment.date}
                             onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
-                            className="p-3 w-full border rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 transition-shadow"
+                            className="p-4 w-full border rounded-xl mb-3 focus:ring-2 focus:ring-blue-500 transition-shadow"
                         />
                         <input
                             type="number"
@@ -1084,26 +1100,26 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             placeholder="Monto"
                             value={newPayment.amount || ''}
                             onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
-                            className="p-3 w-full border rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 transition-shadow"
+                            className="p-4 w-full border rounded-xl mb-3 focus:ring-2 focus:ring-blue-500 transition-shadow"
                         />
                         <textarea
                             name="description"
                             placeholder="Descripción (opcional)"
                             value={newPayment.description}
                             onChange={(e) => setNewPayment({ ...newPayment, description: e.target.value })}
-                            className="p-3 w-full border rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 transition-shadow"
+                            className="p-4 w-full border rounded-xl mb-4 focus:ring-2 focus:ring-blue-500 transition-shadow"
                             rows="2"
                         ></textarea>
                         <button
                             onClick={addPayment}
-                            className={`w-full py-3 px-6 rounded-lg font-bold transition-colors shadow-md ${isEditingPayment ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'} text-white`}
+                            className={`w-full py-4 rounded-xl font-bold transition-colors shadow-lg ${isEditingPayment ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'} text-white transform hover:scale-[1.01]`}
                         >
                             {isEditingPayment ? 'Actualizar Pago' : 'Añadir Pago'}
                         </button>
                     </div>
-                    <h3 className="text-xl font-bold mb-2">Historial de Pagos ({payments.length})</h3>
-                    <div ref={annualPaymentsReportRef} className="bg-white p-6 rounded-lg shadow-md mb-4">
-                        <h4 className="text-lg font-bold mb-2">Reporte Anual de Pagos</h4>
+                    <h3 className="text-xl font-bold text-gray-800 mb-4">Historial de Pagos ({payments.length})</h3>
+                    <div ref={annualPaymentsReportRef} className="bg-white p-8 rounded-2xl shadow-xl mb-6">
+                        <h4 className="text-lg font-bold text-gray-800 mb-2">Reporte Anual de Pagos</h4>
                         {Object.keys(annualPaymentsReport).length > 0 ? (
                             Object.keys(annualPaymentsReport).sort().map(year => (
                                 <div key={year} className="mb-2">
@@ -1113,18 +1129,18 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         ) : (
                             <p className="text-gray-500">No hay pagos registrados para este año.</p>
                         )}
-                        <button onClick={generateAnnualPaymentsPDF} className="mt-4 w-full bg-blue-800 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-900 transition-colors">
+                        <button onClick={generateAnnualPaymentsPDF} className="mt-4 w-full bg-blue-800 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:bg-blue-900 transition-colors transform hover:scale-[1.01]">
                             Descargar Reporte Anual PDF
                         </button>
                     </div>
                     {payments.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {payments.map(payment => (
-                                <div key={payment.id} className="bg-white p-4 rounded-lg shadow-md">
+                                <div key={payment.id} className="bg-white p-6 rounded-2xl shadow-xl transition-transform duration-200 hover:scale-[1.02]">
                                     <p className="text-sm font-semibold text-gray-500">{payment.date}</p>
-                                    <p className="text-xl font-bold text-blue-800">{formatPrice(payment.amount)}</p>
+                                    <p className="text-2xl font-bold text-blue-800 mb-2">{formatPrice(payment.amount)}</p>
                                     <p className="text-sm text-gray-700">{payment.description || 'Sin descripción'}</p>
-                                    <div className="flex justify-end gap-2 mt-4 text-sm">
+                                    <div className="flex justify-end gap-3 mt-4 text-lg">
                                         <button onClick={() => editPayment(payment)} className="text-blue-600 hover:text-blue-800 transition-colors">
                                             <i className="fas fa-edit"></i>
                                         </button>
@@ -1136,29 +1152,32 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             ))}
                         </div>
                     ) : (
-                        <p className="text-center text-gray-500 p-8 bg-white rounded-lg">No se han registrado pagos.</p>
+                        <div className="text-center text-gray-500 p-12 bg-white rounded-2xl shadow-lg">
+                            <i className="fas fa-money-bill-wave text-5xl mb-4 text-gray-300"></i>
+                            <p className="text-lg font-semibold">No se han registrado pagos.</p>
+                        </div>
                     )}
                 </>
             );
             const ConfigView = () => (
                 <>
-                    <h2 className="text-2xl font-bold mb-4">Configuración de Precios</h2>
-                    <div className="bg-white p-6 rounded-lg shadow-md mb-4">
-                        <p className="mb-2 text-sm text-gray-600">Configura el precio por clase según la cantidad de alumnos.</p>
+                    <h2 className="text-3xl font-extrabold text-gray-900 mb-6">Configuración de Precios</h2>
+                    <div className="bg-white p-8 rounded-2xl shadow-xl mb-6">
+                        <p className="mb-4 text-sm text-gray-600">Configura el precio por clase según la cantidad de alumnos.</p>
                         {peopleOptions.map(count => (
-                            <div key={count} className="mb-2">
+                            <div key={count} className="mb-4">
                                 <label className="block text-sm font-bold text-gray-700 mb-1">{count} Alumno{count > 1 ? 's' : ''}</label>
                                 <input
                                     type="number"
                                     value={customPrices[count] || ''}
                                     onChange={(e) => handleCustomPriceChange(count, e.target.value)}
-                                    className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                    className="p-4 w-full border rounded-xl focus:ring-2 focus:ring-blue-500 transition-shadow"
                                 />
                             </div>
                         ))}
                         <button
                             onClick={saveCustomPrices}
-                            className="mt-4 w-full bg-blue-800 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-900 transition-colors"
+                            className="mt-4 w-full bg-blue-800 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:bg-blue-900 transition-colors transform hover:scale-[1.01]"
                         >
                             Guardar Precios
                         </button>
@@ -1167,20 +1186,23 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             );
             const ActivityLogView = () => (
                 <>
-                    <h2 className="text-2xl font-bold mb-4">Registro de Actividad</h2>
+                    <h2 className="text-3xl font-extrabold text-gray-900 mb-6">Registro de Actividad</h2>
                     {activityLog.length > 0 ? (
-                        <div className="bg-white rounded-lg shadow-md">
+                        <div className="bg-white rounded-2xl shadow-xl">
                             <ul className="divide-y divide-gray-200">
                                 {activityLog.map(log => (
-                                    <li key={log.id} className="p-4 flex justify-between items-center">
-                                        <p className="text-sm text-gray-700">{log.details}</p>
-                                        <span className="text-xs text-gray-400">{formatDate(log.timestamp)}</span>
+                                    <li key={log.id} className="p-5 flex flex-col md:flex-row justify-between items-start md:items-center">
+                                        <p className="text-base text-gray-700 font-medium md:mb-0 mb-2">{log.details}</p>
+                                        <span className="text-sm text-gray-400 font-mono">{formatDate(log.timestamp)}</span>
                                     </li>
                                 ))}
                             </ul>
                         </div>
                     ) : (
-                        <p className="text-center text-gray-500 p-8 bg-white">No hay actividad reciente.</p>
+                        <div className="text-center text-gray-500 p-12 bg-white rounded-2xl shadow-lg">
+                            <i className="fas fa-history text-5xl mb-4 text-gray-300"></i>
+                            <p className="text-lg font-semibold">No hay actividad reciente.</p>
+                        </div>
                     )}
                 </>
             );
@@ -1197,67 +1219,67 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                     { name: "Config", icon: "fas fa-cogs", view: "config" },
                 ];
                 return (
-                    <div className="flex">
+                    <div className="flex min-h-screen bg-gray-100">
                         {loading && (
-                            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-300">
                                 <i className="fas fa-spinner fa-spin text-white text-4xl"></i>
                             </div>
                         )}
-                        <nav className="hidden md:flex flex-col bg-gray-800 text-white w-64 p-4 min-h-screen">
+                        <nav className="hidden md:flex flex-col bg-gray-800 text-white w-72 p-6 min-h-screen shadow-xl">
                             <div className="flex-grow">
-                                <div className="text-center text-2xl font-bold mb-8">Padel Pro</div>
+                                <div className="text-center text-3xl font-extrabold mb-10 text-blue-400">Padel Pro</div>
                                 {navItems.map(item => (
                                     <button
                                         key={item.name}
                                         onClick={() => setView(item.view)}
-                                        className={`w-full text-left py-3 px-4 rounded-lg flex items-center gap-3 transition-colors ${view === item.view ? 'bg-blue-600' : 'hover:bg-gray-700'}`}
+                                        className={`w-full text-left py-4 px-6 rounded-xl flex items-center gap-4 transition-colors duration-200 ${view === item.view ? 'bg-blue-600 shadow-lg text-white' : 'hover:bg-gray-700 text-gray-300 hover:text-white'}`}
                                     >
-                                        <i className={item.icon}></i>
-                                        <span className="font-semibold">{item.name}</span>
+                                        <i className={`text-xl ${item.icon}`}></i>
+                                        <span className="font-semibold text-lg">{item.name}</span>
                                     </button>
                                 ))}
                             </div>
-                            <div className="mt-8">
+                            <div className="mt-12 text-center">
                                 <p className="text-xs text-gray-400 mb-2">Sesión iniciada como:</p>
-                                <p className="text-sm font-semibold">{userEmail}</p>
-                                <button onClick={signOutUser} className="mt-4 w-full text-left py-2 px-4 rounded-lg flex items-center gap-3 bg-red-600 hover:bg-red-700 transition-colors">
+                                <p className="text-sm font-semibold text-gray-200 mb-4">{userEmail}</p>
+                                <button onClick={signOutUser} className="w-full text-left py-3 px-6 rounded-xl flex items-center gap-3 bg-red-600 hover:bg-red-700 transition-colors shadow-lg justify-center">
                                     <i className="fas fa-sign-out-alt"></i>
                                     <span className="font-semibold">Cerrar Sesión</span>
                                 </button>
                             </div>
                         </nav>
-                        <div className="flex-1 p-6">
-                            <div className="md:hidden flex justify-between items-center bg-white p-4 rounded-lg shadow-md mb-4">
-                                <div className="text-lg font-bold">Menú</div>
+                        <div className="flex-1 p-8">
+                            <div className="md:hidden flex justify-between items-center bg-white p-4 rounded-xl shadow-md mb-6">
+                                <div className="text-xl font-bold text-gray-800">Menú</div>
                                 <button onClick={() => setShowConfigModal(!showConfigModal)} className="text-gray-600 hover:text-gray-800">
-                                    <i className="fas fa-bars text-xl"></i>
+                                    <i className="fas fa-bars text-2xl"></i>
                                 </button>
                             </div>
-                            <h1 className="text-3xl font-bold text-gray-800 mb-6">Panel de Control</h1>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                                <div className="bg-white p-4 rounded-lg shadow-md">
-                                    <i className="fas fa-calendar-alt text-blue-600 text-2xl mb-2"></i>
+                            <h1 className="text-4xl font-extrabold text-gray-900 mb-8 border-b pb-4 border-gray-200">Panel de Control</h1>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center transition-transform duration-200 hover:scale-[1.03]">
+                                    <i className="fas fa-calendar-alt text-blue-600 text-4xl mb-2"></i>
                                     <p className="text-sm text-gray-500">Clases del mes</p>
-                                    <p className="text-xl font-bold">{monthlyReports[new Date().toISOString().substring(0, 7)]?.classCount || 0}</p>
+                                    <p className="text-2xl font-bold mt-1 text-gray-800">{monthlyReports[new Date().toISOString().substring(0, 7)]?.classCount || 0}</p>
                                 </div>
-                                <div className="bg-white p-4 rounded-lg shadow-md">
-                                    <i className="fas fa-users text-green-600 text-2xl mb-2"></i>
+                                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center transition-transform duration-200 hover:scale-[1.03]">
+                                    <i className="fas fa-users text-green-600 text-4xl mb-2"></i>
                                     <p className="text-sm text-gray-500">Alumnos registrados</p>
-                                    <p className="text-xl font-bold">{students.length}</p>
+                                    <p className="text-2xl font-bold mt-1 text-gray-800">{students.length}</p>
                                 </div>
-                                <div className="bg-white p-4 rounded-lg shadow-md">
-                                    <i className="fas fa-dollar-sign text-purple-600 text-2xl mb-2"></i>
+                                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center transition-transform duration-200 hover:scale-[1.03]">
+                                    <i className="fas fa-dollar-sign text-purple-600 text-4xl mb-2"></i>
                                     <p className="text-sm text-gray-500">Ingreso mensual</p>
-                                    <p className="text-xl font-bold">{formatPrice(monthlyReports[new Date().toISOString().substring(0, 7)]?.totalIncome || 0)}</p>
+                                    <p className="text-2xl font-bold mt-1 text-gray-800">{formatPrice(monthlyReports[new Date().toISOString().substring(0, 7)]?.totalIncome || 0)}</p>
                                 </div>
-                                <div className="bg-white p-4 rounded-lg shadow-md">
-                                    <i className="fas fa-wallet text-yellow-600 text-2xl mb-2"></i>
+                                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center transition-transform duration-200 hover:scale-[1.03]">
+                                    <i className="fas fa-wallet text-yellow-600 text-4xl mb-2"></i>
                                     <p className="text-sm text-gray-500">Pagos de club (año)</p>
-                                    <p className="text-xl font-bold">{formatPrice(annualPaymentsReport[new Date().getFullYear()]?.totalAmount || 0)}</p>
+                                    <p className="text-2xl font-bold mt-1 text-gray-800">{formatPrice(annualPaymentsReport[new Date().getFullYear()]?.totalAmount || 0)}</p>
                                 </div>
                             </div>
                             {isEditing && view === 'add' && (
-                                <div className="mb-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700">
+                                <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-lg">
                                     Estás editando una clase.
                                 </div>
                             )}
@@ -1268,34 +1290,34 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                             const today = new Date().toISOString().split('T')[0];
                                             return (
                                                 <>
-                                                    <h2 className="text-2xl font-bold mb-4">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
-                                                    <div className="bg-white p-6 rounded-lg shadow-md">
+                                                    <h2 className="text-3xl font-extrabold text-gray-900 mb-6">{isEditing ? 'Editar Clase' : 'Añadir Nueva Clase'}</h2>
+                                                    <div className="bg-white p-8 rounded-2xl shadow-xl">
                                                         <div className="mb-4">
-                                                            <label className="block text-sm font-bold text-gray-700 mb-1">Fecha</label>
+                                                            <label className="block text-sm font-bold text-gray-700 mb-2">Fecha</label>
                                                             <input
                                                                 type="date"
                                                                 name="date"
                                                                 value={newEntry.date || today}
                                                                 onChange={handleDateChange}
-                                                                className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                                className="p-4 w-full border rounded-xl focus:ring-2 focus:ring-blue-500 transition-shadow"
                                                             />
                                                         </div>
                                                         <div className="mb-4">
-                                                            <label className="block text-sm font-bold text-gray-700 mb-1">Día de la semana</label>
+                                                            <label className="block text-sm font-bold text-gray-700 mb-2">Día de la semana</label>
                                                             <input
                                                                 type="text"
                                                                 value={newEntry.day}
                                                                 readOnly
-                                                                className="p-3 w-full border rounded-lg bg-gray-100 text-gray-500"
+                                                                className="p-4 w-full border rounded-xl bg-gray-100 text-gray-500"
                                                             />
                                                         </div>
                                                         <div className="mb-4">
-                                                            <label className="block text-sm font-bold text-gray-700 mb-1">Hora</label>
+                                                            <label className="block text-sm font-bold text-gray-700 mb-2">Hora</label>
                                                             <select
                                                                 name="time"
                                                                 value={newEntry.time}
                                                                 onChange={handleNewEntryChange}
-                                                                className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                                className="p-4 w-full border rounded-xl focus:ring-2 focus:ring-blue-500 transition-shadow"
                                                             >
                                                                 {timesOfDay.map(time => (
                                                                     <option key={time} value={time}>{time}</option>
@@ -1303,12 +1325,12 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                                             </select>
                                                         </div>
                                                         <div className="mb-4">
-                                                            <label className="block text-sm font-bold text-gray-700 mb-1">Cantidad de Alumnos</label>
+                                                            <label className="block text-sm font-bold text-gray-700 mb-2">Cantidad de Alumnos</label>
                                                             <select
                                                                 name="studentCount"
                                                                 value={newEntry.studentCount}
                                                                 onChange={handleNewEntryChange}
-                                                                className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                                className="p-4 w-full border rounded-xl focus:ring-2 focus:ring-blue-500 transition-shadow"
                                                             >
                                                                 {peopleOptions.map(count => (
                                                                     <option key={count} value={count}>{count}</option>
@@ -1316,7 +1338,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                                             </select>
                                                         </div>
                                                         <div className="mb-4">
-                                                            <label className="block text-sm font-bold text-gray-700 mb-1">Alumnos</label>
+                                                            <label className="block text-sm font-bold text-gray-700 mb-2">Alumnos</label>
                                                             {Array.from({ length: newEntry.studentCount }).map((_, index) => (
                                                                 <AutocompleteStudentInput
                                                                     key={index}
@@ -1329,18 +1351,18 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                                             ))}
                                                         </div>
                                                         <div className="mb-4">
-                                                            <label className="block text-sm font-bold text-gray-700 mb-1">Precio</label>
+                                                            <label className="block text-sm font-bold text-gray-700 mb-2">Precio</label>
                                                             <input
                                                                 type="number"
                                                                 name="price"
                                                                 value={newEntry.price}
                                                                 onChange={handleNewEntryChange}
-                                                                className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                                className="p-4 w-full border rounded-xl focus:ring-2 focus:ring-blue-500 transition-shadow"
                                                             />
                                                         </div>
                                                         <button
                                                             onClick={addClass}
-                                                            className={`w-full py-3 px-6 rounded-lg font-bold transition-colors shadow-md ${isEditing ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-800 hover:bg-blue-900'} text-white`}
+                                                            className={`w-full py-4 rounded-xl font-bold transition-colors shadow-lg ${isEditing ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-800 hover:bg-blue-900'} text-white transform hover:scale-[1.01]`}
                                                         >
                                                             {isEditing ? 'Actualizar Clase' : 'Añadir Clase'}
                                                         </button>
@@ -1354,15 +1376,15 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                         case 'addStudent':
                                             return (
                                                 <>
-                                                    <h2 className="text-2xl font-bold mb-4">{isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}</h2>
-                                                    <div className="bg-white p-6 rounded-lg shadow-md">
+                                                    <h2 className="text-3xl font-extrabold text-gray-900 mb-6">{isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}</h2>
+                                                    <div className="bg-white p-8 rounded-2xl shadow-xl">
                                                         <input
                                                             type="text"
                                                             name="firstName"
                                                             placeholder="Nombre"
                                                             value={newStudent.firstName}
                                                             onChange={(e) => setNewStudent({ ...newStudent, firstName: e.target.value })}
-                                                            className="p-3 w-full border rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                            className="p-4 w-full border rounded-xl mb-3 focus:ring-2 focus:ring-blue-500 transition-shadow"
                                                         />
                                                         <input
                                                             type="text"
@@ -1370,7 +1392,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                                             placeholder="Apellido"
                                                             value={newStudent.lastName}
                                                             onChange={(e) => setNewStudent({ ...newStudent, lastName: e.target.value })}
-                                                            className="p-3 w-full border rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                            className="p-4 w-full border rounded-xl mb-3 focus:ring-2 focus:ring-blue-500 transition-shadow"
                                                         />
                                                         <input
                                                             type="tel"
@@ -1378,23 +1400,23 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                                             placeholder="Teléfono (ej: 549381XXXXXXX)"
                                                             value={newStudent.phone}
                                                             onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
-                                                            className="p-3 w-full border rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                            className="p-4 w-full border rounded-xl mb-3 focus:ring-2 focus:ring-blue-500 transition-shadow"
                                                         />
                                                         <textarea
                                                             name="description"
                                                             placeholder="Descripción (opcional)"
                                                             value={newStudent.description}
                                                             onChange={(e) => setNewStudent({ ...newStudent, description: e.target.value })}
-                                                            className="p-3 w-full border rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                            className="p-4 w-full border rounded-xl mb-4 focus:ring-2 focus:ring-blue-500 transition-shadow"
                                                             rows="2"
                                                         ></textarea>
                                                         <div className="mb-4">
-                                                            <label className="block text-sm font-bold text-gray-700 mb-1">Estado</label>
+                                                            <label className="block text-sm font-bold text-gray-700 mb-2">Estado</label>
                                                             <select
                                                                 name="status"
                                                                 value={newStudent.status}
                                                                 onChange={(e) => setNewStudent({ ...newStudent, status: e.target.value })}
-                                                                className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                                className="p-4 w-full border rounded-xl focus:ring-2 focus:ring-blue-500 transition-shadow"
                                                             >
                                                                 <option value="Activo">Activo</option>
                                                                 <option value="Inactivo">Inactivo</option>
@@ -1402,7 +1424,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                                         </div>
                                                         <button
                                                             onClick={addStudent}
-                                                            className={`w-full py-3 px-6 rounded-lg font-bold transition-colors shadow-md ${isEditingStudent ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'} text-white`}
+                                                            className={`w-full py-4 rounded-xl font-bold transition-colors shadow-lg ${isEditingStudent ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'} text-white transform hover:scale-[1.01]`}
                                                         >
                                                             {isEditingStudent ? 'Actualizar Alumno' : 'Añadir Alumno'}
                                                         </button>
@@ -1413,7 +1435,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                                                     setEditedStudentId(null);
                                                                     setNewStudent({ firstName: '', lastName: '', phone: '', description: '', status: 'Activo' });
                                                                 }}
-                                                                className="mt-2 w-full py-3 px-6 rounded-lg font-bold transition-colors shadow-md bg-gray-400 hover:bg-gray-500 text-white"
+                                                                className="mt-4 w-full py-4 rounded-xl font-bold transition-colors shadow-md bg-gray-400 hover:bg-gray-500 text-white transform hover:scale-[1.01]"
                                                             >
                                                                 Cancelar
                                                             </button>
@@ -1444,23 +1466,23 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 return (
                     <div className="flex items-center justify-center min-h-screen bg-gray-200">
                         {loading && (
-                            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-300">
                                 <i className="fas fa-spinner fa-spin text-white text-4xl"></i>
                             </div>
                         )}
-                        <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center transform transition-all duration-300 ease-in-out scale-100 hover:scale-105">
-                            <h2 className="text-3xl font-bold text-gray-800 mb-6">Padel Pro</h2>
-                            <div className="relative mb-4">
+                        <div className="bg-white p-12 rounded-3xl shadow-2xl w-full max-w-lg text-center transform transition-all duration-300 ease-in-out scale-100 hover:scale-[1.02]">
+                            <h2 className="text-4xl font-extrabold text-gray-900 mb-8">Padel Pro</h2>
+                            <div className="relative mb-6">
                                 <i className="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                                 <input
                                     type="email"
                                     placeholder="Email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="p-4 pl-12 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                    className="p-5 pl-12 w-full border rounded-xl focus:ring-2 focus:ring-blue-500 transition-shadow"
                                 />
                             </div>
-                            <div className="relative mb-4">
+                            <div className="relative mb-6">
                                 <i className="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                                 <input
                                     type="password"
@@ -1468,20 +1490,20 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === 'Enter') { isSigningUp ? signUp() : signIn(); } }}
-                                    className="p-4 pl-12 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                    className="p-5 pl-12 w-full border rounded-xl focus:ring-2 focus:ring-blue-500 transition-shadow"
                                 />
                             </div>
                             <button
                                 onClick={isSigningUp ? signUp : signIn}
-                                className={`w-full py-4 rounded-lg font-bold transition-colors ${isSigningUp ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-800 hover:bg-blue-900'} text-white shadow-lg`}
+                                className={`w-full py-5 rounded-xl font-bold transition-colors ${isSigningUp ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-800 hover:bg-blue-900'} text-white shadow-lg transform hover:scale-[1.01]`}
                             >
                                 {isSigningUp ? 'Crear Cuenta' : 'Iniciar Sesión'}
                             </button>
-                            <div className="mt-4 text-center">
-                                <a href="#" onClick={(e) => { e.preventDefault(); setIsSigningUp(!isSigningUp); }} className="text-sm text-blue-600 hover:underline transition-colors">
+                            <div className="mt-6 text-center">
+                                <a href="#" onClick={(e) => { e.preventDefault(); setIsSigningUp(!isSigningUp); }} className="text-sm font-semibold text-blue-600 hover:underline transition-colors">
                                     {isSigningUp ? '¿Ya tienes una cuenta? Iniciar Sesión' : '¿No tienes cuenta? Regístrate'}
                                 </a>
-                                <p className="mt-2 text-sm">
+                                <p className="mt-3 text-sm">
                                     <a href="#" onClick={(e) => { e.preventDefault(); handlePasswordReset(); }} className="text-gray-500 hover:underline transition-colors">
                                         ¿Olvidaste tu contraseña?
                                     </a>
