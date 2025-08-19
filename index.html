@@ -897,72 +897,87 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 }
                 return filtered;
             }, [classes, selectedMonthYear, filterText]);
-            const DailyReportView = ({ classes }) => {
-            const getTodayStr = () => {
-                const today = new Date();
-                return today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-            };
+            const DailyReportView = () => {
+    const [selectedDate, setSelectedDate] = React.useState(new Date());
 
-            const [selectedDate, setSelectedDate] = useState(getTodayStr());
+    // Formato YYYY-MM-DD para comparar con `cls.date`
+    const selectedDateStr = selectedDate.getFullYear() + '-' + String(selectedDate.getMonth() + 1).padStart(2, '0') + '-' + String(selectedDate.getDate()).padStart(2, '0');
+    const dailyClasses = classes.filter(cls => cls.date === selectedDateStr);
+    const totalEarnings = dailyClasses.reduce((sum, cls) => sum + cls.price, 0);
 
-            const todaysClasses = classes.filter(cls => cls.date === selectedDate);
-            const totalEarnings = todaysClasses.reduce((sum, cls) => sum + cls.price, 0);
+    const changeDay = (days) => {
+        setSelectedDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setDate(newDate.getDate() + days);
+            return newDate;
+        });
+    };
 
-            return (
-                <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl mx-auto mt-8">
-                    <header className="text-center mb-6">
-                        <h1 className="text-3xl font-bold text-gray-800">Reporte Diario de Clases</h1>
-                        <p className="text-gray-500 mt-2">Resumen de ganancias y clases.</p>
-                    </header>
-                    <div className="mb-6 flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-                        <label className="font-semibold text-gray-700">Seleccionar fecha:</label>
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="p-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-                    <div className="text-center text-sm text-gray-600 mb-6">
-                        <p>
-                            Reporte para: **
-                            {new Date(selectedDate).toLocaleDateString('es-AR', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                            })}
-                            **
-                        </p>
-                    </div>
+    return (
+        <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl mx-auto mt-8">
+            <header className="text-center mb-6">
+                <h1 className="text-3xl font-bold text-gray-800">Reporte Diario de Clases</h1>
+                <p className="text-gray-500 mt-2">Resumen de ganancias y clases del día seleccionado.</p>
+            </header>
 
-                    <div className="space-y-4">
-                        <p className="text-xl font-bold text-gray-700 text-center">
-                            Ganancias Totales: <span className="text-green-600">{formatPrice(totalEarnings)}</span>
-                        </p>
-                        {todaysClasses.length > 0 ? (
-                            <ul className="divide-y divide-gray-200">
-                                {todaysClasses.map((cls) => (
-                                    <li key={cls.id} className="py-4 flex items-center justify-between">
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-lg text-gray-800">Clase de {cls.studentCount} alumno(s)</p>
-                                            <p className="text-sm text-gray-500 truncate">
-                                                {cls.studentNames.join(', ')} - {cls.time}
-                                            </p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-bold text-lg text-green-600">{formatPrice(cls.price)}</p>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-center text-gray-500 p-8 bg-white rounded-xl shadow-inner mt-4">No hay clases registradas para esta fecha.</p>
-                        )}
-                    </div>
+            {/* Controles de navegación de fecha */}
+            <div className="flex justify-center items-center space-x-4 mb-6">
+                <button 
+                    onClick={() => changeDay(-1)} 
+                    className="p-2 rounded-full bg-gray-200 hover:bg-gray-300"
+                    title="Día anterior"
+                >
+                    <i className="fas fa-arrow-left"></i>
+                </button>
+
+                <p className="text-lg font-semibold text-gray-700">
+                    {selectedDate.toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+
+                <button 
+                    onClick={() => changeDay(1)} 
+                    className="p-2 rounded-full bg-gray-200 hover:bg-gray-300"
+                    title="Día siguiente"
+                >
+                    <i className="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            {/* Listado de clases */}
+            <div className="space-y-4">
+                {dailyClasses.length > 0 ? (
+                    dailyClasses.map(clase => (
+                        <div key={clase.id} className="bg-gray-50 p-4 rounded-lg shadow-sm flex justify-between items-center">
+                            <div>
+                                <p className="text-sm text-gray-500">Clase de las {clase.time}</p>
+                                <p className="text-base font-semibold text-gray-800">
+                                    Alumnos: {clase.studentNames.join(', ')}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm text-gray-500">Ganancia</p>
+                                <p className="text-lg font-bold text-green-600">{formatPrice(clase.price)}</p>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-center text-gray-500">No hay clases registradas para este día.</p>
+                )}
+            </div>
+
+            {/* Total diario */}
+            <div className="mt-8 pt-4 border-t border-gray-200">
+                <div className="flex justify-between items-center text-lg font-semibold text-gray-800">
+                    <span>Ganancia Total del Día:</span>
+                    <span className="text-2xl font-bold text-green-600">{formatPrice(totalEarnings)}</span>
                 </div>
-            );
-        };
+            </div>
+        </div>
+    );
+};
+
+
+
             const exportData = () => {
                 const data = JSON.stringify({ classes, students, payments }, null, 2);
                 const blob = new Blob([data], { type: 'application/json' });
