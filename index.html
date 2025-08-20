@@ -36,7 +36,14 @@
 
         // Global variables provided by the environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const firebaseConfig = {
+            apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+            authDomain: "app-de-padel.firebaseapp.com",
+            projectId: "app-de-padel",
+            storageBucket: "app-de-padel.firebasestorage.app",
+            messagingSenderId: "731771747398",
+            appId: "1:731771747398:web:ebc8b723fe220869fade47"
+        };
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // Initialize Firebase
@@ -1679,3 +1686,4 @@
     </script>
 </body>
 </html>
+
