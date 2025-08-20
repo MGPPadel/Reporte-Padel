@@ -864,10 +864,9 @@ const ModalEdicionClase = ({ clase, alumnosDisponibles, onClose, onSave }) => {
                     const studentsQuery = window.query(studentsColRef);
                   
                      const unsubscribeStudents = window.onSnapshot(studentsQuery, (snapshot) => {
-                        const fetchedStudents = snapshot.docs.map(doc 
- => ({ id: doc.id, ...doc.data() }));
-                        setStudents(fetchedStudents.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '')));
-                        getClasesManana(); // NUEVO CÓDIGO: Llama a la función de clases de mañana cada vez que los alumnos cambian
+                       const fetchedStudents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                       setStudents(fetchedStudents.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '')));
+                       getClasesManana(); // NUEVO CÓDIGO: Llama a la función de clases de mañana cada vez que los alumnos cambian
                     });
 
                     const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
@@ -1807,4 +1806,5 @@ const ModalEdicionClase = ({ clase, alumnosDisponibles, onClose, onSave }) => {
     </script>
 </body>
 </html>
+
 
