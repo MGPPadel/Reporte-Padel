@@ -18,7 +18,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, setDoc, query, onSnapshot, writeBatch, Timestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         window.initializeApp = initializeApp;
         window.getAuth = getAuth;
@@ -1716,6 +1716,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     </script>
 </body>
 </html>
+
 
 
 
