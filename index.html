@@ -18,7 +18,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, browserSessionPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, setDoc, query, onSnapshot, writeBatch, Timestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         window.initializeApp = initializeApp;
         window.getAuth = getAuth;
@@ -355,18 +355,16 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             useEffect(() => {
                 initializeFirebase();
             }, []);
-            const signIn = async () => {
-                try {
-                    setLoading(true);
-                    const auth = authRef.current;
-                    await window.setPersistence(auth, window.browserLocalPersistence);
-                    await window.signInWithEmailAndPassword(auth, email, password);
-                } catch (error) {
-                    setMessageBox({
-                        show: true,
-                        title: 'Error de autenticación',
-                        content: 'Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.',
-                        type: 'error',
+       const signIn = async () => {
+  try {
+    const auth = getAuth();
+    await setPersistence(auth, browserLocalPersistence);
+    await signInWithEmailAndPassword(auth, email, password);
+    console.log("Sesión iniciada con persistencia local ✅");
+  } catch (error) {
+    console.error("Error signing in:", error);
+  }
+};
                         onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
                     console.error("Error signing in:", error);
@@ -1718,6 +1716,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     </script>
 </body>
 </html>
+
 
 
 
