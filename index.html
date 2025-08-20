@@ -361,9 +361,10 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     await setPersistence(auth, browserLocalPersistence);
     await signInWithEmailAndPassword(auth, email, password);
     console.log("Sesión iniciada con persistencia local ✅");
-  } catch (error) {alert("Error de autenticación");
+  } catch (error) {
+    alert("Error de autenticación");
     console.error(error);
-}
+  }
 };
                         onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
@@ -441,14 +442,17 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 }
             };
             const signOutUser = async () => {
-                try {
-                    await window.signOut(authRef.current);
-                    setUserId(null);
-                    setClasses([]);
-                } catch (error) {
-                    console.error("Error signing out:", error);
-                }
-            };
+  try {
+    const auth = getAuth();
+    await signOut(auth);
+    setUserId(null);
+    setClasses([]);
+    alert("Sesión cerrada correctamente ✅");
+  } catch (error) {
+    console.error("Error signing out:", error);
+  }
+};
+
             const saveCustomPrices = async () => {
                 if (!dbRef.current || !userId) return;
                 try {
@@ -1716,6 +1720,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     </script>
 </body>
 </html>
+
 
 
 
