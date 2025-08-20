@@ -254,7 +254,7 @@
             const [students, setStudents] = useState([]);
             const [payments, setPayments] = useState([]);
             const [activityLog, setActivityLog] = useState([]);
-            const [customPrices, setCustomPrices] = useState(defaultClassPrices);
+            const [customPrices, setCustomPrices] = defaultClassPrices);
             const [currentPage, setCurrentPage] = useState(1);
             const [classesPerPage, setClassesPerPage] = useState(10);
             const [newEntry, setNewEntry] = useState({
@@ -564,8 +564,7 @@
                 setMessageBox({
                     show: true,
                     title: 'Confirmar eliminación',
-                    content: '¿Estás seguro de que quieres eliminar a este alumno? Esta acción es 
-                    irreversible.',
+                    content: '¿Estás seguro de que quieres eliminar a este alumno? Esta acción es irreversible.',
                     type: 'confirm',
                     onConfirm: async () => {
                         if (!dbRef.current || !userId) return;
@@ -579,8 +578,7 @@
                             setMessageBox({ show: true, title: 'Alumno eliminado', content: 'El alumno ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
  
                         } catch (error) {
-                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar al alumno.
-                            Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar al alumno. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                             console.error("Error deleting student:", error);
                         } finally {
                             setLoading(false);
@@ -732,8 +730,7 @@
       
                     const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
                         const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        const sortedClasses = fetchedClasses.sort((a, 
-                            b) => new Date(b.date) - new Date(a.date));
+                        const sortedClasses = fetchedClasses.sort((a, b) => new Date(b.date) - new Date(a.date));
              
                         setClasses(sortedClasses);
                     });
@@ -894,7 +891,7 @@
                 const selectedDateStr = selectedDate.getFullYear() + '-' + String(selectedDate.getMonth() + 1).padStart(2, '0') + '-' + String(selectedDate.getDate()).padStart(2, '0');
                 const dailyClasses = classes.filter(cls => cls.date === selectedDateStr); const totalEarnings = dailyClasses.reduce((sum, cls) => sum + cls.price, 0);
                 const changeDay = (days) => { setSelectedDate(prev => { const newDate = new Date(prev); newDate.setDate(newDate.getDate() + days); return newDate; });
-                }; return ( <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl mx-auto mt-8"> <header className="text-center mb-6"> <h1 className="text-3xl font-bold text-gray-800">Reporte Diario de Clases</h1> <p className="text-gray-500...
+                }; return ( <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl mx-auto mt-8"> <header className="text-center mb-6"> <h1 className="text-3xl font-bold text-gray-800">Reporte Diario de Clases</h1> <p className="text-gray-500">
                     </p>
                     <div className="flex items-center justify-center space-x-4 mt-4">
                         <button className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 transition" onClick={() => changeDay(-1)}><i className="fas fa-arrow-left"></i></button>
