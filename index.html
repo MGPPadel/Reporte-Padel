@@ -255,11 +255,9 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 studentNames: [''],
                 studentIds: [''],
                 date: new Date().toISOString().split('T')[0],
-                day: daysOfWeek[new Date().getDay()],
-    
+                day: daysOfWeek[new Date().getDay()],   
                 time: timesOfDay[0],
-                price: defaultClassPrices[1] || 0,
-            });
+                price: defaultClassPrices[1] || 0,});
             const [newStudent, setNewStudent] = useState({
   firstName: '',
   lastName: '',
@@ -2125,6 +2123,7 @@ const TomorrowPanel = () => {
     </script>
 </body>
 </html>
+
 
 
 
