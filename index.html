@@ -623,7 +623,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             const editPayment = (paymentToEdit) => {
                 setNewPayment({ ...paymentToEdit, amount: paymentToEdit.amount.toString() });
                 setIsEditingPayment(true);
-                setEditedPaymentId(paymentToEdit.id);
+                setEditedPaymentId(paymentTo-edit.id);
             };
             const deletePayment = (paymentId) => {
                 setMessageBox({
@@ -808,16 +808,16 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             const editClass = (classToEdit) => { setNewEntry({ studentCount: classToEdit.studentCount, studentNames: classToEdit.studentNames, date: classToEdit.date, day: classToEdit.day, time: classToEdit.time, price: classToEdit.price, });
                 setIsEditing(true); setEditedClassId(classToEdit.id); setView('list'); }; const generatePDF = () => { if (!reportTableRef.current) return; setLoading(true); const input = reportTableRef.current;
                 window.html2canvas(input, { scale: 2 }).then((canvas) => { const imgData = canvas.toDataURL('image/png'); const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4'); const imgWidth = 210; const pageHeight = 295; const imgHeight = canvas.height * imgWidth / canvas.width; let heightLeft = imgHeight; let position = 0; pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight); heightLeft -= pageHeight; while (heightLeft >= 0) { position = heightLeft - imgHeight; pdf.addPage(); pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight); heightLeft -= pageHeight; } pdf.save(`informe_clases.pdf`); setLoading(false); }).catch(err => { console.error("Error generating PDF:", err); setLoading(false); });
-            }; const generateAnnualPaymentsPDF = () => { if (!annualPaymentsReportRef.current) return; setLoading(true); const input = annualPaymentsReportRef.current;
+            }; const generateAnnualPaymentsPDF = () => { if (!annualPaymentsReportRef.current) return; setLoading(true); const input = annualPaymentsReport.current;
                 window.html2canvas(input, { scale: 2 }).then((canvas) => { const imgData = canvas.toDataURL('image/png'); const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4'); const imgWidth = 210; const pageHeight = 295; const imgHeight = canvas.height * imgWidth / canvas.width; let heightLeft = imgHeight; let position = 0; pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight); heightLeft -= pageHeight; while (heightLeft >= 0) { position = heightLeft - imgHeight; pdf.addPage(); pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight); heightLeft -= pageHeight; } pdf.save(`informe_pagos_anual.pdf`); setLoading(false); }).catch(err => { console.error("Error generating annual payments PDF:", err); setLoading(false); });
             };
             const todaysClasses = classes.filter(c => new Date(c.date).toDateString() === new Date().toDateString());
             const totalIncomeToday = todaysClasses.reduce((sum, cls) => sum + cls.price, 0);
 
             const upcomingClasses = classes.filter(cls => {
-                const classDate = new Date(`${cls.date}T${cls.time}`);
+                const classDateTime = new Date(`${cls.date}T${cls.time.replace(' a.m.', ':00').replace(' p.m.', ':00')}`);
                 const now = new Date();
-                const diffInHours = (classDate - now) / (1000 * 60 * 60);
+                const diffInHours = (classDateTime - now) / (1000 * 60 * 60);
                 return diffInHours > 0 && diffInHours <= 24;
             }).sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
 
@@ -1051,7 +1051,33 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             <span className="font-bold text-lg text-gray-800">{students.length}</span>
                         </div>
                     </div>
-
+                    {upcomingClasses.length > 0 && (
+                        <div className="bg-white p-6 rounded-xl shadow-lg mb-8">
+                            <h2 className="text-2xl font-bold text-gray-800 border-b pb-2 mb-4">Próximas Clases (Próximas 24hs)</h2>
+                            <ul className="space-y-4">
+                                {upcomingClasses.map(cls => (
+                                    <li key={cls.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500 shadow-sm">
+                                        <div className="flex-1">
+                                            <p className="font-semibold text-gray-800">
+                                                <i className="fas fa-calendar-day mr-2"></i>
+                                                {cls.day}, {cls.date} - {cls.time}
+                                            </p>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                                <i className="fas fa-users mr-2"></i>
+                                                {cls.studentNames.join(', ')} ({cls.studentCount} Alumnos)
+                                            </p>
+                                        </div>
+                                        <div className="mt-2 md:mt-0 md:ml-4">
+                                            <button onClick={() => sendWhatsApp(students.find(s => s.id === cls.studentIds[0])?.phone)} className="py-1 px-3 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition-colors shadow-sm">
+                                                <i className="fab fa-whatsapp mr-1"></i>
+                                                Avisar
+                                            </button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                     <div className="bg-white p-6 rounded-xl shadow-lg mb-8">
                         <h2 className="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Navegación</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
