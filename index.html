@@ -248,6 +248,8 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             const [payments, setPayments] = useState([]);
             const [activityLog, setActivityLog] = useState([]);
             const [customPrices, setCustomPrices] = useState(defaultClassPrices);
+            const [currentPage, setCurrentPage] = useState(1);
+            const [classesPerPage, setClassesPerPage] = useState(10); 
             const [newEntry, setNewEntry] = useState({
                 studentCount: 1,
                 studentNames: [''],
@@ -899,15 +901,19 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 return Array.from(months).sort((a, b) => new Date(a) - new Date(b));
             }, [classes]);
             const filteredClasses = useMemo(() => {
-                let filtered = classes;
-                if (selectedMonthYear) {
-                    filtered = filtered.filter(cls => cls.date.startsWith(selectedMonthYear));
-                }
-                if (filterText) {
-                    filtered = filtered.filter(cls => cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase())));
-                }
-                return filtered;
-            }, [classes, selectedMonthYear, filterText]);
+    let filtered = classes;
+    if (selectedMonthYear) {
+        filtered = filtered.filter(cls => cls.date.startsWith(selectedMonthYear));
+    }
+    if (filterText) {
+        filtered = filtered.filter(cls => cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase())));
+    }
+    return filtered;
+}, [classes, selectedMonthYear, filterText]);
+            const indexOfLastClass = currentPage * classesPerPage;
+const indexOfFirstClass = indexOfLastClass - classesPerPage;
+const currentClasses = filteredClasses.slice(indexOfFirstClass, indexOfLastClass);
+            const totalPages = Math.ceil(filteredClasses.length / classesPerPage);
             const DailyReportView = () => {
     const [selectedDate, setSelectedDate] = React.useState(new Date());
 
@@ -1358,7 +1364,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                             </div>
                                           
                                                                  <div className="overflow-x-auto rounded-xl shadow-lg">
-                                                {filteredClasses.length > 0 ? (
+                                                {currentClasses.length > 0 ? (
                                                     <div className="bg-white">
                                                
                                                                          <div className="hidden md:grid grid-cols-7 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
@@ -1375,7 +1381,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                                                                </div>
                                                         <div className="divide-y divide-gray-200">
      
-                                                                                                                     {filteredClasses.map(cls => (
+                                                                                                                     {currentClasses.map(cls => (
                                            
                                                                                                  <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center ${colorMap[cls.studentCount]} md:rounded-none`}>
                                                                     <div className="text-sm text-gray-600 md:text-base">{cls.date}</div>
@@ -1421,13 +1427,32 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                                                                            </div>
                                                 ) : (
                  
-                                                                                     <p className="text-center text-gray-500 p-8 bg-white">No hay clases para los criterios seleccionados.</p>
+                                                                                     <p className="text-center text-gray-500 p-8 bg-white rounded-xl">No hay clases que coincidan con los filtros.</p>
+)}
                                                 )}
        
                                                                                </div>
                                         </>
-                       
-                                                     )}
+                       <div className="flex justify-center items-center mt-4 space-x-2">
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
+                                            className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
+                                        >
+                                            Anterior
+                                        </button>
+                                        <span className="text-gray-700">Página {currentPage} de {totalPages}</span>
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            disabled={currentPage === totalPages}
+                                            className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
+                                        >
+                                            Siguiente
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        
 
                                     {view === 'report' && (
                                         <div>
@@ -1729,6 +1754,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     </script>
 </body>
 </html>
+
 
 
 
