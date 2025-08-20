@@ -645,33 +645,25 @@ const ModalEdicionClase = ({ clase, alumnosDisponibles, onClose, onSave }) => {
                 setMessageBox({
                     show: true,
                     title: 'Confirmar eliminación',
-                    content: '¿Estás seguro de que quieres eliminar a este alumno? Esta acción es 
- irreversible.',
+                    content: '¿Estás seguro de que quieres eliminar a este alumno? Esta acción es irreversible.',
                     type: 'confirm',
                     onConfirm: async () => {
                         if (!dbRef.current || !userId) return;
                         try {
-  
-                                                     setLoading(true);
+                            setLoading(true);
                             const studentDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'students', studentId);
-          
-                   await window.deleteDoc(studentDocRef);
-        
-                                                 setMessageBox({ show: true, title: 'Alumno eliminado', content: 'El alumno ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
- 
+                            await window.deleteDoc(studentDocRef);
+                            setMessageBox({ show: true, title: 'Alumno eliminado', content: 'El alumno ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                         } catch (error) {
-                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar al alumno.
- Inténtalo de nuevo.', type: 
- 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar al alumno. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                             console.error("Error deleting student:", error);
- } finally {
+                        } finally {
                             setLoading(false);
- }
+                        }
                     },
                     onClose: () => setMessageBox({ ...messageBox, show: false })
                 });
- };
-
+            };
             const sendWhatsApp = (phone) => {
                 const formattedPhone = phone.replace(/\D/g, '');
                 const url = `https://wa.me/${formattedPhone}`;
@@ -1815,3 +1807,4 @@ const ModalEdicionClase = ({ clase, alumnosDisponibles, onClose, onSave }) => {
     </script>
 </body>
 </html>
+
