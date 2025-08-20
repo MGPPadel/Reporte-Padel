@@ -17,31 +17,32 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, setDoc, query, onSnapshot, writeBatch, Timestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        window.initializeApp = initializeApp;
-        window.getAuth = getAuth;
-        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
-        window.signOut = signOut;
-        window.onAuthStateChanged = onAuthStateChanged;
-        window.getFirestore = getFirestore;
-        window.collection = collection;
-        window.addDoc = addDoc;
-        window.getDocs = getDocs;
-        window.doc = doc;
-        window.deleteDoc = deleteDoc;
-        window.setDoc = setDoc;
-        window.query = query;
-        window.onSnapshot = onSnapshot;
-        window.writeBatch = writeBatch;
-        window.Timestamp = Timestamp;
-        window.getDoc = getDoc;
-        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
-        window.sendPasswordResetEmail = sendPasswordResetEmail;
-        window.browserSessionPersistence = browserSessionPersistence;
-        window.setPersistence = setPersistence;
-    </script>
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, browserSessionPersistence, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, setDoc, query, onSnapshot, writeBatch, Timestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    window.initializeApp = initializeApp;
+    window.getAuth = getAuth;
+    window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+    window.signOut = signOut;
+    window.onAuthStateChanged = onAuthStateChanged;
+    window.getFirestore = getFirestore;
+    window.collection = collection;
+    window.addDoc = addDoc;
+    window.getDocs = getDocs;
+    window.doc = doc;
+    window.deleteDoc = deleteDoc;
+    window.setDoc = setDoc;
+    window.query = query;
+    window.onSnapshot = onSnapshot;
+    window.writeBatch = writeBatch;
+    window.Timestamp = Timestamp;
+    window.getDoc = getDoc;
+    window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+    window.sendPasswordResetEmail = sendPasswordResetEmail;
+    window.browserSessionPersistence = browserSessionPersistence;
+    window.browserLocalPersistence = browserLocalPersistence;
+    window.setPersistence = setPersistence;
+</script>
 </head>
 <body class="bg-gray-100 font-sans">
     <div id="root"></div>
@@ -355,24 +356,25 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
             useEffect(() => {
                 initializeFirebase();
             }, []);
-       const signIn = async () => {
-  try {
-    const auth = getAuth();
-    await setPersistence(auth, browserLocalPersistence);
-    await signInWithEmailAndPassword(auth, email, password);
-    console.log("Sesión iniciada con persistencia local ✅");
-  } catch (error) {
-    alert("Error de autenticación");
-    console.error(error);
-  }
+            const signIn = async () => {
+    try {
+        setLoading(true);
+        const auth = authRef.current;
+        await window.setPersistence(auth, window.browserLocalPersistence); // CAMBIO AQUÍ
+        await window.signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+        setMessageBox({
+            show: true,
+            title: 'Error de autenticación',
+            content: 'Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.',
+            type: 'error',
+            onClose: () => setMessageBox({ ...messageBox, show: false })
+        });
+        console.error("Error signing in:", error);
+    } finally {
+        setLoading(false);
+    }
 };
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
-                    });
-                    console.error("Error signing in:", error);
-                } finally {
-                    setLoading(false);
-                }
-            };
             const signUp = async () => {
                 try {
                     setLoading(true);
@@ -442,17 +444,14 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 }
             };
             const signOutUser = async () => {
-  try {
-    const auth = getAuth();
-    await signOut(auth);
-    setUserId(null);
-    setClasses([]);
-    alert("Sesión cerrada correctamente ✅");
-  } catch (error) {
-    console.error("Error signing out:", error);
-  }
-};
-
+                try {
+                    await window.signOut(authRef.current);
+                    setUserId(null);
+                    setClasses([]);
+                } catch (error) {
+                    console.error("Error signing out:", error);
+                }
+            };
             const saveCustomPrices = async () => {
                 if (!dbRef.current || !userId) return;
                 try {
@@ -1720,10 +1719,6 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     </script>
 </body>
 </html>
-
-
-
-
 
 
 
