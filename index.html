@@ -261,13 +261,13 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 price: defaultClassPrices[1] || 0,
             });
             const [newStudent, setNewStudent] = useState({
-                firstName: '',
-                lastName: '',
-                phone: '',
-                description: '',
-                status: 'Activo',
-                weeklySchedule: []
- });           
+  firstName: '',
+  lastName: '',
+  phone: '',
+  description: '',
+  status: 'Activo',
+  weeklySchedule: []
+});  
             // === Helpers fecha "mañana" (hora local) ===
 const getTomorrowInfo = () => {
   const d = new Date();
@@ -2124,6 +2124,7 @@ const TomorrowPanel = () => {
     </script>
 </body>
 </html>
+
 
 
 
