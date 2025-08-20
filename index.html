@@ -360,8 +360,18 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     try {
         setLoading(true);
         const auth = authRef.current;
-        await window.setPersistence(auth, window.browserLocalPersistence); // CAMBIO AQUÍ
+        await window.setPersistence(auth, window.browserLocalPersistence);
         await window.signInWithEmailAndPassword(auth, email, password);
+
+        // Agregado: Muestra una alerta de éxito con el mensaje
+        setMessageBox({
+            show: true,
+            title: 'Inicio de Sesión Exitoso',
+            content: 'La sesión se mantendrá iniciada en este dispositivo.',
+            type: 'success',
+            onClose: () => setMessageBox({ ...messageBox, show: false })
+        });
+
     } catch (error) {
         setMessageBox({
             show: true,
@@ -1719,6 +1729,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     </script>
 </body>
 </html>
+
 
 
 
