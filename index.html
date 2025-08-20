@@ -359,7 +359,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                 try {
                     setLoading(true);
                     const auth = authRef.current;
-                    await window.setPersistence(auth, window.browserSessionPersistence);
+                    await window.setPersistence(auth, window.browserLocalPersistence);
                     await window.signInWithEmailAndPassword(auth, email, password);
                 } catch (error) {
                     setMessageBox({
