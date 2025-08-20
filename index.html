@@ -1344,114 +1344,83 @@ const currentClasses = filteredClasses.slice(indexOfFirstClass, indexOfLastClass
                                     </div>
 
                                     {view === 'list' && (
-                       
-                                                             <>
-                                            <div className="mb-6">
-                                      
-                                                                 <div className="flex flex-wrap gap-2 mb-4">
-                                                    <button onClick={() => setSelectedMonthYear('')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === '' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Todos</button>
-                                                    {uniqueMonths.map(monthYear => (
-                                         
-                                                                     <button key={monthYear} onClick={() => setSelectedMonthYear(monthYear)} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === monthYear ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>
-                                                            {formatMonthYear(monthYear)}
-     
-                                                                                             </button>
-                                                 
-                                                                     ))}
-                                                </div>
-                                                <input 
-                                                         type="text" placeholder="Buscar por alumno..." value={filterText} onChange={(e) => setFilterText(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full"/>
-                                            </div>
-                                          
-                                                                 <div className="overflow-x-auto rounded-xl shadow-lg">
-                                                {currentClasses.length > 0 ? (
-                                                    <div className="bg-white">
-                                               
-                                                                         <div className="hidden md:grid grid-cols-7 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
-                                                            <div>Fecha</div>
-                     
-                                                                                 <div>Día</div>
-                                                            <div>Hora</div>
- 
-                                                                                                                         <div className="col-span-2">Alumnos</div>
-                                        
-                                                                                 <div>Precio</div>
-                                                            <div className="text-center">Acciones</div>
-                   
-                                                                               </div>
-                                                        <div className="divide-y divide-gray-200">
-     
-                                                                                                                     {currentClasses.map(cls => (
-                                           
-                                                                                                 <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center ${colorMap[cls.studentCount]} md:rounded-none`}>
-                                                                    <div className="text-sm text-gray-600 md:text-base">{cls.date}</div>
-                                                                    <div className="text-sm text-gray-600 md:text-base">{cls.day}</div>
-                            
-                                                                                                 <div className="text-sm text-gray-600 md:text-base">{cls.time}</div>
-                                                         
-                                                                                               <div className="md:col-span-2">
-                                                                        {cls.studentCount > 1 ? (
-                                                                            <ul className="list-disc list-inside">
-                      
-                                                                                                                          {cls.studentNames.map((name, index) => <li key={index}>{name}</li>)}
-                                      
-                                                                                                                      </ul>
-                                                              
-                                                                                   ) : (
-                                                                            <span>{cls.studentNames[0]}</span>
-            
-                                                                                                                            )}
-                                        
-                                                                                                 </div>
-                                                                    <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
-  
-                                                                                                                                       <div className="flex justify-end md:justify-center space-x-2 mt-2 md:mt-0">
-                            
-                                                                                                                   <button onClick={() => editClass(cls)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar clase">
-                                                
-                                                                                                                                 <i className="fas fa-edit"></i>
-                                                                      
-                                                                                                                 </button>
-                                                                        <button onClick={() => deleteClass(cls.id, cls)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar clase">
-                 
-                                                                                                                                                           <i className="fas fa-trash-alt"></i>
-                                       
-                                                                                                                         </button>
-                                                                   
-                                                                                                                 </div>
-                                                                </div>
-                                   
-                                                                                             ))}
-                                                        </div>
-                   
-                                                                           </div>
-                                                ) : (
-                 
-                                                                                     <p className="text-center text-gray-500 p-8 bg-white rounded-xl">No hay clases que coincidan con los filtros.</p>
+    <>
+        <div className="mb-6">
+            <div className="flex flex-wrap gap-2 mb-4">
+                <button onClick={() => setSelectedMonthYear('')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === '' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Todos</button>
+                {uniqueMonths.map(monthYear => (
+                    <button key={monthYear} onClick={() => setSelectedMonthYear(monthYear)} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === monthYear ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>
+                        {formatMonthYear(monthYear)}
+                    </button>
+                ))}
+            </div>
+            <input 
+                type="text" placeholder="Buscar por alumno..." value={filterText} onChange={(e) => setFilterText(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full"/>
+        </div>
+        
+        <div className="overflow-x-auto rounded-xl shadow-lg">
+            {currentClasses.length > 0 ? (
+                <div className="bg-white">
+                    <div className="hidden md:grid grid-cols-7 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
+                        <div>Fecha</div>
+                        <div>Día</div>
+                        <div>Hora</div>
+                        <div className="col-span-2">Alumnos</div>
+                        <div>Precio</div>
+                        <div className="text-center">Acciones</div>
+                    </div>
+                    <div className="divide-y divide-gray-200">
+                        {currentClasses.map(cls => (
+                            <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center ${colorMap[cls.studentCount]} md:rounded-none`}>
+                                <div className="text-sm text-gray-600 md:text-base">{cls.date}</div>
+                                <div className="text-sm text-gray-600 md:text-base">{cls.day}</div>
+                                <div className="text-sm text-gray-600 md:text-base">{cls.time}</div>
+                                <div className="md:col-span-2">
+                                    {cls.studentCount > 1 ? (
+                                        <ul className="list-disc list-inside">
+                                            {cls.studentNames.map((name, index) => <li key={index}>{name}</li>)}
+                                        </ul>
+                                    ) : (
+                                        <span>{cls.studentNames[0]}</span>
+                                    )}
+                                </div>
+                                <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
+                                <div className="flex justify-end md:justify-center space-x-2 mt-2 md:mt-0">
+                                    <button onClick={() => editClass(cls)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar clase">
+                                        <i className="fas fa-edit"></i>
+                                    </button>
+                                    <button onClick={() => deleteClass(cls.id, cls)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar clase">
+                                        <i className="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <p className="text-center text-gray-500 p-8 bg-white rounded-xl">No hay clases que coincidan con los filtros.</p>
+            )}
+        </div>
+        
+        <div className="flex justify-center items-center mt-4 space-x-2">
+            <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
+            >
+                Anterior
+            </button>
+            <span className="text-gray-700">Página {currentPage} de {totalPages}</span>
+            <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
+            >
+                Siguiente
+            </button>
+        </div>
+    </>
 )}
-                                                )}
-       
-                                                                               </div>
-                                        </>
-                       <div className="flex justify-center items-center mt-4 space-x-2">
-                                        <button
-                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                            disabled={currentPage === 1}
-                                            className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
-                                        >
-                                            Anterior
-                                        </button>
-                                        <span className="text-gray-700">Página {currentPage} de {totalPages}</span>
-                                        <button
-                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                            disabled={currentPage === totalPages}
-                                            className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
-                                        >
-                                            Siguiente
-                                        </button>
-                                    </div>
-                                </>
-                            )}
                         
 
                                     {view === 'report' && (
@@ -1754,6 +1723,7 @@ const currentClasses = filteredClasses.slice(indexOfFirstClass, indexOfLastClass
     </script>
 </body>
 </html>
+
 
 
 
