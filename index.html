@@ -148,6 +148,57 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
     </div>
   );
 };
+const ScheduleInput = ({ schedule, setSchedule }) => {
+    const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const timesOfDay = [
+        '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
+        '1:00 p. m.', '2:00 p. m.', '3:00 p. m.', '4:00 p. m.', '5:00 p. m.',
+        '6:00 p. m.', '7:00 p. m.', '8:00 p. m.', '9:00 p. m.', '10:00 p. m.',
+    ];
+    const handleDayToggle = (day) => {
+        const newSchedule = schedule.some(s => s.day === day)
+            ? schedule.filter(s => s.day !== day)
+            : [...schedule, { day, time: timesOfDay[0] }];
+        setSchedule(newSchedule);
+    };
+
+    const handleTimeChange = (day, time) => {
+        setSchedule(schedule.map(s => s.day === day ? { ...s, time } : s));
+    };
+
+    return (
+        <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-gray-700">Horario Semanal (Opcional)</h4>
+            <div className="flex flex-wrap gap-2 mb-2">
+                {daysOfWeek.map(day => (
+                    <button
+                        key={day}
+                        type="button"
+                        onClick={() => handleDayToggle(day)}
+                        className={`px-4 py-2 rounded-full font-bold transition-colors text-sm
+                            ${schedule.some(s => s.day === day) ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                        {day}
+                    </button>
+                ))}
+            </div>
+            {schedule.map(item => (
+                <div key={item.day} className="flex items-center space-x-2">
+                    <span className="font-semibold text-gray-800">{item.day}:</span>
+                    <select
+                        value={item.time}
+                        onChange={(e) => handleTimeChange(item.day, e.target.value)}
+                        className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                        {timesOfDay.map(time => (
+                            <option key={time} value={time}>{time}</option>
+                        ))}
+                    </select>
+                </div>
+            ))}
+        </div>
+    );
+};
 
         const firebaseConfig = {
             apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
@@ -1232,6 +1283,10 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                             onChange={(e) => setNewStudent({ ...newStudent, description: e.target.value })}
                             className="p-3 border rounded-lg w-full focus:ring-2 focus:ring-blue-500"
                         ></textarea>
+                        <ScheduleInput
+                            schedule={newStudent.schedule}
+                            setSchedule={(newSchedule) => setNewStudent({ ...newStudent, schedule: newSchedule })}
+                        />
                         <div className="flex justify-end space-x-2">
                             {isEditingStudent && (
                                 <button
@@ -1688,6 +1743,18 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                            cls.date.toLowerCase().includes(filterText.toLowerCase());
                 });
 
+                const tomorrowDay = daysOfWeek[getTomorrow().getDay()];
+                const tomorrowScheduledStudents = students.filter(stu =>
+                    stu.schedule && stu.schedule.some(s => s.day === tomorrowDay)
+                );
+                
+                const tomorrowSchedule = tomorrowScheduledStudents.map(stu => ({
+                    studentName: `${stu.firstName} ${stu.lastName}`,
+                    time: stu.schedule.find(s => s.day === tomorrowDay).time,
+                    studentId: stu.id,
+                }));
+
+
                 const totalPages = Math.ceil(filteredClasses.length / classesPerPage);
                 const currentReportClasses = filteredClasses.slice((currentPage - 1) * classesPerPage, currentPage * classesPerPage);
 
@@ -1734,33 +1801,14 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
                         </div>
                         <div className="bg-white rounded-xl shadow-md p-6">
                             <h3 className="text-xl font-bold mb-4">Próxima Clase (Mañana)</h3>
-                            {tomorrowClasses.length > 0 ? (
+                            {tomorrowSchedule.length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {tomorrowClasses.map(cls => (
-                                        <div key={cls.id} className={`p-4 rounded-lg shadow-sm ${colorMap[cls.studentCount] || 'bg-gray-100'}`}>
-                                            <p className="font-bold">{cls.day}, {cls.date}</p>
-                                            <p className="text-sm text-gray-600">{cls.time}</p>
+                                    {tomorrowSchedule.map(scheduleItem => (
+                                        <div key={scheduleItem.studentId} className={`p-4 rounded-lg shadow-sm bg-gray-100`}>
+                                            <p className="font-bold">{tomorrowDay}, {scheduleItem.time}</p>
                                             <p className="text-sm font-semibold">Alumnos:</p>
                                             <ul className="list-disc list-inside text-sm">
-                                                {cls.studentNames.map((name, index) => (
-                                                    <li key={index} className="flex items-center justify-between">
-                                                        <span>{name}</span>
-                                                        <div className="flex space-x-2 text-xs">
-                                                            <button
-                                                                className="text-blue-600 hover:text-blue-800"
-                                                                onClick={() => setReplaceData({ classId: cls.id, studentIndex: index })}
-                                                            >
-                                                                <i className="fas fa-user-edit"></i>
-                                                            </button>
-                                                            <button
-                                                                className="text-red-500 hover:text-red-700"
-                                                                onClick={() => removeStudentFromClass(cls.id, index)}
-                                                            >
-                                                                <i className="fas fa-user-minus"></i>
-                                                            </button>
-                                                        </div>
-                                                    </li>
-                                                ))}
+                                                <li>{scheduleItem.studentName}</li>
                                             </ul>
                                         </div>
                                     ))}
