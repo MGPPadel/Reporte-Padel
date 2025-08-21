@@ -969,12 +969,28 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                 return tomorrow;
             };
 
-            const tomorrowClasses = classes.filter(cls => {
-                const tomorrow = getTomorrow();
-                const classDate = new Date(cls.date);
-                classDate.setHours(0, 0, 0, 0); // Normalizar a la medianoche
-                return classDate.getTime() === tomorrow.getTime();
-            });
+            const tomorrowDay = daysOfWeek[getTomorrow().getDay()];
+            const tomorrowScheduledStudents = useMemo(() => {
+                return students.filter(stu =>
+                    stu.schedule && stu.schedule.some(s => s.day === tomorrowDay)
+                );
+            }, [students, tomorrowDay]);
+
+            const tomorrowScheduleGrouped = useMemo(() => {
+                const grouped = {};
+                tomorrowScheduledStudents.forEach(stu => {
+                    stu.schedule.forEach(s => {
+                        if (s.day === tomorrowDay) {
+                            if (!grouped[s.time]) {
+                                grouped[s.time] = [];
+                            }
+                            grouped[s.time].push({ studentName: `${stu.firstName} ${stu.lastName}`, studentId: stu.id });
+                        }
+                    });
+                });
+                return grouped;
+            }, [tomorrowScheduledStudents, tomorrowDay]);
+
 
             const totalMonthlyIncome = useMemo(() => {
                 if (!selectedMonthYear || !monthlyReports[selectedMonthYear]) return 0;
@@ -1743,21 +1759,16 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                            cls.date.toLowerCase().includes(filterText.toLowerCase());
                 });
 
-                const tomorrowDay = daysOfWeek[getTomorrow().getDay()];
-                const tomorrowScheduledStudents = students.filter(stu =>
-                    stu.schedule && stu.schedule.some(s => s.day === tomorrowDay)
-                );
-                
-                const tomorrowSchedule = tomorrowScheduledStudents.map(stu => ({
-                    studentName: `${stu.firstName} ${stu.lastName}`,
-                    time: stu.schedule.find(s => s.day === tomorrowDay).time,
-                    studentId: stu.id,
-                }));
-
-
                 const totalPages = Math.ceil(filteredClasses.length / classesPerPage);
                 const currentReportClasses = filteredClasses.slice((currentPage - 1) * classesPerPage, currentPage * classesPerPage);
-
+                
+                // Ordenar las clases por hora para una mejor visualización
+                const sortedGroupedTimes = Object.keys(tomorrowScheduleGrouped).sort((a, b) => {
+                    const timeA = new Date(`2000/01/01 ${a.replace(' a. m.', ' AM').replace(' p. m.', ' PM')}`);
+                    const timeB = new Date(`2000/01/01 ${b.replace(' a. m.', ' AM').replace(' p. m.', ' PM')}`);
+                    return timeA - timeB;
+                });
+                
                 return (
                     <>
                         <div className="bg-white rounded-xl shadow-md p-6 mb-6">
@@ -1801,14 +1812,16 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                         </div>
                         <div className="bg-white rounded-xl shadow-md p-6">
                             <h3 className="text-xl font-bold mb-4">Próxima Clase (Mañana)</h3>
-                            {tomorrowSchedule.length > 0 ? (
+                            {Object.keys(tomorrowScheduleGrouped).length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {tomorrowSchedule.map(scheduleItem => (
-                                        <div key={scheduleItem.studentId} className={`p-4 rounded-lg shadow-sm bg-gray-100`}>
-                                            <p className="font-bold">{tomorrowDay}, {scheduleItem.time}</p>
+                                    {sortedGroupedTimes.map(time => (
+                                        <div key={time} className={`p-4 rounded-lg shadow-sm bg-gray-100`}>
+                                            <p className="font-bold">{tomorrowDay}, {time}</p>
                                             <p className="text-sm font-semibold">Alumnos:</p>
                                             <ul className="list-disc list-inside text-sm">
-                                                <li>{scheduleItem.studentName}</li>
+                                                {tomorrowScheduleGrouped[time].map(student => (
+                                                    <li key={student.studentId}>{student.studentName}</li>
+                                                ))}
                                             </ul>
                                         </div>
                                     ))}
