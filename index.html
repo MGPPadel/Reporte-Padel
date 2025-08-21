@@ -1294,15 +1294,16 @@ const currentClasses = filteredClasses.slice(indexOfFirstClass, indexOfLastClass
            
                                                      <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner" style={{ display: view === 'list' || view === 'report' ? 'block' : 'none' }}>
                                     
-                                    {/* --- CLASES DE MAÑANA --- */}
-                                    {(() => {
-                                        const tomorrow = new Date();
-                                        tomorrow.setDate(tomorrow.getDate() + 1);
-                                        const y = tomorrow.getFullYear();
-                                        const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
-                                        const d = String(tomorrow.getDate()).padStart(2, '0');
-                                        const tomorrowStr = `${y}-${m}-${d}`;
-                                        const tClasses = (classes || []).filter(cls => cls.date === tomorrowStr);
+                                    const tomorrow = new Date();
+tomorrow.setDate(tomorrow.getDate() + 1);
+
+const tomorrowStart = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 0, 0, 0, 0);
+const tomorrowEnd = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 23, 59, 59, 999);
+
+const tClasses = (classes || []).filter(cls => {
+    const classDate = new Date(cls.date);
+    return classDate >= tomorrowStart && classDate <= tomorrowEnd;
+});
 
                                         const getPhoneById = (id) => {
                                             const s = (students || []).find(st => st.id === id);
