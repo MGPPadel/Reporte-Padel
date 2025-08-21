@@ -917,6 +917,18 @@ __initial_auth_token : null;
             }
         };
 
+        // Lógica para el panel de clases del día siguiente
+        const getNextDayClasses = useMemo(() => {
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            const tomorrowDateString = tomorrow.toISOString().split('T')[0];
+            const tomorrowDayOfWeek = daysOfWeek[tomorrow.getDay()];
+
+            return classes.filter(cls => cls.date === tomorrowDateString);
+        }, [classes]);
+
         const renderView = () => {
             switch (view) {
                 case 'list':
@@ -1023,6 +1035,53 @@ __initial_auth_token : null;
                                         Siguiente
                                     </button>
                                 </div>
+                            </div>
+                        </>
+                    );
+                case 'next_day_classes':
+                    const nextDay = new Date();
+                    nextDay.setDate(nextDay.getDate() + 1);
+                    const nextDayDateString = nextDay.toISOString().split('T')[0];
+                    const nextDayName = daysOfWeek[nextDay.getDay()];
+
+                    return (
+                        <>
+                            <h2 className="text-xl font-bold mb-4">Clases para el {nextDayName}, {nextDayDateString}</h2>
+                            <div className="overflow-x-auto bg-white rounded-lg shadow-lg">
+                                <table className="min-w-full table-auto">
+                                    <thead className="text-left text-gray-600">
+                                        <tr className="border-b">
+                                            <th className="py-2 px-4">Hora</th>
+                                            <th className="py-2 px-4">Alumnos</th>
+                                            <th className="py-2 px-4">Precio</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {getNextDayClasses.length > 0 ? (
+                                            getNextDayClasses.map(cls => (
+                                                <tr key={cls.id} className="border-b hover:bg-gray-50 transition-colors">
+                                                    <td className="py-2 px-4 text-gray-700">{cls.time}</td>
+                                                    <td className="py-2 px-4 text-gray-700">
+                                                        <div className="flex flex-col space-y-1">
+                                                            {cls.studentNames && cls.studentNames.map((name, studentIndex) => (
+                                                                <span key={studentIndex} className="bg-gray-200 text-gray-800 rounded-full px-2 py-1 text-xs font-semibold">
+                                                                    {name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-2 px-4 text-gray-700">{formatPrice(cls.price)}</td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="3" className="text-center text-gray-500 py-8">
+                                                    No hay clases programadas para mañana.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </>
                     );
@@ -1509,6 +1568,9 @@ __initial_auth_token : null;
                         </button>
                         <button onClick={() => setView('list')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
                             <i className="fas fa-clipboard-list mr-2"></i> Lista de Clases
+                        </button>
+                        <button onClick={() => setView('next_day_classes')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'next_day_classes' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                            <i className="fas fa-calendar-check mr-2"></i> Clases Próx. Día
                         </button>
                         <button onClick={() => setView('monthly_report')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'monthly_report' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
                             <i className="fas fa-chart-bar mr-2"></i> Reporte Mensual
