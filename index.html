@@ -677,15 +677,15 @@
             const getTomorrow = () => {
                 const tomorrow = new Date();
                 tomorrow.setDate(tomorrow.getDate() + 1);
-                return tomorrow.toISOString().split('T')[0];
+                tomorrow.setHours(0, 0, 0, 0); // Normalizar a la medianoche
+                return tomorrow;
             };
 
             const tomorrowClasses = classes.filter(cls => {
+                const tomorrow = getTomorrow();
                 const classDate = new Date(cls.date);
-                const tomorrowDate = new Date(getTomorrow());
-                return classDate.getFullYear() === tomorrowDate.getFullYear() &&
-                       classDate.getMonth() === tomorrowDate.getMonth() &&
-                       classDate.getDate() === tomorrowDate.getDate();
+                classDate.setHours(0, 0, 0, 0); // Normalizar a la medianoche
+                return classDate.getTime() === tomorrow.getTime();
             });
 
             useEffect(() => {
@@ -903,6 +903,20 @@
                     setLoading(false);
                 });
             };
+
+            const getTomorrow = () => {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(0, 0, 0, 0); // Normalizar a la medianoche
+                return tomorrow;
+            };
+
+            const tomorrowClasses = classes.filter(cls => {
+                const tomorrow = getTomorrow();
+                const classDate = new Date(cls.date);
+                classDate.setHours(0, 0, 0, 0); // Normalizar a la medianoche
+                return classDate.getTime() === tomorrow.getTime();
+            });
 
             if (loading) {
                 return <div className="flex items-center justify-center min-h-screen"><i className="fas fa-spinner fa-spin text-4xl text-blue-800"></i></div>;
