@@ -1283,43 +1283,61 @@
                                     <option value="Potencial">Potencial</option>
                                 </select>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {filteredStudentsList.length > 0 ? (
-                                    filteredStudentsList.map((student) => (
-                                        <div key={student.id} className="bg-gray-800 p-8 rounded-lg shadow-xl border border-gray-700 flex flex-col justify-between">
-                                            <div>
-                                                <h3 className="text-xl font-bold text-teal-400">{student.firstName} {student.lastName}</h3>
-                                                <p className="text-sm text-gray-400 mt-1"><i className="fas fa-phone mr-2"></i>{student.phone}</p>
-                                                <p className="text-xs text-gray-500 mt-2">{student.description}</p>
-                                                <div className="mt-4 flex flex-wrap gap-2">
-                                                    <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${student.status === 'Activo' ? 'bg-green-600 text-green-100' : student.status === 'Inactivo' ? 'bg-red-600 text-red-100' : 'bg-yellow-600 text-yellow-100'}`}>
-                                                        {student.status}
-                                                    </span>
-                                                    {student.schedule && student.schedule.map((sch, index) => (
-                                                        <span key={index} className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-indigo-600 text-indigo-100">
-                                                            {sch.day} - {sch.time}
+                            <div className="overflow-x-auto bg-gray-800 rounded-lg shadow-xl border border-gray-700">
+                                <table className="min-w-full table-auto">
+                                    <thead className="bg-gray-700 text-gray-200 uppercase text-xs">
+                                        <tr className="border-b border-gray-600">
+                                            <th className="py-3 px-4 text-left font-semibold">Nombre</th>
+                                            <th className="py-3 px-4 text-left font-semibold">Teléfono</th>
+                                            <th className="py-3 px-4 text-left font-semibold">Estado</th>
+                                            <th className="py-3 px-4 text-left font-semibold">Horario</th>
+                                            <th className="py-3 px-4 text-left font-semibold">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-700">
+                                        {filteredStudentsList.length > 0 ? (
+                                            filteredStudentsList.map(student => (
+                                                <tr key={student.id} className="hover:bg-gray-700 transition-colors">
+                                                    <td className="py-3 px-4 text-sm font-semibold">{student.firstName} {student.lastName}</td>
+                                                    <td className="py-3 px-4 text-sm text-gray-400">{student.phone}</td>
+                                                    <td className="py-3 px-4 text-sm">
+                                                        <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${student.status === 'Activo' ? 'bg-green-600 text-green-100' : student.status === 'Inactivo' ? 'bg-red-600 text-red-100' : 'bg-yellow-600 text-yellow-100'}`}>
+                                                            {student.status}
                                                         </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div className="mt-6 flex space-x-2">
-                                                <button onClick={() => sendWhatsApp(student.phone)} className="flex-1 py-3 px-5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-md text-sm">
-                                                    <i className="fab fa-whatsapp"></i>
-                                                </button>
-                                                <button onClick={() => editStudent(student)} className="py-3 px-5 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors shadow-md text-sm">
-                                                    <i className="fas fa-edit"></i>
-                                                </button>
-                                                <button onClick={() => deleteStudent(student.id)} className="py-3 px-5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-md text-sm">
-                                                    <i className="fas fa-trash-alt"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="col-span-full text-center text-gray-500 p-8 bg-gray-800 rounded-lg shadow-xl">
-                                        No se encontraron alumnos.
-                                    </div>
-                                )}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-sm">
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {student.schedule && student.schedule.map((sch, index) => (
+                                                                <span key={index} className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-600 text-indigo-100">
+                                                                    {sch.day.substring(0, 3)} {sch.time}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-sm">
+                                                        <div className="flex space-x-2">
+                                                            <button onClick={() => sendWhatsApp(student.phone)} className="text-gray-400 hover:text-green-400 transition-colors">
+                                                                <i className="fab fa-whatsapp"></i>
+                                                            </button>
+                                                            <button onClick={() => editStudent(student)} className="text-gray-400 hover:text-sky-400 transition-colors">
+                                                                <i className="fas fa-edit"></i>
+                                                            </button>
+                                                            <button onClick={() => deleteStudent(student.id)} className="text-gray-400 hover:text-red-400 transition-colors">
+                                                                <i className="fas fa-trash-alt"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="5" className="text-center text-gray-500 py-8 text-sm">
+                                                    No se encontraron alumnos.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </>
                     );
