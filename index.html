@@ -1772,6 +1772,26 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                 return (
                     <>
                         <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                            <h3 className="text-xl font-bold mb-4">Próxima Clase (Mañana)</h3>
+                            {Object.keys(tomorrowScheduleGrouped).length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {sortedGroupedTimes.map(time => (
+                                        <div key={time} className={`p-4 rounded-lg shadow-sm bg-gray-100`}>
+                                            <p className="font-bold">{tomorrowDay}, {time}</p>
+                                            <p className="text-sm font-semibold">Alumnos:</p>
+                                            <ul className="list-disc list-inside text-sm">
+                                                {tomorrowScheduleGrouped[time].map(student => (
+                                                    <li key={student.studentId}>{student.studentName}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-center text-gray-500">No hay clases programadas para mañana.</p>
+                            )}
+                        </div>
+                        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
                             <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-4">
                                 <h2 className="text-2xl font-bold flex-grow">Clases Registradas ({classes.length})</h2>
                                 <input
@@ -1808,26 +1828,6 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                                 />
                             ) : (
                                 <p className="text-center text-gray-500 p-8">No hay clases registradas. Añade una para empezar.</p>
-                            )}
-                        </div>
-                        <div className="bg-white rounded-xl shadow-md p-6">
-                            <h3 className="text-xl font-bold mb-4">Próxima Clase (Mañana)</h3>
-                            {Object.keys(tomorrowScheduleGrouped).length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {sortedGroupedTimes.map(time => (
-                                        <div key={time} className={`p-4 rounded-lg shadow-sm bg-gray-100`}>
-                                            <p className="font-bold">{tomorrowDay}, {time}</p>
-                                            <p className="text-sm font-semibold">Alumnos:</p>
-                                            <ul className="list-disc list-inside text-sm">
-                                                {tomorrowScheduleGrouped[time].map(student => (
-                                                    <li key={student.studentId}>{student.studentName}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-center text-gray-500">No hay clases programadas para mañana.</p>
                             )}
                         </div>
                     </>
