@@ -782,8 +782,8 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
 
             const addClass = async () => {
                 if (!dbRef.current || !userId) return;
-                if (newEntry.studentNames.some(name => name.trim() === '') || newEntry.price <= 0) {
-                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos de los alumnos y el precio.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                if (newEntry.studentNames.some(name => name.trim() === '')) {
+                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos de los alumnos.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     return;
                 }
                 try {
@@ -797,6 +797,7 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                         ...newEntry,
                         studentIds: newEntry.studentIds,
                         studentNames: selectedStudents,
+                        price: customPrices[newEntry.studentCount] || 0, // Asegura que el precio es el de la configuración
                         timestamp: window.Timestamp.fromDate(new Date(newEntry.date)),
                     };
                     if (isEditing) {
@@ -1363,17 +1364,6 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                                     <option key={count} value={count}>{count} alumno{count > 1 ? 's' : ''}</option>
                                 ))}
                             </select>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                                <input
-                                    type="number"
-                                    name="price"
-                                    value={newEntry.price}
-                                    onChange={handleNewEntryChange}
-                                    placeholder="Precio"
-                                    className="p-3 pl-8 w-full border rounded-lg focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {Array.from({ length: newEntry.studentCount }).map((_, index) => (
@@ -1782,7 +1772,7 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                                     Cancelar
                                 </button>
                                 <button
-                                    onClick={() => handleReplace(time, studentIdToReplace, selectedNewStudent)}
+                                    onClick={() => handleReplace(time, oldStudentId, selectedNewStudent)}
                                     disabled={!selectedNewStudent}
                                     className="px-4 py-2 bg-blue-800 text-white rounded-lg hover:bg-blue-900 disabled:opacity-50"
                                 >
