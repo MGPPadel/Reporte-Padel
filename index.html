@@ -349,6 +349,9 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                 type: 'confirm',
                 onConfirm: null,
             });
+            
+            // Estado para el modal de reemplazo en "Próxima Clase"
+            const [tomorrowReplaceData, setTomorrowReplaceData] = useState({ time: null, studentId: null, studentName: null });
 
             const dbRef = useRef(null);
             const authRef = useRef(null);
@@ -990,7 +993,6 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                 });
                 return grouped;
             }, [tomorrowScheduledStudents, tomorrowDay]);
-
 
             const totalMonthlyIncome = useMemo(() => {
                 if (!selectedMonthYear || !monthlyReports[selectedMonthYear]) return 0;
@@ -1750,8 +1752,85 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                     </div>
                 </div>
             );
+            
+            // Nuevo componente para el modal de reemplazo en la vista de "Próxima Clase"
+            const TomorrowReplaceModal = ({ show, onClose, time, studentIdToReplace, handleReplace }) => {
+                if (!show) return null;
+                
+                const [selectedNewStudent, setSelectedNewStudent] = useState('');
+                
+                return (
+                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
+                            <h3 className="text-xl font-bold mb-4">Reemplazar Alumno</h3>
+                            <p className="mb-2">Seleccioná un nuevo alumno de la lista para reemplazar a **{students.find(s => s.id === studentIdToReplace)?.firstName} {students.find(s => s.id === studentIdToReplace)?.lastName}**:</p>
+                            <select
+                                className="w-full p-3 border rounded-lg mb-4"
+                                onChange={(e) => setSelectedNewStudent(e.target.value)}
+                                value={selectedNewStudent}
+                            >
+                                <option value="">-- Seleccionar alumno --</option>
+                                {students.filter(s => s.id !== studentIdToReplace).map(s => (
+                                    <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+                                ))}
+                            </select>
+                            <div className="flex justify-end space-x-2">
+                                <button
+                                    onClick={onClose}
+                                    className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => handleReplace(time, studentIdToReplace, selectedNewStudent)}
+                                    disabled={!selectedNewStudent}
+                                    className="px-4 py-2 bg-blue-800 text-white rounded-lg hover:bg-blue-900 disabled:opacity-50"
+                                >
+                                    Reemplazar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
 
-            const ClassReport = () => {
+            const ClassReport = ({ students, sendWhatsApp }) => {
+                const [tomorrowScheduleState, setTomorrowScheduleState] = useState(tomorrowScheduleGrouped);
+                const [tomorrowReplaceData, setTomorrowReplaceData] = useState({ show: false, time: null, studentId: null });
+
+                useEffect(() => {
+                    setTomorrowScheduleState(tomorrowScheduleGrouped);
+                }, [tomorrowScheduleGrouped]);
+
+                const handleRemoveStudentFromTomorrowSchedule = (time, studentId) => {
+                    setTomorrowScheduleState(prevState => {
+                        const newState = { ...prevState };
+                        if (newState[time]) {
+                            newState[time] = newState[time].filter(stu => stu.studentId !== studentId);
+                            if (newState[time].length === 0) {
+                                delete newState[time];
+                            }
+                        }
+                        return newState;
+                    });
+                };
+                
+                const handleReplaceStudentInTomorrowSchedule = (time, oldStudentId, newStudentId) => {
+                    setTomorrowScheduleState(prevState => {
+                        const newState = { ...prevState };
+                        const oldStudent = students.find(s => s.id === oldStudentId);
+                        const newStudent = students.find(s => s.id === newStudentId);
+
+                        if (newState[time] && oldStudent && newStudent) {
+                            newState[time] = newState[time].map(stu =>
+                                stu.studentId === oldStudentId ? { studentName: `${newStudent.firstName} ${newStudent.lastName}`, studentId: newStudent.id } : stu
+                            );
+                        }
+                        return newState;
+                    });
+                    setTomorrowReplaceData({ show: false, time: null, studentId: null });
+                };
+
                 const filteredClasses = classes.filter(cls => {
                     if (!filterText) return true;
                     return cls.studentNames.some(name => name.toLowerCase().includes(filterText.toLowerCase())) ||
@@ -1763,7 +1842,7 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                 const currentReportClasses = filteredClasses.slice((currentPage - 1) * classesPerPage, currentPage * classesPerPage);
                 
                 // Ordenar las clases por hora para una mejor visualización
-                const sortedGroupedTimes = Object.keys(tomorrowScheduleGrouped).sort((a, b) => {
+                const sortedGroupedTimes = Object.keys(tomorrowScheduleState).sort((a, b) => {
                     const timeA = new Date(`2000/01/01 ${a.replace(' a. m.', ' AM').replace(' p. m.', ' PM')}`);
                     const timeB = new Date(`2000/01/01 ${b.replace(' a. m.', ' AM').replace(' p. m.', ' PM')}`);
                     return timeA - timeB;
@@ -1771,18 +1850,45 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                 
                 return (
                     <>
+                        <TomorrowReplaceModal 
+                            show={tomorrowReplaceData.show}
+                            onClose={() => setTomorrowReplaceData({ show: false, time: null, studentId: null })}
+                            time={tomorrowReplaceData.time}
+                            studentIdToReplace={tomorrowReplaceData.studentId}
+                            handleReplace={handleReplaceStudentInTomorrowSchedule}
+                        />
+
                         <div className="bg-white rounded-xl shadow-md p-6 mb-6">
                             <h3 className="text-xl font-bold mb-4">Próxima Clase (Mañana)</h3>
-                            {Object.keys(tomorrowScheduleGrouped).length > 0 ? (
+                            <p className="text-sm text-gray-500 mb-4">Las modificaciones aquí son solo para esta vista previa y no se guardan permanentemente.</p>
+                            {Object.keys(tomorrowScheduleState).length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {sortedGroupedTimes.map(time => (
                                         <div key={time} className={`p-4 rounded-lg shadow-sm bg-gray-100`}>
                                             <p className="font-bold">{tomorrowDay}, {time}</p>
                                             <p className="text-sm font-semibold">Alumnos:</p>
-                                            <ul className="list-disc list-inside text-sm">
-                                                {tomorrowScheduleGrouped[time].map(student => (
-                                                    <li key={student.studentId}>{student.studentName}</li>
-                                                ))}
+                                            <ul className="list-disc list-inside text-sm mt-2">
+                                                {tomorrowScheduleState[time].map(student => {
+                                                    const studentData = students.find(s => s.id === student.studentId);
+                                                    return (
+                                                        <li key={student.studentId} className="flex items-center justify-between">
+                                                            {student.studentName}
+                                                            <div className="flex space-x-2">
+                                                                {studentData && (
+                                                                    <button onClick={() => sendWhatsApp(studentData.phone)} className="text-green-500 hover:text-green-700">
+                                                                        <i className="fab fa-whatsapp"></i>
+                                                                    </button>
+                                                                )}
+                                                                <button onClick={() => handleRemoveStudentFromTomorrowSchedule(time, student.studentId)} className="text-red-500 hover:text-red-700">
+                                                                    <i className="fas fa-trash-alt"></i>
+                                                                </button>
+                                                                <button onClick={() => setTomorrowReplaceData({ show: true, time, studentId: student.studentId })} className="text-blue-500 hover:text-blue-700">
+                                                                    <i className="fas fa-user-plus"></i>
+                                                                </button>
+                                                            </div>
+                                                        </li>
+                                                    );
+                                                })}
                                             </ul>
                                         </div>
                                     ))}
@@ -1914,7 +2020,7 @@ const ScheduleInput = ({ schedule, setSchedule }) => {
                     </div>
                     <Navigation currentView={view} setView={setView} userId={userId} students={students} />
                     <div className="mt-6">
-                        {view === 'list' && <ClassReport />}
+                        {view === 'list' && <ClassReport students={students} sendWhatsApp={sendWhatsApp} />}
                         {view === 'students' && (
                             <>
                                 <StudentForm />
