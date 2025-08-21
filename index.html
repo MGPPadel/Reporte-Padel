@@ -1294,13 +1294,13 @@ const currentClasses = filteredClasses.slice(indexOfFirstClass, indexOfLastClass
            
                                                      <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner" style={{ display: view === 'list' || view === 'report' ? 'block' : 'none' }}>
                                     
-                                    const tomorrow = new Date();
+                                    onst tomorrow = new Date();
 tomorrow.setDate(tomorrow.getDate() + 1);
 
 const tomorrowStart = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 0, 0, 0, 0);
 const tomorrowEnd = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 23, 59, 59, 999);
 
-const tClasses = (classes || []).filter(cls => {
+const tClasses = (classes || []).filter(function(cls) {
     const classDate = new Date(cls.date);
     return classDate >= tomorrowStart && classDate <= tomorrowEnd;
 });
