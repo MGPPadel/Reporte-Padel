@@ -60,6 +60,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
       .filter(stu => (`${stu.firstName} ${stu.lastName}`).toLowerCase().includes(term))
       .slice(0, 5);
   }, [students, newEntry.studentNames, index]);
+
 // Cerrar al hacer clic fuera
   React.useEffect(() => {
     const handleClickOutside = (e) => {
@@ -69,130 +70,38 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    
-            // ---- NUEVAS FUNCIONES: Reemplazar y quitar alumno en clase ----
-            const replaceStudentInClass = 
-async (classId, studentIndex, studentObj) => {
-                if (!dbRef.current || !userId) return;
-                try {
-                    const classDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'classes', classId);
-                    const snap = await window.getDoc(classDocRef);
-     
-                if (snap.exists()) {
-                        const data = snap.data() || {};
-                        data.studentIds = data.studentIds || [];
-                        data.studentNames = 
-data.studentNames || [];
-                        data.studentIds[studentIndex] = studentObj.id;
-data.studentNames[studentIndex] = `${studentObj.firstName} ${studentObj.lastName}`;
-                        await window.setDoc(classDocRef, data);
-                    }
-                } catch (e) {
-                    console.error('Error reemplazando alumno:', e);
-}
-            };
-const removeStudentFromClass = async (classId, studentIndex) => {
-                if (!dbRef.current || !userId) return;
-try {
-                    const classDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'classes', classId);
-const snap = await window.getDoc(classDocRef);
-                    if (snap.exists()) {
-                        const data = snap.data() ||
-{};
-                        data.studentIds = (data.studentIds || []).filter((_, i) => i !== studentIndex);
-data.studentNames = (data.studentNames || []).filter((_, i) => i !== studentIndex);
-                        await window.setDoc(classDocRef, data);
-}
-                } catch (e) {
-                    console.error('Error quitando alumno:', e);
-}
-            };
-const ReplaceModal = () => (
-                replaceData.classId !== null && (
-                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-                        <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
-                 
-            <h3 className="text-xl font-bold mb-4">Reemplazar Alumno</h3>
-                            <p className="mb-2">Seleccioná un nuevo alumno de la lista:</p>
-                            <select
-                      
-           className="w-full p-3 border rounded-lg mb-4"
-                                onChange={async (e) => {
-                                    const newStudentId = e.target.value;
-            
-                          if (!newStudentId) return;
-                                    const selectedStudent = students.find(s => s.id === newStudentId);
-                               
- await replaceStudentInClass(replaceData.classId, replaceData.studentIndex, selectedStudent);
-                                    setReplaceData({ classId: null, studentIndex: null });
-}}
-                            >
-                                <option value="">-- Seleccionar alumno --</option>
-                                {students.map(s => (
-  
-                                    <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
-                                ))}
-                            </select>
-   
-                          <div className="flex justify-end">
-                                <button
-                                    onClick={() => setReplaceData({ classId: null, 
-studentIndex: null })}
-                                    className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500"
-                                >
-                         
-            Cancelar
-          
-                               </button>
-                         
-    )}
-                            <button
-                      
-                         onClick={onClose}
-                      
-           className={`py-2 px-4 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ?
-'bg-gray-400 hover:bg-gray-500' : type === 'success' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-500 hover:bg-red-600'} shadow-md`}
-                            >
-                                {type === 'confirm' ?
-'Cancelar' : 'Cerrar'}
-                            </button>
-                        </div>
-                    </div>
-     
-                </div>
-                )
-            );
-return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+  
   const handleKeyDown = (e) => {
     if (!open || filteredStudents.length === 0) return;
-if (e.key === "ArrowDown") {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveIndex((prev) => (prev + 1) % filteredStudents.length);
-} else if (e.key === "ArrowUp") {
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
-setActiveIndex((prev) => (prev <= 0 ? filteredStudents.length - 1 : prev - 1));
-} else if (e.key === "Enter" && activeIndex >= 0) {
+      setActiveIndex((prev) => (prev <= 0 ? filteredStudents.length - 1 : prev - 1));
+    } else if (e.key === "Enter" && activeIndex >= 0) {
       e.preventDefault();
-const stu = filteredStudents[activeIndex];
+      const stu = filteredStudents[activeIndex];
       const newNames = [...newEntry.studentNames];
       newNames[index] = `${stu.firstName} ${stu.lastName}`;
       const newIds = [...(newEntry.studentIds || [])];
-newIds[index] = stu.id;
+      newIds[index] = stu.id;
       setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
       setActiveIndex(-1);
       setOpen(false);
     }
   };
-const handleSelect = (stu) => {
+  const handleSelect = (stu) => {
     const newNames = [...newEntry.studentNames];
     newNames[index] = `${stu.firstName} ${stu.lastName}`;
-const newIds = [...(newEntry.studentIds || [])];
+    const newIds = [...(newEntry.studentIds || [])];
     newIds[index] = stu.id;
     setNewEntry((prev) => ({ ...prev, studentNames: newNames, studentIds: newIds }));
     setActiveIndex(-1);
     setOpen(false);
-};
+  };
 
   return (
     <div className="relative mb-2" ref={containerRef}>
@@ -204,7 +113,6 @@ const newIds = [...(newEntry.studentIds || [])];
           const val = e.target.value;
           const newNames = [...newEntry.studentNames];
           newNames[index] = val;
-        
           setNewEntry((prev) => ({ ...prev, studentNames: newNames }));
           setActiveIndex(-1);
         }}
@@ -215,7 +123,7 @@ const newIds = [...(newEntry.studentIds || [])];
 
       {/* Contenedor de sugerencias */}
       {open 
-&& newEntry.studentNames[index] && filteredStudents.length > 0 && (
+      && newEntry.studentNames[index] && filteredStudents.length > 0 && (
  
         <div
           className="absolute left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto z-50
@@ -228,10 +136,8 @@ const newIds = [...(newEntry.studentIds || [])];
           {filteredStudents.map((stu, i) => (
             <div
               key={stu.id}
-              onMouseDown={(e) => { e.preventDefault();
-handleSelect(stu); }}
-              onTouchStart={(e) => { e.preventDefault(); handleSelect(stu);
-}}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(stu); }}
+              onTouchStart={(e) => { e.preventDefault(); handleSelect(stu); }}
               className={`px-3 py-2 cursor-pointer transition-colors ${
                 i === activeIndex ?
 "bg-blue-100 text-blue-800 font-semibold" : "hover:bg-gray-100"
@@ -246,28 +152,55 @@ handleSelect(stu); }}
   );
 };
 
+const ReplaceModal = ({ replaceData, setReplaceData, students, replaceStudentInClass }) => {
+    if (replaceData.classId === null) return null;
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
-            authDomain: "app-de-padel.firebaseapp.com",
-            projectId: "app-de-padel",
-            storageBucket: "app-de-padel.firebasestorage.app",
-            messagingSenderId: "731771747398",
-            appId: "1:731771747398:web:ebc8b723fe220869fade47"
-        };
-const appId = typeof firebaseConfig.appId !== 'undefined' ? firebaseConfig.appId : 'default-app-id';
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ?
-__initial_auth_token : null;
+    const onClose = () => setReplaceData({ classId: null, studentIndex: null });
 
+    return (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
+                <h3 className="text-xl font-bold mb-4">Reemplazar Alumno</h3>
+                <p className="mb-2">Seleccioná un nuevo alumno de la lista:</p>
+                <select
+                    className="w-full p-3 border rounded-lg mb-4"
+                    onChange={async (e) => {
+                        const newStudentId = e.target.value;
+                        if (!newStudentId) return;
+                        const selectedStudent = students.find(s => s.id === newStudentId);
+                        await replaceStudentInClass(replaceData.classId, replaceData.studentIndex, selectedStudent);
+                        onClose();
+                    }}
+                >
+                    <option value="">-- Seleccionar alumno --</option>
+                    {students.map(s => (
+                        <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+                    ))}
+                </select>
+                <div className="flex justify-end">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500"
+                    >
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const App = () => {
         const { useState, useEffect, useRef, useMemo } = React;
-const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-const defaultClassPrices = {
+        const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+        const defaultClassPrices = {
             1: 5000,
             2: 3000,
             3: 2500,
             4: 2000,
         };
-const peopleOptions = [1, 2, 3, 4];
+        const peopleOptions = [1, 2, 3, 4];
         const timesOfDay = [
             '8:00 a.m.', '9:00 a.m.', '10:00 a.m.', '11:00 a.m.', '12:00 p.m.',
             '1:00 p.m.', '2:00 p.m.', '3:00 p.m.', '4:00 p.m.', '5:00 p.m.',
@@ -279,28 +212,28 @@ const peopleOptions = [1, 2, 3, 4];
             3: 'bg-blue-100',
             4: 'bg-purple-100',
         };
-const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
+        const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
             if (!show) return null;
-let icon, bgColor, titleColor;
+            let icon, bgColor, titleColor;
             switch (type) {
                 case 'success':
                     icon = <i className="fas fa-check-circle text-4xl text-green-600"></i>;
-bgColor = 'bg-white';
+                    bgColor = 'bg-white';
                     titleColor = 'text-green-600';
                     break;
                 case 'error':
                     icon = <i className="fas fa-times-circle text-4xl text-red-500"></i>;
-bgColor = 'bg-white';
+                    bgColor = 'bg-white';
                     titleColor = 'text-red-600';
                     break;
                 case 'confirm':
                     icon = <i className="fas fa-question-circle text-4xl text-blue-800"></i>;
-bgColor = 'bg-white';
+                    bgColor = 'bg-white';
                     titleColor = 'text-blue-800';
                     break;
                 default:
                     icon = null;
-}
+            }
 
             return (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
@@ -340,1361 +273,1379 @@ onClick={onConfirm}
           
              );
         };
-const App = () => {
-            const [email, setEmail] = useState('');
-const [password, setPassword] = useState('');
-            const [userId, setUserId] = useState(null);
-            const [userEmail, setUserEmail] = useState('');
-            const [loading, setLoading] = useState(true);
-const [classes, setClasses] = useState([]);
-            const [students, setStudents] = useState([]);
-            const [payments, setPayments] = useState([]);
-            const [activityLog, setActivityLog] = useState([]);
-const [customPrices, setCustomPrices] = useState(defaultClassPrices);
-            const [currentPage, setCurrentPage] = useState(1);
-            const [classesPerPage, setClassesPerPage] = useState(10);
-const [newEntry, setNewEntry] = useState({
-                studentCount: 1,
-                studentNames: [''],
-                studentIds: [''],
-                date: new Date().toISOString().split('T')[0],
-                day: daysOfWeek[new Date().getDay()],
-    
-     
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyAvk1yOsxXfc2w4YwZ1R1tQFrQuM2AbEYk",
+            authDomain: "app-de-padel.firebaseapp.com",
+            projectId: "app-de-padel",
+            storageBucket: "app-de-padel.firebasestorage.app",
+            messagingSenderId: "731771747398",
+            appId: "1:731771747398:web:ebc8b723fe220869fade47"
+        };
+        const appId = typeof firebaseConfig.appId !== 'undefined' ? firebaseConfig.appId : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ?
+__initial_auth_token : null;
+        
+        const [email, setEmail] = useState('');
+        const [password, setPassword] = useState('');
+        const [userId, setUserId] = useState(null);
+        const [userEmail, setUserEmail] = useState('');
+        const [loading, setLoading] = useState(true);
+        const [classes, setClasses] = useState([]);
+        const [students, setStudents] = useState([]);
+        const [payments, setPayments] = useState([]);
+        const [activityLog, setActivityLog] = useState([]);
+        const [customPrices, setCustomPrices] = useState(defaultClassPrices);
+        const [currentPage, setCurrentPage] = useState(1);
+        const [classesPerPage, setClassesPerPage] = useState(10);
+        const [newEntry, setNewEntry] = useState({
+            studentCount: 1,
+            studentNames: [''],
+            studentIds: [''],
+            date: new Date().toISOString().split('T')[0],
+            day: daysOfWeek[new Date().getDay()],
             time: timesOfDay[0],
-                price: defaultClassPrices[1] || 0,
-            });
-const [newStudent, setNewStudent] = useState({
-                firstName: '',
-                lastName: '',
-                phone: '',
-                description: '',
-                status: 'Activo',
-           
-             schedule: [],
-           
-             });
-const [replaceData, setReplaceData] = useState({ classId: null, studentIndex: null });
-            const [isEditingStudent, setIsEditingStudent] = useState(false);
-            const [editedStudentId, setEditedStudentId] = useState(null);
-const [filterStatus, setFilterStatus] = useState('Todos');
-            const [studentSearch, setStudentSearch] = useState('');
-const filteredStudentsList = React.useMemo(() => {
-                const term = (studentSearch || '').toLowerCase();
-                return students.filter(s => {
-                    const status = s.status || 'Activo';
-                    const matchesStatus = filterStatus === 'Todos' || status === filterStatus;
- 
-                    const haystack = `${s.firstName || ''} ${s.lastName || ''} ${s.phone || ''} ${s.description || ''}`.toLowerCase();
-                    const matchesSearch = !term || haystack.includes(term);
-                    return matchesStatus && matchesSearch;
-              
-     
-            });
-            }, [students, studentSearch, filterStatus]);
-const [newPayment, setNewPayment] = useState({
-                date: new Date().toISOString().split('T')[0],
-                amount: 0,
-                description: '',
-            });
-const [isEditingPayment, setIsEditingPayment] = useState(false);
-            const [editedPaymentId, setEditedPaymentId] = useState(null);
-
-            const [monthlyReports, setMonthlyReports] = useState({});
-            const [annualPaymentsReport, setAnnualPaymentsReport] = useState({});
-const [selectedMonthYear, setSelectedMonthYear] = useState('');
-            const [isEditing, setIsEditing] = useState(false);
-            const [editedClassId, setEditedClassId] = useState(null);
-            const [showConfigModal, setShowConfigModal] = useState(false);
-const [view, setView] = useState('list');
-            const [filterText, setFilterText] = useState('');
-            const [isSigningUp, setIsSigningUp] = useState(false);
-const [messageBox, setMessageBox] = useState({
-                show: false,
-                title: '',
-                content: '',
-                type: 'confirm',
-                onConfirm: null,
-           
- 
-             });
-
-            const dbRef = useRef(null);
-const authRef = useRef(null);
-            const fileInputRef = useRef(null);
-            const reportTableRef = useRef(null);
-            const annualPaymentsReportRef = useRef(null);
-const formatPrice = (price) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price);
-const formatMonthYear = (monthYearString) => {
-                const [year, month] = monthYearString.split('-');
-return new Date(year, month - 1).toLocaleString('es-AR', { month: 'long', year: 'numeric' });
-            };
-const formatDate = (timestamp) => {
-                const date = new Date(timestamp.seconds * 1000);
-return date.toLocaleString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-            };
-const initializeFirebase = async () => {
-                try {
-                    const app = window.initializeApp(firebaseConfig);
-dbRef.current = window.getFirestore(app);
-                    authRef.current = window.getAuth(app);
-
-                    const unsubscribe = window.onAuthStateChanged(authRef.current, (user) => {
-                        if (user) {
-                            setUserId(user.uid);
-                            setUserEmail(user.email);
-      
- 
-                         } else {
-                            setUserId(null);
-                            setUserEmail('');
-                 
-        
-                        }
-                        setLoading(false);
-                    });
-return () => unsubscribe();
-                } catch (error) {
-                    console.error("Error initializing Firebase:", error);
-setMessageBox({
-                        show: true,
-                        title: 'Error de configuración',
-                        content: 'Error al inicializar Firebase. Revisa tu configuración.',
-                 
- 
-                       type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
-                    });
-setLoading(false);
-                }
-            };
-useEffect(() => {
-                initializeFirebase();
-            }, []);
-const signIn = async () => {
-    try {
-        setLoading(true);
-const auth = authRef.current;
-        await window.setPersistence(auth, window.browserLocalPersistence);
-        await window.signInWithEmailAndPassword(auth, email, password);
-// Agregado: Muestra una alerta de éxito con el mensaje
-        setMessageBox({
-            show: true,
-            title: 'Inicio de Sesión Exitoso',
-            content: 'La sesión se mantendrá iniciada en este dispositivo.',
-            type: 'success',
-            onClose: () => setMessageBox({ ...messageBox, show: false })
-  
-       });
-
-    } catch (error) {
-        setMessageBox({
-            show: true,
-            title: 'Error de autenticación',
-            content: 'Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.',
-            type: 'error',
-            onClose: () => setMessageBox({ ...messageBox, show: false })
- 
+            price: defaultClassPrices[1] || 0,
         });
-        console.error("Error signing in:", error);
-} finally {
-        setLoading(false);
-    }
-};
-const signUp = async () => {
-                try {
-                    setLoading(true);
-const auth = authRef.current;
-                    await window.createUserWithEmailAndPassword(auth, email, password);
-                    setMessageBox({
-                        show: true,
-                        title: 'Cuenta creada',
-                        content: 'Tu cuenta se ha creado exitosamente. ¡Ya puedes iniciar sesión!',
-       
- 
-                         type: 'success',
-                        onClose: () => {
-                            setMessageBox({ ...messageBox, show: false });
-               
-         
-                         setIsSigningUp(false);
-                        }
-                    });
-} catch (error) {
-                    setMessageBox({
-                        show: true,
-                        title: 'Error de registro',
-                        
- 
-                        content: 'Hubo un error al crear la cuenta. Puede que el email ya esté en uso o la contraseña sea demasiado débil.',
-                        type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
-                    });
-console.error("Error signing up:", error);
-                } finally {
-                    setLoading(false);
-}
-            };
-const handlePasswordReset = async () => {
-                if (!email) {
-                    setMessageBox({
-                        show: true,
-                        title: 'Error de validación',
-    
- 
-                         content: 'Por favor, ingresa tu email para restablecer la contraseña.',
-                        type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
-          
-      
-                     });
-return;
-                }
-                try {
-                    setLoading(true);
-await window.sendPasswordResetEmail(authRef.current, email);
-                    setMessageBox({
-                        show: true,
-                        title: 'Correo enviado',
-                        content: 'Se ha enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.',
+        const [newStudent, setNewStudent] = useState({
+            firstName: '',
+            lastName: '',
+            phone: '',
+            description: '',
+            status: 'Activo',
+            schedule: [],
+        });
+        const [replaceData, setReplaceData] = useState({ classId: null, studentIndex: null });
+        const [isEditingStudent, setIsEditingStudent] = useState(false);
+        const [editedStudentId, setEditedStudentId] = useState(null);
+        const [filterStatus, setFilterStatus] = useState('Todos');
+        const [studentSearch, setStudentSearch] = useState('');
+        const filteredStudentsList = React.useMemo(() => {
+            const term = (studentSearch || '').toLowerCase();
+            return students.filter(s => {
+                const status = s.status || 'Activo';
+                const matchesStatus = filterStatus === 'Todos' || status === filterStatus;
+                const haystack = `${s.firstName || ''} ${s.lastName || ''} ${s.phone || ''} ${s.description || ''}`.toLowerCase();
+                const matchesSearch = !term || haystack.includes(term);
+                return matchesStatus && matchesSearch;
+            });
+        }, [students, studentSearch, filterStatus]);
+        const [newPayment, setNewPayment] = useState({
+            date: new Date().toISOString().split('T')[0],
+            amount: 0,
+            description: '',
+        });
+        const [isEditingPayment, setIsEditingPayment] = useState(false);
+        const [editedPaymentId, setEditedPaymentId] = useState(null);
+
+        const [monthlyReports, setMonthlyReports] = useState({});
+        const [annualPaymentsReport, setAnnualPaymentsReport] = useState({});
+        const [selectedMonthYear, setSelectedMonthYear] = useState('');
+        const [isEditing, setIsEditing] = useState(false);
+        const [editedClassId, setEditedClassId] = useState(null);
+        const [showConfigModal, setShowConfigModal] = useState(false);
+        const [view, setView] = useState('list');
+        const [filterText, setFilterText] = useState('');
+        const [isSigningUp, setIsSigningUp] = useState(false);
+        const [messageBox, setMessageBox] = useState({
+            show: false,
+            title: '',
+            content: '',
+            type: 'confirm',
+            onConfirm: null,
+        });
+
+        const dbRef = useRef(null);
+        const authRef = useRef(null);
+        const fileInputRef = useRef(null);
+        const reportTableRef = useRef(null);
+        const annualPaymentsReportRef = useRef(null);
         
- 
-                         type: 'success',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
-                    });
-} catch (error) {
-                    setMessageBox({
-                        show: true,
-                        title: 'Error al enviar correo',
-                        
- 
-                        content: 'Hubo un error al enviar el correo. Asegúrate de que el email sea correcto.',
-                        type: 'error',
-                        onClose: () => setMessageBox({ ...messageBox, show: false })
-      
-               });
-console.error("Error sending password reset email:", error);
-                } finally {
-                    setLoading(false);
-}
-            };
-const signOutUser = async () => {
-                try {
-                    await window.signOut(authRef.current);
-setUserId(null);
-                    setClasses([]);
-                } catch (error) {
-                    console.error("Error signing out:", error);
-}
-            };
-const saveCustomPrices = async () => {
-                if (!dbRef.current || !userId) return;
-try {
-                    setLoading(true);
-const userDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'prices');
-                    await window.setDoc(userDocRef, { prices: customPrices });
-setMessageBox({ show: true, title: 'Precios guardados', content: 'Los precios de las clases se han guardado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-} catch (error) {
-                    setMessageBox({ show: true, title: 'Error al guardar', content: 'Hubo un error al guardar los precios.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-console.error("Error saving custom prices:", error);
-                } finally {
-                    setLoading(false);
-}
-            };
-const loadCustomPrices = async () => {
-                if (!dbRef.current || !userId) return;
-try {
-                    const userDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'prices');
-const docSnap = await window.getDoc(userDocRef);
-                    if (docSnap.exists()) {
-                        setCustomPrices(docSnap.data().prices);
-}
-                } catch (error) {
-                    console.error("Error loading custom prices:", error);
-}
-            };
-const addLogEntry = async (action, details) => {
-                if (!dbRef.current || !userId) return;
-try {
-                    const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
-await window.addDoc(logColRef, {
-                        action,
-                        details,
-                        timestamp: window.Timestamp.now()
-                    });
-} catch (error) {
-                    console.error("Error adding log entry:", error);
-}
-            };
-const addStudent = async () => {
-                if (!dbRef.current || !userId) return;
-if (!newStudent.firstName || !newStudent.lastName || !newStudent.phone) {
-                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos del alumno.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-return;
+        const formatPrice = (price) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price);
+        const formatMonthYear = (monthYearString) => {
+            const [year, month] = monthYearString.split('-');
+            return new Date(year, month - 1).toLocaleString('es-AR', { month: 'long', year: 'numeric' });
+        };
+        const formatDate = (timestamp) => {
+            const date = new Date(timestamp.seconds * 1000);
+            return date.toLocaleString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        };
+        
+        const replaceStudentInClass = async (classId, studentIndex, studentObj) => {
+            if (!dbRef.current || !userId) return;
+            try {
+                const classDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'classes', classId);
+                const snap = await window.getDoc(classDocRef);
+                if (snap.exists()) {
+                    const data = snap.data() || {};
+                    data.studentIds = data.studentIds || [];
+                    data.studentNames = data.studentNames || [];
+                    data.studentIds[studentIndex] = studentObj.id;
+                    data.studentNames[studentIndex] = `${studentObj.firstName} ${studentObj.lastName}`;
+                    await window.setDoc(classDocRef, data);
                 }
-                try {
-                    setLoading(true);
-const studentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'students');
-if (isEditingStudent) {
-                        const studentDocRef = window.doc(studentsColRef, editedStudentId);
-                        await window.setDoc(studentDocRef, newStudent);
-setMessageBox({ show: true, title: 'Alumno actualizado', content: 'El alumno se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-} else {
-                        await window.addDoc(studentsColRef, newStudent);
-setMessageBox({ show: true, title: 'Alumno añadido', content: 'El nuevo alumno se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-}
-setNewStudent({ firstName: '', lastName: '', phone: '', description: '', status: 'Activo', schedule: [] });
-setIsEditingStudent(false);
-setEditedStudentId(null);
-} catch (error) {
-                    setMessageBox({ show: true, title: 'Error al guardar el alumno', content: 'Hubo un error al guardar los datos del alumno. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-console.error("Error adding/updating student:", error);
-                } finally {
-                    setLoading(false);
-}
-            };
-const editStudent = (studentToEdit) => {
-                setNewStudent({ ...studentToEdit, schedule: studentToEdit.schedule || [] });
-                setIsEditingStudent(true);
-                setEditedStudentId(studentToEdit.id);
-            };
-const deleteStudent = (studentId) => {
-                setMessageBox({ show: true, title: 'Confirmar eliminación', content: '¿Estás seguro de que quieres eliminar a este alumno? Esta acción es irreversible.', type: 'confirm', onConfirm: async () => { if (!dbRef.current || !userId) return; try { setLoading(true); const studentDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'students', studentId); await window.deleteDoc(studentDocRef); setMessageBox({ show: true, title: 'Alumno eliminado', content: 'El alumno ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) }); } catch (error) { setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar al alumno. Inténtalo de nuevo.', type: 
-'error', onClose: () => setMessageBox({ ...messageBox, show: false }) }); console.error("Error deleting student:", error); } finally { setLoading(false); } }, onClose: () => setMessageBox({ ...messageBox, show: false }) });
-};
-const sendWhatsApp = (phone) => {
-                const formattedPhone = phone.replace(/\D/g, '');
-                const url = `https://wa.me/${formattedPhone}`;
-                window.open(url, '_blank');
-            };
-const addPayment = async () => {
-                if (!dbRef.current || !userId) return;
-if (!newPayment.date || !newPayment.amount || newPayment.amount <= 0) {
-                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, ingresa una fecha y un monto válido para el pago.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-return;
+            } catch (e) {
+                console.error('Error reemplazando alumno:', e);
+            }
+        };
+
+        const removeStudentFromClass = async (classId, studentIndex) => {
+            if (!dbRef.current || !userId) return;
+            try {
+                const classDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'classes', classId);
+                const snap = await window.getDoc(classDocRef);
+                if (snap.exists()) {
+                    const data = snap.data() || {};
+                    data.studentIds = (data.studentIds || []).filter((_, i) => i !== studentIndex);
+                    data.studentNames = (data.studentNames || []).filter((_, i) => i !== studentIndex);
+                    await window.setDoc(classDocRef, data);
                 }
-                try {
-                    setLoading(true);
-const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
-const paymentData = { ...newPayment, amount: parseFloat(newPayment.amount), date: newPayment.date, timestamp: window.Timestamp.fromDate(new Date(newPayment.date)) };
-if (isEditingPayment) {
-                        const paymentDocRef = window.doc(paymentsColRef, editedPaymentId);
-                        await window.setDoc(paymentDocRef, paymentData);
-setMessageBox({ show: true, title: 'Pago actualizado', content: 'El pago se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-} else {
-                        await window.addDoc(paymentsColRef, paymentData);
-setMessageBox({ show: true, title: 'Pago añadido', content: 'El nuevo pago se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-}
-setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' });
-setIsEditingPayment(false);
-setEditedPaymentId(null);
-} catch (error) {
-                    setMessageBox({ show: true, title: 'Error al guardar el pago', content: 'Hubo un error al guardar los datos del pago. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-console.error("Error adding/updating payment:", error);
-                } finally {
-                    setLoading(false);
-}
-            };
-const editPayment = (paymentToEdit) => {
-                setNewPayment({ ...paymentToEdit, amount: paymentToEdit.amount.toString() });
-                setIsEditingPayment(true);
-                setEditedPaymentId(paymentToEdit.id);
-            };
-const deletePayment = (paymentId) => {
-                setMessageBox({ show: true, title: 'Confirmar eliminación', content: '¿Estás seguro de que quieres eliminar este pago? Esta acción es irreversible.', type: 'confirm', onConfirm: async () => { if (!dbRef.current || !userId) return; try { setLoading(true); const paymentDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments', paymentId); await window.deleteDoc(paymentDocRef); setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) }); } catch (error) { setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar el pago. Inténtalo de nuevo.', type: 'error', 
-onClose: () => setMessageBox({ ...messageBox, show: false }) }); console.error("Error deleting payment:", error); } finally { setLoading(false); } }, onClose: () => setMessageBox({ ...messageBox, show: false }) });
-};
-useEffect(() => {
-                if (userId && dbRef.current) {
-                    loadCustomPrices();
-                    const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
-                    const studentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'students');
-                    const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
-                    const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
-                    const classesQuery = window.query(classesColRef);
-                    const studentsQuery = window.query(studentsColRef);
-                    const paymentsQuery = window.query(paymentsColRef);
-                    const logQuery = window.query(logColRef);
+            } catch (e) {
+                console.error('Error quitando alumno:', e);
+            }
+        };
 
-                    const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
-                        const classesList = snapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data(),
-                            date: doc.data().date instanceof window.Timestamp ? doc.data().date.toDate().toISOString().split('T')[0] : doc.data().date
-                        }));
-                        setClasses(classesList);
-                    });
+        const initializeFirebase = async () => {
+            try {
+                const app = window.initializeApp(firebaseConfig);
+                dbRef.current = window.getFirestore(app);
+                authRef.current = window.getAuth(app);
 
-                    const unsubscribeStudents = window.onSnapshot(studentsQuery, (snapshot) => {
-                        const studentsList = snapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data()
-                        }));
-                        setStudents(studentsList);
-                    });
-
-                    const unsubscribePayments = window.onSnapshot(paymentsQuery, (snapshot) => {
-                        const paymentsList = snapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data()
-                        }));
-                        setPayments(paymentsList);
-                    });
-                    
-                    const unsubscribeLog = window.onSnapshot(logQuery, (snapshot) => {
-                        const logList = snapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data()
-                        }));
-                        setActivityLog(logList.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds));
-                    });
-
-                    return () => {
-                        unsubscribeClasses();
-                        unsubscribeStudents();
-                        unsubscribePayments();
-                        unsubscribeLog();
-                    };
-                }
-            }, [userId, dbRef.current]);
-
-            const addNewClass = async () => {
-                if (!dbRef.current || !userId) return;
-                try {
-                    setLoading(true);
-                    const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
-                    
-                    if (isEditing) {
-                        const classDocRef = window.doc(classesColRef, editedClassId);
-                        await window.setDoc(classDocRef, {
-                            ...newEntry,
-                            date: window.Timestamp.fromDate(new Date(newEntry.date)),
-                        });
-                        await addLogEntry('Clase editada', `Se editó la clase del ${newEntry.date}`);
-                        setMessageBox({ show: true, title: 'Clase actualizada', content: 'La clase se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                const unsubscribe = window.onAuthStateChanged(authRef.current, (user) => {
+                    if (user) {
+                        setUserId(user.uid);
+                        setUserEmail(user.email);
                     } else {
-                        await window.addDoc(classesColRef, {
-                            ...newEntry,
-                            date: window.Timestamp.fromDate(new Date(newEntry.date)),
-                        });
-                        await addLogEntry('Clase añadida', `Se agregó una clase para ${newEntry.studentCount} alumno(s) el ${newEntry.date}`);
-                        setMessageBox({ show: true, title: 'Clase añadida', content: 'La nueva clase se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        setUserId(null);
+                        setUserEmail('');
                     }
-
-                    setNewEntry({
-                        studentCount: 1,
-                        studentNames: [''],
-                        studentIds: [''],
-                        date: new Date().toISOString().split('T')[0],
-                        day: daysOfWeek[new Date().getDay()],
-                        time: timesOfDay[0],
-                        price: customPrices[1] || 0,
-                    });
-                    setIsEditing(false);
-                    setEditedClassId(null);
-                } catch (error) {
-                    setMessageBox({ show: true, title: 'Error al guardar la clase', content: 'Hubo un error al guardar los datos de la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-                    console.error("Error adding/updating document: ", error);
-                } finally {
                     setLoading(false);
-                }
-            };
-            
-            const editClass = (classToEdit) => {
-                setNewEntry({
-                    ...classToEdit,
-                    date: classToEdit.date instanceof window.Timestamp ? classToEdit.date.toDate().toISOString().split('T')[0] : classToEdit.date
                 });
-                setIsEditing(true);
-                setEditedClassId(classToEdit.id);
-            };
-
-            const deleteClass = (classId) => {
+                return () => unsubscribe();
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
                 setMessageBox({
                     show: true,
-                    title: 'Confirmar eliminación',
-                    content: '¿Estás seguro de que quieres eliminar esta clase? Esta acción es irreversible.',
-                    type: 'confirm',
-                    onConfirm: async () => {
-                        if (!dbRef.current || !userId) return;
-                        try {
-                            setLoading(true);
-                            const classDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'classes', classId);
-                            await window.deleteDoc(classDocRef);
-                            await addLogEntry('Clase eliminada', `Se eliminó la clase con ID ${classId}`);
-                            setMessageBox({ show: true, title: 'Clase eliminada', content: 'La clase ha sido eliminada exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-                        } catch (error) {
-                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-                            console.error("Error removing document: ", error);
-                        } finally {
-                            setLoading(false);
-                        }
-                    },
+                    title: 'Error de configuración',
+                    content: 'Error al inicializar Firebase. Revisa tu configuración.',
+                    type: 'error',
                     onClose: () => setMessageBox({ ...messageBox, show: false })
                 });
-            };
+                setLoading(false);
+            }
+        };
+        useEffect(() => {
+            initializeFirebase();
+        }, []);
 
-            const generateReports = async () => {
-                if (classes.length === 0) return {};
-                
-                const reports = classes.reduce((acc, cls) => {
-                    const date = new Date(cls.date);
-                    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-                    if (!acc[monthYear]) {
-                        acc[monthYear] = { totalIncome: 0, classCount: 0, studentCount: 0 };
-                    }
-                    acc[monthYear].totalIncome += cls.price;
-                    acc[monthYear].classCount += 1;
-                    acc[monthYear].studentCount += cls.studentCount;
-                    return acc;
-                }, {});
-
-                // Generar reporte anual de pagos
-                const annualReport = payments.reduce((acc, payment) => {
-                    const date = new Date(payment.date);
-                    const year = date.getFullYear();
-                    if (!acc[year]) {
-                        acc[year] = { totalIncome: 0 };
-                    }
-                    acc[year].totalIncome += payment.amount;
-                    return acc;
-                }, {});
-
-                setMonthlyReports(reports);
-                setAnnualPaymentsReport(annualReport);
-                return { monthlyReports: reports, annualPaymentsReport: annualReport };
-            };
-            
-            useEffect(() => {
-                generateReports();
-            }, [classes, payments]);
-            
-            const handlePrintReport = (reportType) => {
-                const isMonthly = reportType === 'monthly';
-                const elementToPrint = isMonthly ? reportTableRef.current : annualPaymentsReportRef.current;
-                const title = isMonthly ? `Reporte Mensual de Clases - ${formatMonthYear(selectedMonthYear)}` : "Reporte Anual de Pagos";
-                
-                if (elementToPrint) {
-                    window.jsPDF = jspdf.jsPDF;
-                    html2canvas(elementToPrint).then(canvas => {
-                        const imgData = canvas.toDataURL('image/png');
-                        const pdf = new window.jsPDF('p', 'mm', 'a4');
-                        const imgProps= pdf.getImageProperties(imgData);
-                        const pdfWidth = pdf.internal.pageSize.getWidth();
-                        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                        
-                        pdf.text(title, 14, 20);
-                        pdf.addImage(imgData, 'PNG', 0, 30, pdfWidth, pdfHeight);
-                        pdf.save(`${title.replace(/ /g, '_')}.pdf`);
-                    });
-                }
-            };
-            
-            const handleFilterChange = (e) => {
-                setFilterText(e.target.value);
-            };
-
-            const filteredClasses = useMemo(() => {
-                const term = filterText.toLowerCase();
-                if (!term) return classes;
-                return classes.filter(cls => 
-                    cls.studentNames.some(name => name.toLowerCase().includes(term)) ||
-                    cls.day.toLowerCase().includes(term) ||
-                    cls.time.toLowerCase().includes(term) ||
-                    cls.date.toLowerCase().includes(term) ||
-                    (cls.price && cls.price.toString().includes(term))
-                );
-            }, [classes, filterText]);
-            
-            const getPaginatedData = (data) => {
-                const startIndex = (currentPage - 1) * classesPerPage;
-                const endIndex = startIndex + classesPerPage;
-                return data.slice(startIndex, endIndex);
-            };
-            
-            const totalPages = Math.ceil(filteredClasses.length / classesPerPage);
-            const currentClasses = getPaginatedData(filteredClasses);
-
-            const handleFileUpload = (event) => {
-                const file = event.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const jsonData = JSON.parse(e.target.result);
-                            if (jsonData.classes) {
-                                // Aquí puedes usar window.writeBatch para cargar los datos en la base de datos
-                                setMessageBox({
-                                    show: true,
-                                    title: 'Archivo cargado',
-                                    content: 'El archivo JSON se ha procesado exitosamente. Ahora puedes importar los datos a la base de datos.',
-                                    type: 'success',
-                                    onConfirm: () => {
-                                        importDataToFirestore(jsonData.classes, 'classes');
-                                        setMessageBox({ ...messageBox, show: false });
-                                    },
-                                    onClose: () => setMessageBox({ ...messageBox, show: false })
-                                });
-                            } else {
-                                setMessageBox({ show: true, title: 'Error de archivo', content: 'El archivo JSON no tiene el formato correcto.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-                            }
-                        } catch (error) {
-                            setMessageBox({ show: true, title: 'Error de archivo', content: 'El archivo no es un JSON válido.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-                        }
-                    };
-                    reader.readAsText(file);
-                }
-            };
-            
-            const importDataToFirestore = async (data, collectionName) => {
-                if (!dbRef.current || !userId) {
-                    setMessageBox({ show: true, title: 'Error de importación', content: 'No se pudo conectar a la base de datos. Por favor, inicia sesión.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-                    return;
-                }
+        const signIn = async () => {
+            try {
                 setLoading(true);
-                const batch = window.writeBatch(dbRef.current);
-                const colRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, collectionName);
-                
-                try {
-                    data.forEach(item => {
-                        const newDocRef = window.doc(colRef);
-                        batch.set(newDocRef, { ...item, timestamp: window.Timestamp.now() });
-                    });
-                    await batch.commit();
-                    setMessageBox({ show: true, title: 'Importación exitosa', content: `Se han importado ${data.length} registros a Firestore.`, type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-                } catch (error) {
-                    console.error("Error writing batch:", error);
-                    setMessageBox({ show: true, title: 'Error de importación', content: 'Hubo un error al escribir en la base de datos. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
-                } finally {
-                    setLoading(false);
+                const auth = authRef.current;
+                await window.setPersistence(auth, window.browserLocalPersistence);
+                await window.signInWithEmailAndPassword(auth, email, password);
+                setMessageBox({
+                    show: true,
+                    title: 'Inicio de Sesión Exitoso',
+                    content: 'La sesión se mantendrá iniciada en este dispositivo.',
+                    type: 'success',
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                });
+            } catch (error) {
+                setMessageBox({
+                    show: true,
+                    title: 'Error de autenticación',
+                    content: 'Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.',
+                    type: 'error',
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                });
+                console.error("Error signing in:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        const signUp = async () => {
+            try {
+                setLoading(true);
+                const auth = authRef.current;
+                await window.createUserWithEmailAndPassword(auth, email, password);
+                setMessageBox({
+                    show: true,
+                    title: 'Cuenta creada',
+                    content: 'Tu cuenta se ha creado exitosamente. ¡Ya puedes iniciar sesión!',
+                    type: 'success',
+                    onClose: () => {
+                        setMessageBox({ ...messageBox, show: false });
+                        setIsSigningUp(false);
+                    }
+                });
+            } catch (error) {
+                setMessageBox({
+                    show: true,
+                    title: 'Error de registro',
+                    content: 'Hubo un error al crear la cuenta. Puede que el email ya esté en uso o la contraseña sea demasiado débil.',
+                    type: 'error',
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                });
+                console.error("Error signing up:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        const handlePasswordReset = async () => {
+            if (!email) {
+                setMessageBox({
+                    show: true,
+                    title: 'Error de validación',
+                    content: 'Por favor, ingresa tu email para restablecer la contraseña.',
+                    type: 'error',
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                });
+                return;
+            }
+            try {
+                setLoading(true);
+                await window.sendPasswordResetEmail(authRef.current, email);
+                setMessageBox({
+                    show: true,
+                    title: 'Correo enviado',
+                    content: 'Se ha enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.',
+                    type: 'success',
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                });
+            } catch (error) {
+                setMessageBox({
+                    show: true,
+                    title: 'Error al enviar correo',
+                    content: 'Hubo un error al enviar el correo. Asegúrate de que el email sea correcto.',
+                    type: 'error',
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                });
+                console.error("Error sending password reset email:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        const signOutUser = async () => {
+            try {
+                await window.signOut(authRef.current);
+                setUserId(null);
+                setClasses([]);
+            } catch (error) {
+                console.error("Error signing out:", error);
+            }
+        };
+        const saveCustomPrices = async () => {
+            if (!dbRef.current || !userId) return;
+            try {
+                setLoading(true);
+                const userDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'prices');
+                await window.setDoc(userDocRef, { prices: customPrices });
+                setMessageBox({ show: true, title: 'Precios guardados', content: 'Los precios de las clases se han guardado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+            } catch (error) {
+                setMessageBox({ show: true, title: 'Error al guardar', content: 'Hubo un error al guardar los precios.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                console.error("Error saving custom prices:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        const loadCustomPrices = async () => {
+            if (!dbRef.current || !userId) return;
+            try {
+                const userDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'prices');
+                const docSnap = await window.getDoc(userDocRef);
+                if (docSnap.exists()) {
+                    setCustomPrices(docSnap.data().prices);
                 }
-            };
+            } catch (error) {
+                console.error("Error loading custom prices:", error);
+            }
+        };
+        const addLogEntry = async (action, details) => {
+            if (!dbRef.current || !userId) return;
+            try {
+                const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
+                await window.addDoc(logColRef, {
+                    action,
+                    details,
+                    timestamp: window.Timestamp.now()
+                });
+            } catch (error) {
+                console.error("Error adding log entry:", error);
+            }
+        };
+        const addStudent = async () => {
+            if (!dbRef.current || !userId) return;
+            if (!newStudent.firstName || !newStudent.lastName || !newStudent.phone) {
+                setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos del alumno.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                return;
+            }
+            try {
+                setLoading(true);
+                const studentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'students');
+                if (isEditingStudent) {
+                    const studentDocRef = window.doc(studentsColRef, editedStudentId);
+                    await window.setDoc(studentDocRef, newStudent);
+                    setMessageBox({ show: true, title: 'Alumno actualizado', content: 'El alumno se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                } else {
+                    await window.addDoc(studentsColRef, newStudent);
+                    setMessageBox({ show: true, title: 'Alumno añadido', content: 'El nuevo alumno se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                }
+                setNewStudent({ firstName: '', lastName: '', phone: '', description: '', status: 'Activo', schedule: [] });
+                setIsEditingStudent(false);
+                setEditedStudentId(null);
+            } catch (error) {
+                setMessageBox({ show: true, title: 'Error al guardar el alumno', content: 'Hubo un error al guardar los datos del alumno. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                console.error("Error adding/updating student:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        const editStudent = (studentToEdit) => {
+            setNewStudent({ ...studentToEdit, schedule: studentToEdit.schedule || [] });
+            setIsEditingStudent(true);
+            setEditedStudentId(studentToEdit.id);
+        };
+        const deleteStudent = (studentId) => {
+            setMessageBox({ show: true, title: 'Confirmar eliminación', content: '¿Estás seguro de que quieres eliminar a este alumno? Esta acción es irreversible.', type: 'confirm', onConfirm: async () => { if (!dbRef.current || !userId) return; try { setLoading(true); const studentDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'students', studentId); await window.deleteDoc(studentDocRef); setMessageBox({ show: true, title: 'Alumno eliminado', content: 'El alumno ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) }); } catch (error) { setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar al alumno. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) }); console.error("Error deleting student:", error); } finally { setLoading(false); } }, onClose: () => setMessageBox({ ...messageBox, show: false }) });
+        };
+        const sendWhatsApp = (phone) => {
+            const formattedPhone = phone.replace(/\D/g, '');
+            const url = `https://wa.me/${formattedPhone}`;
+            window.open(url, '_blank');
+        };
+        const addPayment = async () => {
+            if (!dbRef.current || !userId) return;
+            if (!newPayment.date || !newPayment.amount || newPayment.amount <= 0) {
+                setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, ingresa una fecha y un monto válido para el pago.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                return;
+            }
+            try {
+                setLoading(true);
+                const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
+                const paymentData = { ...newPayment, amount: parseFloat(newPayment.amount), date: newPayment.date, timestamp: window.Timestamp.fromDate(new Date(newPayment.date)) };
+                if (isEditingPayment) {
+                    const paymentDocRef = window.doc(paymentsColRef, editedPaymentId);
+                    await window.setDoc(paymentDocRef, paymentData);
+                    setMessageBox({ show: true, title: 'Pago actualizado', content: 'El pago se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                } else {
+                    await window.addDoc(paymentsColRef, paymentData);
+                    setMessageBox({ show: true, title: 'Pago añadido', content: 'El nuevo pago se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                }
+                setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' });
+                setIsEditingPayment(false);
+                setEditedPaymentId(null);
+            } catch (error) {
+                setMessageBox({ show: true, title: 'Error al guardar el pago', content: 'Hubo un error al guardar los datos del pago. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                console.error("Error adding/updating payment:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        const editPayment = (paymentToEdit) => {
+            setNewPayment({ ...paymentToEdit, amount: paymentToEdit.amount.toString() });
+            setIsEditingPayment(true);
+            setEditedPaymentId(paymentToEdit.id);
+        };
+        const deletePayment = (paymentId) => {
+            setMessageBox({ show: true, title: 'Confirmar eliminación', content: '¿Estás seguro de que quieres eliminar este pago? Esta acción es irreversible.', type: 'confirm', onConfirm: async () => { if (!dbRef.current || !userId) return; try { setLoading(true); const paymentDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments', paymentId); await window.deleteDoc(paymentDocRef); setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) }); } catch (error) { setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar el pago. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) }); console.error("Error deleting payment:", error); } finally { setLoading(false); } }, onClose: () => setMessageBox({ ...messageBox, show: false }) });
+        };
+        useEffect(() => {
+            if (userId && dbRef.current) {
+                loadCustomPrices();
+                const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
+                const studentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'students');
+                const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
+                const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
+                const classesQuery = window.query(classesColRef);
+                const studentsQuery = window.query(studentsColRef);
+                const paymentsQuery = window.query(paymentsColRef);
+                const logQuery = window.query(logColRef);
 
-            const renderView = () => {
-                switch (view) {
-                    case 'list':
-                        return (
-                            <>
-                                <h2 className="text-xl font-bold mb-4">Clases Registradas</h2>
-                                <div className="flex justify-between items-center mb-4">
-                                    <div className="flex items-center space-x-2">
-                                        <label htmlFor="filterInput" className="text-gray-700">Filtrar:</label>
-                                        <input
-                                            type="text"
-                                            id="filterInput"
-                                            value={filterText}
-                                            onChange={handleFilterChange}
-                                            className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                            placeholder="Buscar en clases..."
-                                        />
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <label htmlFor="classesPerPage" className="text-gray-700">Mostrar:</label>
-                                        <select
-                                            id="classesPerPage"
-                                            value={classesPerPage}
-                                            onChange={(e) => {
-                                                setClassesPerPage(Number(e.target.value));
-                                                setCurrentPage(1);
-                                            }}
-                                            className="p-2 border rounded-lg"
-                                        >
-                                            <option value={5}>5</option>
-                                            <option value={10}>10</option>
-                                            <option value={20}>20</option>
-                                            <option value={50}>50</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="overflow-x-auto bg-white rounded-lg shadow-lg">
-                                    <table className="min-w-full table-auto">
-                                        <thead className="text-left text-gray-600">
-                                            <tr className="border-b">
-                                                <th className="py-2 px-4">Fecha</th>
-                                                <th className="py-2 px-4">Día</th>
-                                                <th className="py-2 px-4">Hora</th>
-                                                <th className="py-2 px-4">Alumnos</th>
-                                                <th className="py-2 px-4">Precio</th>
-                                                <th className="py-2 px-4">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {currentClasses.length > 0 ? (
-                                                currentClasses.map((cls) => (
-                                                    <tr key={cls.id} className="border-b hover:bg-gray-50 transition-colors">
-                                                        <td className="py-2 px-4 text-gray-700">{cls.date}</td>
-                                                        <td className="py-2 px-4 text-gray-700">{cls.day}</td>
-                                                        <td className="py-2 px-4 text-gray-700">{cls.time}</td>
-                                                        <td className="py-2 px-4 text-gray-700">
-                                                            <div className="flex flex-col space-y-1">
-                                                                {cls.studentNames && cls.studentNames.map((name, studentIndex) => (
-                                                                    <span key={studentIndex} className="bg-gray-200 text-gray-800 rounded-full px-2 py-1 text-xs font-semibold">
-                                                                        {name}
-                                                                        <button onClick={() => setReplaceData({ classId: cls.id, studentIndex })} className="ml-1 text-blue-600 hover:text-blue-800"><i className="fas fa-edit text-xs"></i></button>
-                                                                        <button onClick={() => removeStudentFromClass(cls.id, studentIndex)} className="ml-1 text-red-500 hover:text-red-700"><i className="fas fa-trash-alt text-xs"></i></button>
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-2 px-4 text-gray-700">{formatPrice(cls.price)}</td>
-                                                        <td className="py-2 px-4 text-gray-700">
-                                                            <button onClick={() => editClass(cls)} className="text-blue-600 hover:text-blue-800 transition-colors mr-2">
-                                                                <i className="fas fa-edit"></i>
-                                                            </button>
-                                                            <button onClick={() => deleteClass(cls.id)} className="text-red-500 hover:text-red-700 transition-colors">
-                                                                <i className="fas fa-trash-alt"></i>
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="6" className="text-center text-gray-500 py-8">
-                                                        No hay clases registradas.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div className="mt-4 flex justify-between items-center">
-                                    <p className="text-gray-600">Mostrando {currentClasses.length} de {filteredClasses.length} clases</p>
-                                    <div className="flex items-center space-x-2">
-                                        <button
-                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                            disabled={currentPage === 1}
-                                            className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Anterior
-                                        </button>
-                                        <span className="text-gray-700">Página {currentPage} de {totalPages}</span>
-                                        <button
-                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                            disabled={currentPage === totalPages}
-                                            className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Siguiente
-                                        </button>
-                                    </div>
-                                </div>
-                            </>
-                        );
-                    case 'monthly_report':
-                        return (
-                            <>
-                                <h2 className="text-xl font-bold mb-4">Reporte Mensual</h2>
-                                <div className="flex justify-between items-center mb-4">
-                                    <select
-                                        value={selectedMonthYear}
-                                        onChange={(e) => setSelectedMonthYear(e.target.value)}
-                                        className="p-2 border rounded-lg"
-                                    >
-                                        <option value="">Seleccionar Mes</option>
-                                        {Object.keys(monthlyReports).sort().reverse().map(key => (
-                                            <option key={key} value={key}>{formatMonthYear(key)}</option>
-                                        ))}
-                                    </select>
-                                    {selectedMonthYear && (
-                                        <button onClick={() => handlePrintReport('monthly')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                                            Descargar PDF <i className="fas fa-download ml-2"></i>
-                                        </button>
-                                    )}
-                                </div>
-                                {selectedMonthYear && monthlyReports[selectedMonthYear] ? (
-                                    <div className="bg-white p-6 rounded-lg shadow-lg" ref={reportTableRef}>
-                                        <h3 className="text-lg font-bold mb-4">Informe de {formatMonthYear(selectedMonthYear)}</h3>
-                                        <p>Clases Totales: <span className="font-bold">{monthlyReports[selectedMonthYear].classCount}</span></p>
-                                        <p>Ingreso Total: <span className="font-bold text-green-600">{formatPrice(monthlyReports[selectedMonthYear].totalIncome)}</span></p>
-                                        <p>Alumnos Totales: <span className="font-bold">{monthlyReports[selectedMonthYear].studentCount}</span></p>
-                                    </div>
-                                ) : (
-                                    <p className="text-center text-gray-500">Selecciona un mes para ver el reporte.</p>
-                                )}
-                            </>
-                        );
-                    case 'annual_report':
-                        return (
-                            <>
-                                <h2 className="text-xl font-bold mb-4">Reporte Anual de Pagos al Club</h2>
-                                <button onClick={() => handlePrintReport('annual')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors mb-4">
-                                    Descargar PDF <i className="fas fa-download ml-2"></i>
-                                </button>
-                                <div className="overflow-x-auto bg-white rounded-lg shadow-lg" ref={annualPaymentsReportRef}>
-                                    <table className="min-w-full table-auto">
-                                        <thead className="text-left text-gray-600">
-                                            <tr className="border-b">
-                                                <th className="py-2 px-4">Año</th>
-                                                <th className="py-2 px-4">Ingreso Total</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {Object.keys(annualPaymentsReport).length > 0 ? (
-                                                Object.keys(annualPaymentsReport).sort().reverse().map(year => (
-                                                    <tr key={year} className="border-b hover:bg-gray-50 transition-colors">
-                                                        <td className="py-2 px-4 text-gray-700">{year}</td>
-                                                        <td className="py-2 px-4 text-green-600 font-bold">{formatPrice(annualPaymentsReport[year].totalIncome)}</td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="2" className="text-center text-gray-500 py-8">
-                                                        No hay datos de pagos para el reporte anual.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        );
-                    case 'add_student':
-                        return (
-                            <>
-                                <h2 className="text-xl font-bold mb-4">{isEditingStudent ? "Editar Alumno" : "Añadir Nuevo Alumno"}</h2>
-                                <div className="bg-white p-6 rounded-lg shadow-lg grid md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label htmlFor="firstName" className="block text-gray-700 font-bold mb-2">Nombre</label>
-                                        <input
-                                            type="text"
-                                            id="firstName"
-                                            value={newStudent.firstName}
-                                            onChange={(e) => setNewStudent({ ...newStudent, firstName: e.target.value })}
-                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                            placeholder="Ej: Juan"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="lastName" className="block text-gray-700 font-bold mb-2">Apellido</label>
-                                        <input
-                                            type="text"
-                                            id="lastName"
-                                            value={newStudent.lastName}
-                                            onChange={(e) => setNewStudent({ ...newStudent, lastName: e.target.value })}
-                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                            placeholder="Ej: Pérez"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="phone" className="block text-gray-700 font-bold mb-2">Teléfono</label>
-                                        <input
-                                            type="tel"
-                                            id="phone"
-                                            value={newStudent.phone}
-                                            onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
-                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                            placeholder="Ej: 3815551234"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="description" className="block text-gray-700 font-bold mb-2">Descripción (opcional)</label>
-                                        <textarea
-                                            id="description"
-                                            value={newStudent.description}
-                                            onChange={(e) => setNewStudent({ ...newStudent, description: e.target.value })}
-                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                            placeholder="Ej: Alumno avanzado, de 16 años"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="status" className="block text-gray-700 font-bold mb-2">Estado</label>
-                                        <select
-                                            id="status"
-                                            value={newStudent.status}
-                                            onChange={(e) => setNewStudent({ ...newStudent, status: e.target.value })}
-                                            className="w-full p-3 border rounded-lg"
-                                        >
-                                            <option value="Activo">Activo</option>
-                                            <option value="Inactivo">Inactivo</option>
-                                            <option value="Potencial">Potencial</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="mt-6 flex justify-end space-x-4">
-                                    {isEditingStudent && (
-                                        <button onClick={() => {
-                                            setIsEditingStudent(false);
-                                            setEditedStudentId(null);
-                                            setNewStudent({ firstName: '', lastName: '', phone: '', description: '', status: 'Activo', schedule: [] });
-                                        }} className="px-6 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors">
-                                            Cancelar
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={addStudent}
-                                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
-                                    >
-                                        {isEditingStudent ? "Actualizar Alumno" : "Añadir Alumno"}
-                                    </button>
-                                </div>
-                            </>
-                        );
-                    case 'students_list':
-                        return (
-                            <>
-                                <h2 className="text-xl font-bold mb-4">Lista de Alumnos</h2>
-                                <div className="flex justify-between items-center mb-4">
+                const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
+                    const classesList = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                        date: doc.data().date instanceof window.Timestamp ? doc.data().date.toDate().toISOString().split('T')[0] : doc.data().date
+                    }));
+                    setClasses(classesList);
+                });
+
+                const unsubscribeStudents = window.onSnapshot(studentsQuery, (snapshot) => {
+                    const studentsList = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    setStudents(studentsList);
+                });
+
+                const unsubscribePayments = window.onSnapshot(paymentsQuery, (snapshot) => {
+                    const paymentsList = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    setPayments(paymentsList);
+                });
+                
+                const unsubscribeLog = window.onSnapshot(logQuery, (snapshot) => {
+                    const logList = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    setActivityLog(logList.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds));
+                });
+
+                return () => {
+                    unsubscribeClasses();
+                    unsubscribeStudents();
+                    unsubscribePayments();
+                    unsubscribeLog();
+                };
+            }
+        }, [userId, dbRef.current]);
+
+        const addNewClass = async () => {
+            if (!dbRef.current || !userId) return;
+            try {
+                setLoading(true);
+                const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
+                
+                if (isEditing) {
+                    const classDocRef = window.doc(classesColRef, editedClassId);
+                    await window.setDoc(classDocRef, {
+                        ...newEntry,
+                        date: window.Timestamp.fromDate(new Date(newEntry.date)),
+                    });
+                    await addLogEntry('Clase editada', `Se editó la clase del ${newEntry.date}`);
+                    setMessageBox({ show: true, title: 'Clase actualizada', content: 'La clase se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                } else {
+                    await window.addDoc(classesColRef, {
+                        ...newEntry,
+                        date: window.Timestamp.fromDate(new Date(newEntry.date)),
+                    });
+                    await addLogEntry('Clase añadida', `Se agregó una clase para ${newEntry.studentCount} alumno(s) el ${newEntry.date}`);
+                    setMessageBox({ show: true, title: 'Clase añadida', content: 'La nueva clase se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                }
+
+                setNewEntry({
+                    studentCount: 1,
+                    studentNames: [''],
+                    studentIds: [''],
+                    date: new Date().toISOString().split('T')[0],
+                    day: daysOfWeek[new Date().getDay()],
+                    time: timesOfDay[0],
+                    price: customPrices[1] || 0,
+                });
+                setIsEditing(false);
+                setEditedClassId(null);
+            } catch (error) {
+                setMessageBox({ show: true, title: 'Error al guardar la clase', content: 'Hubo un error al guardar los datos de la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                console.error("Error adding/updating document: ", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+            
+        const editClass = (classToEdit) => {
+            setNewEntry({
+                ...classToEdit,
+                date: classToEdit.date instanceof window.Timestamp ? classToEdit.date.toDate().toISOString().split('T')[0] : classToEdit.date
+            });
+            setIsEditing(true);
+            setEditedClassId(classToEdit.id);
+        };
+
+        const deleteClass = (classId) => {
+            setMessageBox({
+                show: true,
+                title: 'Confirmar eliminación',
+                content: '¿Estás seguro de que quieres eliminar esta clase? Esta acción es irreversible.',
+                type: 'confirm',
+                onConfirm: async () => {
+                    if (!dbRef.current || !userId) return;
+                    try {
+                        setLoading(true);
+                        const classDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'classes', classId);
+                        await window.deleteDoc(classDocRef);
+                        await addLogEntry('Clase eliminada', `Se eliminó la clase con ID ${classId}`);
+                        setMessageBox({ show: true, title: 'Clase eliminada', content: 'La clase ha sido eliminada exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    } catch (error) {
+                        setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        console.error("Error removing document: ", error);
+                    } finally {
+                        setLoading(false);
+                    }
+                },
+                onClose: () => setMessageBox({ ...messageBox, show: false })
+            });
+        };
+
+        const generateReports = async () => {
+            if (classes.length === 0) return {};
+            
+            const reports = classes.reduce((acc, cls) => {
+                const date = new Date(cls.date);
+                const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                if (!acc[monthYear]) {
+                    acc[monthYear] = { totalIncome: 0, classCount: 0, studentCount: 0 };
+                }
+                acc[monthYear].totalIncome += cls.price;
+                acc[monthYear].classCount += 1;
+                acc[monthYear].studentCount += cls.studentCount;
+                return acc;
+            }, {});
+
+            // Generar reporte anual de pagos
+            const annualReport = payments.reduce((acc, payment) => {
+                const date = new Date(payment.date);
+                const year = date.getFullYear();
+                if (!acc[year]) {
+                    acc[year] = { totalIncome: 0 };
+                }
+                acc[year].totalIncome += payment.amount;
+                return acc;
+            }, {});
+
+            setMonthlyReports(reports);
+            setAnnualPaymentsReport(annualReport);
+            return { monthlyReports: reports, annualPaymentsReport: annualReport };
+        };
+            
+        useEffect(() => {
+            generateReports();
+        }, [classes, payments]);
+            
+        const handlePrintReport = (reportType) => {
+            const isMonthly = reportType === 'monthly';
+            const elementToPrint = isMonthly ? reportTableRef.current : annualPaymentsReportRef.current;
+            const title = isMonthly ? `Reporte Mensual de Clases - ${formatMonthYear(selectedMonthYear)}` : "Reporte Anual de Pagos";
+            
+            if (elementToPrint) {
+                window.jsPDF = jspdf.jsPDF;
+                html2canvas(elementToPrint).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new window.jsPDF('p', 'mm', 'a4');
+                    const imgProps= pdf.getImageProperties(imgData);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    
+                    pdf.text(title, 14, 20);
+                    pdf.addImage(imgData, 'PNG', 0, 30, pdfWidth, pdfHeight);
+                    pdf.save(`${title.replace(/ /g, '_')}.pdf`);
+                });
+            }
+        };
+            
+        const handleFilterChange = (e) => {
+            setFilterText(e.target.value);
+        };
+
+        const filteredClasses = useMemo(() => {
+            const term = filterText.toLowerCase();
+            if (!term) return classes;
+            return classes.filter(cls => 
+                cls.studentNames.some(name => name.toLowerCase().includes(term)) ||
+                cls.day.toLowerCase().includes(term) ||
+                cls.time.toLowerCase().includes(term) ||
+                cls.date.toLowerCase().includes(term) ||
+                (cls.price && cls.price.toString().includes(term))
+            );
+        }, [classes, filterText]);
+            
+        const getPaginatedData = (data) => {
+            const startIndex = (currentPage - 1) * classesPerPage;
+            const endIndex = startIndex + classesPerPage;
+            return data.slice(startIndex, endIndex);
+        };
+            
+        const totalPages = Math.ceil(filteredClasses.length / classesPerPage);
+        const currentClasses = getPaginatedData(filteredClasses);
+
+        const handleFileUpload = (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const jsonData = JSON.parse(e.target.result);
+                        if (jsonData.classes) {
+                            // Aquí puedes usar window.writeBatch para cargar los datos en la base de datos
+                            setMessageBox({
+                                show: true,
+                                title: 'Archivo cargado',
+                                content: 'El archivo JSON se ha procesado exitosamente. Ahora puedes importar los datos a la base de datos.',
+                                type: 'success',
+                                onConfirm: () => {
+                                    importDataToFirestore(jsonData.classes, 'classes');
+                                    setMessageBox({ ...messageBox, show: false });
+                                },
+                                onClose: () => setMessageBox({ ...messageBox, show: false })
+                            });
+                        } else {
+                            setMessageBox({ show: true, title: 'Error de archivo', content: 'El archivo JSON no tiene el formato correcto.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        }
+                    } catch (error) {
+                        setMessageBox({ show: true, title: 'Error de archivo', content: 'El archivo no es un JSON válido.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    }
+                };
+                reader.readAsText(file);
+            }
+        };
+            
+        const importDataToFirestore = async (data, collectionName) => {
+            if (!dbRef.current || !userId) {
+                setMessageBox({ show: true, title: 'Error de importación', content: 'No se pudo conectar a la base de datos. Por favor, inicia sesión.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                return;
+            }
+            setLoading(true);
+            const batch = window.writeBatch(dbRef.current);
+            const colRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, collectionName);
+            
+            try {
+                data.forEach(item => {
+                    const newDocRef = window.doc(colRef);
+                    batch.set(newDocRef, { ...item, timestamp: window.Timestamp.now() });
+                });
+                await batch.commit();
+                setMessageBox({ show: true, title: 'Importación exitosa', content: `Se han importado ${data.length} registros a Firestore.`, type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+            } catch (error) {
+                console.error("Error writing batch:", error);
+                setMessageBox({ show: true, title: 'Error de importación', content: 'Hubo un error al escribir en la base de datos. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const renderView = () => {
+            switch (view) {
+                case 'list':
+                    return (
+                        <>
+                            <h2 className="text-xl font-bold mb-4">Clases Registradas</h2>
+                            <div className="flex justify-between items-center mb-4">
+                                <div className="flex items-center space-x-2">
+                                    <label htmlFor="filterInput" className="text-gray-700">Filtrar:</label>
                                     <input
                                         type="text"
-                                        placeholder="Buscar por nombre, apellido o teléfono..."
-                                        value={studentSearch}
-                                        onChange={(e) => setStudentSearch(e.target.value)}
-                                        className="p-3 border rounded-lg w-full md:w-1/2 focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                        id="filterInput"
+                                        value={filterText}
+                                        onChange={handleFilterChange}
+                                        className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                        placeholder="Buscar en clases..."
                                     />
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <label htmlFor="classesPerPage" className="text-gray-700">Mostrar:</label>
                                     <select
-                                        value={filterStatus}
-                                        onChange={(e) => setFilterStatus(e.target.value)}
-                                        className="p-3 border rounded-lg ml-4"
+                                        id="classesPerPage"
+                                        value={classesPerPage}
+                                        onChange={(e) => {
+                                            setClassesPerPage(Number(e.target.value));
+                                            setCurrentPage(1);
+                                        }}
+                                        className="p-2 border rounded-lg"
                                     >
-                                        <option value="Todos">Todos</option>
+                                        <option value={5}>5</option>
+                                        <option value={10}>10</option>
+                                        <option value={20}>20</option>
+                                        <option value={50}>50</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="overflow-x-auto bg-white rounded-lg shadow-lg">
+                                <table className="min-w-full table-auto">
+                                    <thead className="text-left text-gray-600">
+                                        <tr className="border-b">
+                                            <th className="py-2 px-4">Fecha</th>
+                                            <th className="py-2 px-4">Día</th>
+                                            <th className="py-2 px-4">Hora</th>
+                                            <th className="py-2 px-4">Alumnos</th>
+                                            <th className="py-2 px-4">Precio</th>
+                                            <th className="py-2 px-4">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {currentClasses.length > 0 ? (
+                                            currentClasses.map((cls) => (
+                                                <tr key={cls.id} className="border-b hover:bg-gray-50 transition-colors">
+                                                    <td className="py-2 px-4 text-gray-700">{cls.date}</td>
+                                                    <td className="py-2 px-4 text-gray-700">{cls.day}</td>
+                                                    <td className="py-2 px-4 text-gray-700">{cls.time}</td>
+                                                    <td className="py-2 px-4 text-gray-700">
+                                                        <div className="flex flex-col space-y-1">
+                                                            {cls.studentNames && cls.studentNames.map((name, studentIndex) => (
+                                                                <span key={studentIndex} className="bg-gray-200 text-gray-800 rounded-full px-2 py-1 text-xs font-semibold">
+                                                                    {name}
+                                                                    <button onClick={() => setReplaceData({ classId: cls.id, studentIndex })} className="ml-1 text-blue-600 hover:text-blue-800"><i className="fas fa-edit text-xs"></i></button>
+                                                                    <button onClick={() => removeStudentFromClass(cls.id, studentIndex)} className="ml-1 text-red-500 hover:text-red-700"><i className="fas fa-trash-alt text-xs"></i></button>
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-2 px-4 text-gray-700">{formatPrice(cls.price)}</td>
+                                                    <td className="py-2 px-4 text-gray-700">
+                                                        <button onClick={() => editClass(cls)} className="text-blue-600 hover:text-blue-800 transition-colors mr-2">
+                                                            <i className="fas fa-edit"></i>
+                                                        </button>
+                                                        <button onClick={() => deleteClass(cls.id)} className="text-red-500 hover:text-red-700 transition-colors">
+                                                            <i className="fas fa-trash-alt"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="6" className="text-center text-gray-500 py-8">
+                                                    No hay clases registradas.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="mt-4 flex justify-between items-center">
+                                <p className="text-gray-600">Mostrando {currentClasses.length} de {filteredClasses.length} clases</p>
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        disabled={currentPage === 1}
+                                        className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Anterior
+                                    </button>
+                                    <span className="text-gray-700">Página {currentPage} de {totalPages}</span>
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                        className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Siguiente
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    );
+                case 'monthly_report':
+                    return (
+                        <>
+                            <h2 className="text-xl font-bold mb-4">Reporte Mensual</h2>
+                            <div className="flex justify-between items-center mb-4">
+                                <select
+                                    value={selectedMonthYear}
+                                    onChange={(e) => setSelectedMonthYear(e.target.value)}
+                                    className="p-2 border rounded-lg"
+                                >
+                                    <option value="">Seleccionar Mes</option>
+                                    {Object.keys(monthlyReports).sort().reverse().map(key => (
+                                        <option key={key} value={key}>{formatMonthYear(key)}</option>
+                                    ))}
+                                </select>
+                                {selectedMonthYear && (
+                                    <button onClick={() => handlePrintReport('monthly')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                        Descargar PDF <i className="fas fa-download ml-2"></i>
+                                    </button>
+                                )}
+                            </div>
+                            {selectedMonthYear && monthlyReports[selectedMonthYear] ? (
+                                <div className="bg-white p-6 rounded-lg shadow-lg" ref={reportTableRef}>
+                                    <h3 className="text-lg font-bold mb-4">Informe de {formatMonthYear(selectedMonthYear)}</h3>
+                                    <p>Clases Totales: <span className="font-bold">{monthlyReports[selectedMonthYear].classCount}</span></p>
+                                    <p>Ingreso Total: <span className="font-bold text-green-600">{formatPrice(monthlyReports[selectedMonthYear].totalIncome)}</span></p>
+                                    <p>Alumnos Totales: <span className="font-bold">{monthlyReports[selectedMonthYear].studentCount}</span></p>
+                                </div>
+                            ) : (
+                                <p className="text-center text-gray-500">Selecciona un mes para ver el reporte.</p>
+                            )}
+                        </>
+                    );
+                case 'annual_report':
+                    return (
+                        <>
+                            <h2 className="text-xl font-bold mb-4">Reporte Anual de Pagos al Club</h2>
+                            <button onClick={() => handlePrintReport('annual')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors mb-4">
+                                Descargar PDF <i className="fas fa-download ml-2"></i>
+                            </button>
+                            <div className="overflow-x-auto bg-white rounded-lg shadow-lg" ref={annualPaymentsReportRef}>
+                                <table className="min-w-full table-auto">
+                                    <thead className="text-left text-gray-600">
+                                        <tr className="border-b">
+                                            <th className="py-2 px-4">Año</th>
+                                            <th className="py-2 px-4">Ingreso Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Object.keys(annualPaymentsReport).length > 0 ? (
+                                            Object.keys(annualPaymentsReport).sort().reverse().map(year => (
+                                                <tr key={year} className="border-b hover:bg-gray-50 transition-colors">
+                                                    <td className="py-2 px-4 text-gray-700">{year}</td>
+                                                    <td className="py-2 px-4 text-green-600 font-bold">{formatPrice(annualPaymentsReport[year].totalIncome)}</td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="2" className="text-center text-gray-500 py-8">
+                                                    No hay datos de pagos para el reporte anual.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    );
+                case 'add_student':
+                    return (
+                        <>
+                            <h2 className="text-xl font-bold mb-4">{isEditingStudent ? "Editar Alumno" : "Añadir Nuevo Alumno"}</h2>
+                            <div className="bg-white p-6 rounded-lg shadow-lg grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label htmlFor="firstName" className="block text-gray-700 font-bold mb-2">Nombre</label>
+                                    <input
+                                        type="text"
+                                        id="firstName"
+                                        value={newStudent.firstName}
+                                        onChange={(e) => setNewStudent({ ...newStudent, firstName: e.target.value })}
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                        placeholder="Ej: Juan"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="lastName" className="block text-gray-700 font-bold mb-2">Apellido</label>
+                                    <input
+                                        type="text"
+                                        id="lastName"
+                                        value={newStudent.lastName}
+                                        onChange={(e) => setNewStudent({ ...newStudent, lastName: e.target.value })}
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                        placeholder="Ej: Pérez"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="phone" className="block text-gray-700 font-bold mb-2">Teléfono</label>
+                                    <input
+                                        type="tel"
+                                        id="phone"
+                                        value={newStudent.phone}
+                                        onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                        placeholder="Ej: 3815551234"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="description" className="block text-gray-700 font-bold mb-2">Descripción (opcional)</label>
+                                    <textarea
+                                        id="description"
+                                        value={newStudent.description}
+                                        onChange={(e) => setNewStudent({ ...newStudent, description: e.target.value })}
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                        placeholder="Ej: Alumno avanzado, de 16 años"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="status" className="block text-gray-700 font-bold mb-2">Estado</label>
+                                    <select
+                                        id="status"
+                                        value={newStudent.status}
+                                        onChange={(e) => setNewStudent({ ...newStudent, status: e.target.value })}
+                                        className="w-full p-3 border rounded-lg"
+                                    >
                                         <option value="Activo">Activo</option>
                                         <option value="Inactivo">Inactivo</option>
                                         <option value="Potencial">Potencial</option>
                                     </select>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {filteredStudentsList.length > 0 ? (
-                                        filteredStudentsList.map((student) => (
-                                            <div key={student.id} className="bg-white p-6 rounded-lg shadow-lg flex flex-col justify-between">
-                                                <div>
-                                                    <h3 className="text-lg font-bold text-gray-800">{student.firstName} {student.lastName}</h3>
-                                                    <p className="text-sm text-gray-500"><i className="fas fa-phone mr-2"></i>{student.phone}</p>
-                                                    <p className="text-sm text-gray-500 mt-2">{student.description}</p>
-                                                    <span className={`inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full ${student.status === 'Activo' ? 'bg-green-100 text-green-800' : student.status === 'Inactivo' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                        {student.status}
-                                                    </span>
-                                                </div>
-                                                <div className="mt-4 flex space-x-2">
-                                                    <button onClick={() => sendWhatsApp(student.phone)} className="flex-1 py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-md">
-                                                        <i className="fab fa-whatsapp"></i> WhatsApp
-                                                    </button>
-                                                    <button onClick={() => editStudent(student)} className="py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md">
-                                                        <i className="fas fa-edit"></i>
-                                                    </button>
-                                                    <button onClick={() => deleteStudent(student.id)} className="py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-md">
-                                                        <i className="fas fa-trash-alt"></i>
-                                                    </button>
-                                                </div>
+                            </div>
+                            <div className="mt-6 flex justify-end space-x-4">
+                                {isEditingStudent && (
+                                    <button onClick={() => {
+                                        setIsEditingStudent(false);
+                                        setEditedStudentId(null);
+                                        setNewStudent({ firstName: '', lastName: '', phone: '', description: '', status: 'Activo', schedule: [] });
+                                    }} className="px-6 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors">
+                                        Cancelar
+                                    </button>
+                                )}
+                                <button
+                                    onClick={addStudent}
+                                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+                                >
+                                    {isEditingStudent ? "Actualizar Alumno" : "Añadir Alumno"}
+                                </button>
+                            </div>
+                        </>
+                    );
+                case 'students_list':
+                    return (
+                        <>
+                            <h2 className="text-xl font-bold mb-4">Lista de Alumnos</h2>
+                            <div className="flex justify-between items-center mb-4">
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por nombre, apellido o teléfono..."
+                                    value={studentSearch}
+                                    onChange={(e) => setStudentSearch(e.target.value)}
+                                    className="p-3 border rounded-lg w-full md:w-1/2 focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                />
+                                <select
+                                    value={filterStatus}
+                                    onChange={(e) => setFilterStatus(e.target.value)}
+                                    className="p-3 border rounded-lg ml-4"
+                                >
+                                    <option value="Todos">Todos</option>
+                                    <option value="Activo">Activo</option>
+                                    <option value="Inactivo">Inactivo</option>
+                                    <option value="Potencial">Potencial</option>
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {filteredStudentsList.length > 0 ? (
+                                    filteredStudentsList.map((student) => (
+                                        <div key={student.id} className="bg-white p-6 rounded-lg shadow-lg flex flex-col justify-between">
+                                            <div>
+                                                <h3 className="text-lg font-bold text-gray-800">{student.firstName} {student.lastName}</h3>
+                                                <p className="text-sm text-gray-500"><i className="fas fa-phone mr-2"></i>{student.phone}</p>
+                                                <p className="text-sm text-gray-500 mt-2">{student.description}</p>
+                                                <span className={`inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full ${student.status === 'Activo' ? 'bg-green-100 text-green-800' : student.status === 'Inactivo' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                    {student.status}
+                                                </span>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="col-span-full text-center text-gray-500 p-8 bg-white rounded-lg shadow-lg">
-                                            No se encontraron alumnos.
+                                            <div className="mt-4 flex space-x-2">
+                                                <button onClick={() => sendWhatsApp(student.phone)} className="flex-1 py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-md">
+                                                    <i className="fab fa-whatsapp"></i> WhatsApp
+                                                </button>
+                                                <button onClick={() => editStudent(student)} className="py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                                                    <i className="fas fa-edit"></i>
+                                                </button>
+                                                <button onClick={() => deleteStudent(student.id)} className="py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-md">
+                                                    <i className="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
-                            </>
-                        );
-                    case 'club_payments':
-                        return (
-                            <>
-                                <h2 className="text-xl font-bold mb-4">{isEditingPayment ? "Editar Pago" : "Añadir Nuevo Pago al Club"}</h2>
-                                <div className="bg-white p-6 rounded-lg shadow-lg">
-                                    <div className="grid md:grid-cols-3 gap-4">
-                                        <div>
-                                            <label htmlFor="paymentDate" className="block text-gray-700 font-bold mb-2">Fecha</label>
-                                            <input
-                                                type="date"
-                                                id="paymentDate"
-                                                value={newPayment.date}
-                                                onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
-                                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="paymentAmount" className="block text-gray-700 font-bold mb-2">Monto</label>
-                                            <input
-                                                type="number"
-                                                id="paymentAmount"
-                                                value={newPayment.amount}
-                                                onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
-                                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                                placeholder="Ej: 10000"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="paymentDescription" className="block text-gray-700 font-bold mb-2">Descripción</label>
-                                            <textarea
-                                                id="paymentDescription"
-                                                value={newPayment.description}
-                                                onChange={(e) => setNewPayment({ ...newPayment, description: e.target.value })}
-                                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                                placeholder="Ej: Alquiler de cancha"
-                                            />
-                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="col-span-full text-center text-gray-500 p-8 bg-white rounded-lg shadow-lg">
+                                        No se encontraron alumnos.
                                     </div>
-                                    <div className="mt-6 flex justify-end space-x-4">
-                                        {isEditingPayment && (
-                                            <button onClick={() => {
-                                                setIsEditingPayment(false);
-                                                setEditedPaymentId(null);
-                                                setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' });
-                                            }} className="px-6 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors">
-                                                Cancelar
-                                            </button>
-                                        )}
-                                        <button
-                                            onClick={addPayment}
-                                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
-                                        >
-                                            {isEditingPayment ? "Actualizar Pago" : "Añadir Pago"}
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <h3 className="text-xl font-bold mt-8 mb-4">Historial de Pagos</h3>
-                                <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
-                                    <table className="min-w-full table-auto">
-                                        <thead className="text-left text-gray-600">
-                                            <tr className="border-b">
-                                                <th className="py-2 px-4">Fecha</th>
-                                                <th className="py-2 px-4">Monto</th>
-                                                <th className="py-2 px-4">Descripción</th>
-                                                <th className="py-2 px-4">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {payments.length > 0 ? (
-                                                payments.sort((a, b) => new Date(b.date) - new Date(a.date)).map(payment => (
-                                                    <tr key={payment.id} className="border-b hover:bg-gray-50 transition-colors">
-                                                        <td className="py-2 px-4 text-gray-700">{payment.date}</td>
-                                                        <td className="py-2 px-4 text-gray-700">{formatPrice(payment.amount)}</td>
-                                                        <td className="py-2 px-4 text-gray-700">{payment.description}</td>
-                                                        <td className="py-2 px-4 text-gray-700">
-                                                            <button onClick={() => editPayment(payment)} className="text-blue-600 hover:text-blue-800 transition-colors mr-2">
-                                                                <i className="fas fa-edit"></i>
-                                                            </button>
-                                                            <button onClick={() => deletePayment(payment.id)} className="text-red-500 hover:text-red-700 transition-colors">
-                                                                <i className="fas fa-trash-alt"></i>
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="4" className="text-center text-gray-500 py-8">No hay pagos registrados.</td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        );
-                    case 'activity_log':
-                        return (
-                            <>
-                                <h2 className="text-xl font-bold mb-4">Registro de Actividad</h2>
-                                <div className="bg-white p-6 rounded-lg shadow-lg max-h-96 overflow-y-auto">
-                                    {activityLog.length > 0 ? (
-                                        <ul className="space-y-4">
-                                            {activityLog.map(log => (
-                                                <li key={log.id} className="p-4 bg-gray-50 rounded-lg shadow-sm">
-                                                    <p className="font-semibold text-gray-800">{log.action}</p>
-                                                    <p className="text-sm text-gray-600">{log.details}</p>
-                                                    <span className="text-gray-500 text-xs">{formatDate(log.timestamp)}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <p className="text-center text-gray-500 p-8 bg-white">No hay actividad reciente.</p>
-                                    )}
-                                </div>
-                            </>
-                        );
-                    default:
-                        return null;
-                }
-            };
-
-            if (loading) {
-                return (
-                    <div className="flex items-center justify-center min-h-screen">
-                        <div className="flex flex-col items-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-                            <p className="mt-4 text-gray-500">Cargando...</p>
-                        </div>
-                    </div>
-                );
-            }
-
-            if (!userId) {
-                return (
-                    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-                        <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center">
-                            <h2 className="text-2xl font-bold mb-6 text-gray-800">{isSigningUp ? "Registrarme" : "Iniciar Sesión"}</h2>
-                            <div className="mb-4 text-left">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
-                                    Email
-                                </label>
-                                <input
-                                    className="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    id="email"
-                                    type="email"
-                                    placeholder="email@ejemplo.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    disabled={loading}
-                                />
+                                )}
                             </div>
-                            <div className="mb-6 text-left">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
-                                    Contraseña
-                                </label>
-                                <input
-                                    className="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    id="password"
-                                    type="password"
-                                    placeholder="********"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    disabled={loading}
-                                />
-                                <button onClick={handlePasswordReset} className="mt-2 text-sm text-blue-600 hover:text-blue-800">¿Olvidaste tu contraseña?</button>
-                            </div>
-                            <div className="flex flex-col space-y-4">
-                                <button
-                                    onClick={isSigningUp ? signUp : signIn}
-                                    className={`w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-md ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
-                                    disabled={loading}
-                                >
-                                    {loading ? "Cargando..." : isSigningUp ? "Registrarme" : "Iniciar Sesión"}
-                                </button>
-                                <button
-                                    onClick={() => setIsSigningUp(!isSigningUp)}
-                                    className="w-full text-blue-600 font-bold py-3 px-4 rounded-lg border border-blue-600 hover:bg-blue-100 transition-colors"
-                                >
-                                    {isSigningUp ? "Ya tengo una cuenta" : "Crear una cuenta"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="container mx-auto p-6 bg-gray-100">
-                    <MessageBox {...messageBox} onClose={() => setMessageBox({ ...messageBox, show: false })} />
-                    <ReplaceModal />
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800">Padel Manager Pro 🎾</h1>
-                        <div className="flex items-center space-x-4">
-                            <span className="text-sm text-gray-600 hidden md:block">{userEmail}</span>
-                            <button onClick={signOutUser} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors shadow-md">
-                                Cerrar Sesión
-                            </button>
-                        </div>
-                    </div>
-                    
-                    {/* Navegación Principal */}
-                    <div className="bg-white p-4 rounded-lg shadow-lg mb-6">
-                        <div className="flex flex-wrap gap-2 md:gap-4 justify-between">
-                            <button onClick={() => setView('add_class')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'add_class' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                                <i className="fas fa-plus-circle mr-2"></i> Añadir Clase
-                            </button>
-                            <button onClick={() => setView('list')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                                <i className="fas fa-clipboard-list mr-2"></i> Lista de Clases
-                            </button>
-                            <button onClick={() => setView('monthly_report')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'monthly_report' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                                <i className="fas fa-chart-bar mr-2"></i> Reporte Mensual
-                            </button>
-                            <button onClick={() => setView('annual_report')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'annual_report' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                                <i className="fas fa-calendar-alt mr-2"></i> Pagos Anuales
-                            </button>
-                            <button onClick={() => setView('add_student')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'add_student' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                                <i className="fas fa-user-plus mr-2"></i> Añadir Alumno
-                            </button>
-                            <button onClick={() => setView('students_list')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'students_list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                                <i className="fas fa-users mr-2"></i> Alumnos
-                            </button>
-                            <button onClick={() => setView('club_payments')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'club_payments' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                                <i className="fas fa-hand-holding-usd mr-2"></i> Pagos Club
-                            </button>
-                            <button onClick={() => setView('activity_log')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'activity_log' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                                <i className="fas fa-history mr-2"></i> Registro
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Contenido Principal */}
-                    <div className="bg-white p-6 rounded-xl shadow-lg">
-                        {view === 'add_class' ? (
-                            <>
-                                <h2 className="text-xl font-bold mb-4">{isEditing ? "Editar Clase" : "Añadir Nueva Clase"}</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                        </>
+                    );
+                case 'club_payments':
+                    return (
+                        <>
+                            <h2 className="text-xl font-bold mb-4">{isEditingPayment ? "Editar Pago" : "Añadir Nuevo Pago al Club"}</h2>
+                            <div className="bg-white p-6 rounded-lg shadow-lg">
+                                <div className="grid md:grid-cols-3 gap-4">
                                     <div>
-                                        <label htmlFor="studentCount" className="block text-gray-700 font-bold mb-2">Cantidad de Alumnos</label>
-                                        <select
-                                            id="studentCount"
-                                            value={newEntry.studentCount}
-                                            onChange={(e) => {
-                                                const count = Number(e.target.value);
-                                                const newNames = Array(count).fill('');
-                                                const newIds = Array(count).fill('');
-                                                const price = customPrices[count] || 0;
-                                                setNewEntry(prev => ({ ...prev, studentCount: count, studentNames: newNames, studentIds: newIds, price }));
-                                            }}
-                                            className="w-full p-3 border rounded-lg"
-                                        >
-                                            {peopleOptions.map(option => (
-                                                <option key={option} value={option}>{option}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label htmlFor="date" className="block text-gray-700 font-bold mb-2">Fecha</label>
+                                        <label htmlFor="paymentDate" className="block text-gray-700 font-bold mb-2">Fecha</label>
                                         <input
                                             type="date"
-                                            id="date"
-                                            value={newEntry.date}
-                                            onChange={(e) => {
-                                                const selectedDate = new Date(e.target.value);
-                                                setNewEntry(prev => ({
-                                                    ...prev,
-                                                    date: e.target.value,
-                                                    day: daysOfWeek[selectedDate.getDay()]
-                                                }));
-                                            }}
+                                            id="paymentDate"
+                                            value={newPayment.date}
+                                            onChange={(e) => setNewPayment({ ...newPayment, date: e.target.value })}
                                             className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="day" className="block text-gray-700 font-bold mb-2">Día</label>
+                                        <label htmlFor="paymentAmount" className="block text-gray-700 font-bold mb-2">Monto</label>
                                         <input
-                                            type="text"
-                                            id="day"
-                                            value={newEntry.day}
-                                            className="w-full p-3 border rounded-lg bg-gray-100 text-gray-600"
-                                            readOnly
+                                            type="number"
+                                            id="paymentAmount"
+                                            value={newPayment.amount}
+                                            onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
+                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                            placeholder="Ej: 10000"
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="time" className="block text-gray-700 font-bold mb-2">Horario</label>
-                                        <select
-                                            id="time"
-                                            value={newEntry.time}
-                                            onChange={(e) => setNewEntry(prev => ({ ...prev, time: e.target.value }))}
-                                            className="w-full p-3 border rounded-lg"
-                                        >
-                                            {timesOfDay.map(time => (
-                                                <option key={time} value={time}>{time}</option>
-                                            ))}
-                                        </select>
+                                        <label htmlFor="paymentDescription" className="block text-gray-700 font-bold mb-2">Descripción</label>
+                                        <textarea
+                                            id="paymentDescription"
+                                            value={newPayment.description}
+                                            onChange={(e) => setNewPayment({ ...newPayment, description: e.target.value })}
+                                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                            placeholder="Ej: Alquiler de cancha"
+                                        />
                                     </div>
                                 </div>
-                                
-                                <h3 className="text-lg font-bold mb-2">Alumnos</h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
-                                    {Array.from({ length: newEntry.studentCount }).map((_, index) => (
-                                        <AutocompleteStudentInput
-                                            key={index}
-                                            index={index}
-                                            newEntry={newEntry}
-                                            setNewEntry={setNewEntry}
-                                            students={students}
-                                        />
-                                    ))}
-                                </div>
-                                <div className="flex items-center justify-between bg-blue-100 p-4 rounded-lg shadow-inner">
-                                    <span className="font-bold text-blue-800">Precio Estimado:</span>
-                                    <span className="text-xl font-extrabold text-blue-900">{formatPrice(newEntry.price)}</span>
-                                </div>
                                 <div className="mt-6 flex justify-end space-x-4">
-                                    {isEditing && (
+                                    {isEditingPayment && (
                                         <button onClick={() => {
-                                            setIsEditing(false);
-                                            setEditedClassId(null);
-                                            setNewEntry({
-                                                studentCount: 1,
-                                                studentNames: [''],
-                                                studentIds: [''],
-                                                date: new Date().toISOString().split('T')[0],
-                                                day: daysOfWeek[new Date().getDay()],
-                                                time: timesOfDay[0],
-                                                price: customPrices[1] || 0,
-                                            });
+                                            setIsEditingPayment(false);
+                                            setEditedPaymentId(null);
+                                            setNewPayment({ date: new Date().toISOString().split('T')[0], amount: 0, description: '' });
                                         }} className="px-6 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors">
                                             Cancelar
                                         </button>
                                     )}
                                     <button
-                                        onClick={addNewClass}
+                                        onClick={addPayment}
                                         className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
-                                        disabled={newEntry.studentNames.some(name => !name)}
                                     >
-                                        {isEditing ? "Actualizar Clase" : "Añadir Clase"}
+                                        {isEditingPayment ? "Actualizar Pago" : "Añadir Pago"}
                                     </button>
                                 </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="mb-4">
-                                    <div className="flex flex-wrap gap-2 md:gap-4">
-                                        <button onClick={() => setShowConfigModal(true)} className="flex-1 min-w-[120px] bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors shadow-md">
-                                            <i className="fas fa-cog mr-2"></i> Configurar
-                                        </button>
-                                        <button onClick={() => fileInputRef.current.click()} className="flex-1 min-w-[120px] bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors shadow-md">
-                                            <i className="fas fa-upload mr-2"></i> Subir Archivo
-                                        </button>
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            onChange={handleFileUpload}
-                                            className="hidden"
-                                            accept=".json"
-                                        />
-                                    </div>
-                                </div>
-                                {showConfigModal && (
-                                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-                                        <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-lg">
-                                            <h3 className="text-xl font-bold mb-4">Configurar Precios de Clases</h3>
-                                            <div className="space-y-4">
-                                                {peopleOptions.map(count => (
-                                                    <div key={count} className="flex items-center justify-between">
-                                                        <label htmlFor={`price-${count}`} className="text-gray-700">
-                                                            {count} {count === 1 ? 'Alumno' : 'Alumnos'}
-                                                        </label>
-                                                        <input
-                                                            type="number"
-                                                            id={`price-${count}`}
-                                                            value={customPrices[count] || ''}
-                                                            onChange={(e) => setCustomPrices({ ...customPrices, [count]: Number(e.target.value) })}
-                                                            className="w-1/2 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                                            placeholder="Precio en ARS"
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <div className="mt-6 flex justify-end space-x-4">
-                                                <button onClick={() => {
-                                                    setShowConfigModal(false);
-                                                    setCustomPrices(defaultClassPrices); // Reset to default on cancel
-                                                }} className="px-6 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors">
-                                                    Cancelar
-                                                </button>
-                                                <button onClick={() => {
-                                                    saveCustomPrices();
-                                                    setShowConfigModal(false);
-                                                }} className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md">
-                                                    Guardar Cambios
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
+                            </div>
+                            
+                            <h3 className="text-xl font-bold mt-8 mb-4">Historial de Pagos</h3>
+                            <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
+                                <table className="min-w-full table-auto">
+                                    <thead className="text-left text-gray-600">
+                                        <tr className="border-b">
+                                            <th className="py-2 px-4">Fecha</th>
+                                            <th className="py-2 px-4">Monto</th>
+                                            <th className="py-2 px-4">Descripción</th>
+                                            <th className="py-2 px-4">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {payments.length > 0 ? (
+                                            payments.sort((a, b) => new Date(b.date) - new Date(a.date)).map(payment => (
+                                                <tr key={payment.id} className="border-b hover:bg-gray-50 transition-colors">
+                                                    <td className="py-2 px-4 text-gray-700">{payment.date}</td>
+                                                    <td className="py-2 px-4 text-gray-700">{formatPrice(payment.amount)}</td>
+                                                    <td className="py-2 px-4 text-gray-700">{payment.description}</td>
+                                                    <td className="py-2 px-4 text-gray-700">
+                                                        <button onClick={() => editPayment(payment)} className="text-blue-600 hover:text-blue-800 transition-colors mr-2">
+                                                            <i className="fas fa-edit"></i>
+                                                        </button>
+                                                        <button onClick={() => deletePayment(payment.id)} className="text-red-500 hover:text-red-700 transition-colors">
+                                                            <i className="fas fa-trash-alt"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="4" className="text-center text-gray-500 py-8">No hay pagos registrados.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    );
+                case 'activity_log':
+                    return (
+                        <>
+                            <h2 className="text-xl font-bold mb-4">Registro de Actividad</h2>
+                            <div className="bg-white p-6 rounded-lg shadow-lg max-h-96 overflow-y-auto">
+                                {activityLog.length > 0 ? (
+                                    <ul className="space-y-4">
+                                        {activityLog.map(log => (
+                                            <li key={log.id} className="p-4 bg-gray-50 rounded-lg shadow-sm">
+                                                <p className="font-semibold text-gray-800">{log.action}</p>
+                                                <p className="text-sm text-gray-600">{log.details}</p>
+                                                <span className="text-gray-500 text-xs">{formatDate(log.timestamp)}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-center text-gray-500 p-8 bg-white">No hay actividad reciente.</p>
                                 )}
-                                {renderView()}
-                            </>
-                        )}
-                    </div>
-                    {userId && (
-                        <div className="mt-8 text-center text-gray-500">
-                            ID de Usuario: <span className="font-mono">{userId}</span>
-                        </div>
-                    )}
-                </div>
-            );
+                            </div>
+                        </>
+                    );
+                default:
+                    return null;
+            }
         };
 
-        ReactDOM.render(<App />, document.getElementById('root'));
-    </script>
+        if (loading) {
+            return (
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="flex flex-col items-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+                        <p className="mt-4 text-gray-500">Cargando...</p>
+                    </div>
+                </div>
+            );
+        }
+
+        if (!userId) {
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-gray-100">
+                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center">
+                        <h2 className="text-2xl font-bold mb-6 text-gray-800">{isSigningUp ? "Registrarme" : "Iniciar Sesión"}</h2>
+                        <div className="mb-4 text-left">
+                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
+                                Email
+                            </label>
+                            <input
+                                className="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                id="email"
+                                type="email"
+                                placeholder="email@ejemplo.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                disabled={loading}
+                            />
+                        </div>
+                        <div className="mb-6 text-left">
+                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
+                                Contraseña
+                            </label>
+                            <input
+                                className="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                id="password"
+                                type="password"
+                                placeholder="********"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                disabled={loading}
+                            />
+                            <button onClick={handlePasswordReset} className="mt-2 text-sm text-blue-600 hover:text-blue-800">¿Olvidaste tu contraseña?</button>
+                        </div>
+                        <div className="flex flex-col space-y-4">
+                            <button
+                                onClick={isSigningUp ? signUp : signIn}
+                                className={`w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-md ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                                disabled={loading}
+                            >
+                                {loading ? "Cargando..." : isSigningUp ? "Registrarme" : "Iniciar Sesión"}
+                            </button>
+                            <button
+                                onClick={() => setIsSigningUp(!isSigningUp)}
+                                className="w-full text-blue-600 font-bold py-3 px-4 rounded-lg border border-blue-600 hover:bg-blue-100 transition-colors"
+                            >
+                                {isSigningUp ? "Ya tengo una cuenta" : "Crear una cuenta"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="container mx-auto p-6 bg-gray-100">
+                <MessageBox {...messageBox} onClose={() => setMessageBox({ ...messageBox, show: false })} />
+                <ReplaceModal 
+                    replaceData={replaceData} 
+                    setReplaceData={setReplaceData} 
+                    students={students} 
+                    replaceStudentInClass={replaceStudentInClass}
+                />
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-2xl font-bold text-gray-800">Padel Manager Pro 🎾</h1>
+                    <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-600 hidden md:block">{userEmail}</span>
+                        <button onClick={signOutUser} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors shadow-md">
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                </div>
+                    
+                {/* Navegación Principal */}
+                <div className="bg-white p-4 rounded-lg shadow-lg mb-6">
+                    <div className="flex flex-wrap gap-2 md:gap-4 justify-between">
+                        <button onClick={() => setView('add_class')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'add_class' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                            <i className="fas fa-plus-circle mr-2"></i> Añadir Clase
+                        </button>
+                        <button onClick={() => setView('list')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                            <i className="fas fa-clipboard-list mr-2"></i> Lista de Clases
+                        </button>
+                        <button onClick={() => setView('monthly_report')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'monthly_report' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                            <i className="fas fa-chart-bar mr-2"></i> Reporte Mensual
+                        </button>
+                        <button onClick={() => setView('annual_report')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'annual_report' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                            <i className="fas fa-calendar-alt mr-2"></i> Pagos Anuales
+                        </button>
+                        <button onClick={() => setView('add_student')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'add_student' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                            <i className="fas fa-user-plus mr-2"></i> Añadir Alumno
+                        </button>
+                        <button onClick={() => setView('students_list')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'students_list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                            <i className="fas fa-users mr-2"></i> Alumnos
+                        </button>
+                        <button onClick={() => setView('club_payments')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'club_payments' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                            <i className="fas fa-hand-holding-usd mr-2"></i> Pagos Club
+                        </button>
+                        <button onClick={() => setView('activity_log')} className={`flex-1 min-w-[150px] text-center py-2 px-4 rounded-lg font-bold transition-colors ${view === 'activity_log' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                            <i className="fas fa-history mr-2"></i> Registro
+                        </button>
+                    </div>
+                </div>
+
+                {/* Contenido Principal */}
+                <div className="bg-white p-6 rounded-xl shadow-lg">
+                    {view === 'add_class' ? (
+                        <>
+                            <h2 className="text-xl font-bold mb-4">{isEditing ? "Editar Clase" : "Añadir Nueva Clase"}</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                <div>
+                                    <label htmlFor="studentCount" className="block text-gray-700 font-bold mb-2">Cantidad de Alumnos</label>
+                                    <select
+                                        id="studentCount"
+                                        value={newEntry.studentCount}
+                                        onChange={(e) => {
+                                            const count = Number(e.target.value);
+                                            const newNames = Array(count).fill('');
+                                            const newIds = Array(count).fill('');
+                                            const price = customPrices[count] || 0;
+                                            setNewEntry(prev => ({ ...prev, studentCount: count, studentNames: newNames, studentIds: newIds, price }));
+                                        }}
+                                        className="w-full p-3 border rounded-lg"
+                                    >
+                                        {peopleOptions.map(option => (
+                                            <option key={option} value={option}>{option}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label htmlFor="date" className="block text-gray-700 font-bold mb-2">Fecha</label>
+                                    <input
+                                        type="date"
+                                        id="date"
+                                        value={newEntry.date}
+                                        onChange={(e) => {
+                                            const selectedDate = new Date(e.target.value);
+                                            setNewEntry(prev => ({
+                                                ...prev,
+                                                date: e.target.value,
+                                                day: daysOfWeek[selectedDate.getDay()]
+                                            }));
+                                        }}
+                                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="day" className="block text-gray-700 font-bold mb-2">Día</label>
+                                    <input
+                                        type="text"
+                                        id="day"
+                                        value={newEntry.day}
+                                        className="w-full p-3 border rounded-lg bg-gray-100 text-gray-600"
+                                        readOnly
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="time" className="block text-gray-700 font-bold mb-2">Horario</label>
+                                    <select
+                                        id="time"
+                                        value={newEntry.time}
+                                        onChange={(e) => setNewEntry(prev => ({ ...prev, time: e.target.value }))}
+                                        className="w-full p-3 border rounded-lg"
+                                    >
+                                        {timesOfDay.map(time => (
+                                            <option key={time} value={time}>{time}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                                
+                            <h3 className="text-lg font-bold mb-2">Alumnos</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
+                                {Array.from({ length: newEntry.studentCount }).map((_, index) => (
+                                    <AutocompleteStudentInput
+                                        key={index}
+                                        index={index}
+                                        newEntry={newEntry}
+                                        setNewEntry={setNewEntry}
+                                        students={students}
+                                    />
+                                ))}
+                            </div>
+                            <div className="flex items-center justify-between bg-blue-100 p-4 rounded-lg shadow-inner">
+                                <span className="font-bold text-blue-800">Precio Estimado:</span>
+                                <span className="text-xl font-extrabold text-blue-900">{formatPrice(newEntry.price)}</span>
+                            </div>
+                            <div className="mt-6 flex justify-end space-x-4">
+                                {isEditing && (
+                                    <button onClick={() => {
+                                        setIsEditing(false);
+                                        setEditedClassId(null);
+                                        setNewEntry({
+                                            studentCount: 1,
+                                            studentNames: [''],
+                                            studentIds: [''],
+                                            date: new Date().toISOString().split('T')[0],
+                                            day: daysOfWeek[new Date().getDay()],
+                                            time: timesOfDay[0],
+                                            price: customPrices[1] || 0,
+                                        });
+                                    }} className="px-6 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors">
+                                        Cancelar
+                                    </button>
+                                )}
+                                <button
+                                    onClick={addNewClass}
+                                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+                                    disabled={newEntry.studentNames.some(name => !name)}
+                                >
+                                    {isEditing ? "Actualizar Clase" : "Añadir Clase"}
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="mb-4">
+                                <div className="flex flex-wrap gap-2 md:gap-4">
+                                    <button onClick={() => setShowConfigModal(true)} className="flex-1 min-w-[120px] bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors shadow-md">
+                                        <i className="fas fa-cog mr-2"></i> Configurar
+                                    </button>
+                                    <button onClick={() => fileInputRef.current.click()} className="flex-1 min-w-[120px] bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors shadow-md">
+                                        <i className="fas fa-upload mr-2"></i> Subir Archivo
+                                    </button>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleFileUpload}
+                                        className="hidden"
+                                        accept=".json"
+                                    />
+                                </div>
+                            </div>
+                            {showConfigModal && (
+                                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-lg">
+                                        <h3 className="text-xl font-bold mb-4">Configurar Precios de Clases</h3>
+                                        <div className="space-y-4">
+                                            {peopleOptions.map(count => (
+                                                <div key={count} className="flex items-center justify-between">
+                                                    <label htmlFor={`price-${count}`} className="text-gray-700">
+                                                        {count} {count === 1 ? 'Alumno' : 'Alumnos'}
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        id={`price-${count}`}
+                                                        value={customPrices[count] || ''}
+                                                        onChange={(e) => setCustomPrices({ ...customPrices, [count]: Number(e.target.value) })}
+                                                        className="w-1/2 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                        placeholder="Precio en ARS"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="mt-6 flex justify-end space-x-4">
+                                            <button onClick={() => {
+                                                setShowConfigModal(false);
+                                                setCustomPrices(defaultClassPrices); // Reset to default on cancel
+                                            }} className="px-6 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors">
+                                                Cancelar
+                                            </button>
+                                            <button onClick={() => {
+                                                saveCustomPrices();
+                                                setShowConfigModal(false);
+                                            }} className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                                                Guardar Cambios
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {renderView()}
+                        </>
+                    )}
+                </div>
+                {userId && (
+                    <div className="mt-8 text-center text-gray-500">
+                        ID de Usuario: <span className="font-mono">{userId}</span>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+</script>
 </body>
 </html>
