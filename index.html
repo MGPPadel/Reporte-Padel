@@ -142,9 +142,22 @@ studentIndex: null })}
                                 >
                          
             Cancelar
-                                </button>
-                            </div>
+          
+                               </button>
+                         
+    )}
+                            <button
+                      
+                         onClick={onClose}
+                      
+           className={`py-2 px-4 rounded-lg font-bold transition-colors text-white ${type === 'confirm' ?
+'bg-gray-400 hover:bg-gray-500' : type === 'success' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-500 hover:bg-red-600'} shadow-md`}
+                            >
+                                {type === 'confirm' ?
+'Cancelar' : 'Cerrar'}
+                            </button>
                         </div>
+                    </div>
      
                 </div>
                 )
@@ -256,14 +269,9 @@ const defaultClassPrices = {
         };
 const peopleOptions = [1, 2, 3, 4];
         const timesOfDay = [
-            '8:00 a.
-m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p.
-m.',
-            '1:00 p. m.', '2:00 p. m.', '3:00 p.
-m.', '4:00 p. m.', '5:00 p. m.',
-            '6:00 p.
-m.', '7:00 p. m.', '8:00 p. m.', '9:00 p. m.', '10:00 p.
-m.',
+            '8:00 a.m.', '9:00 a.m.', '10:00 a.m.', '11:00 a.m.', '12:00 p.m.',
+            '1:00 p.m.', '2:00 p.m.', '3:00 p.m.', '4:00 p.m.', '5:00 p.m.',
+            '6:00 p.m.', '7:00 p.m.', '8:00 p.m.', '9:00 p.m.', '10:00 p.m.',
         ];
         const colorMap = {
             1: 'bg-yellow-100',
@@ -516,8 +524,9 @@ const auth = authRef.current;
                     setMessageBox({
                         show: true,
                         title: 'Error de registro',
-                        content: 
-'Hubo un error al crear la cuenta. Puede que el email ya esté en uso o la contraseña sea demasiado débil.',
+                        
+ 
+                        content: 'Hubo un error al crear la cuenta. Puede que el email ya esté en uso o la contraseña sea demasiado débil.',
                         type: 'error',
                         onClose: () => setMessageBox({ ...messageBox, show: false })
                     });
