@@ -152,6 +152,7 @@ const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, student
   );
 };
 
+// Componente ReplaceModal movido fuera de App para solucionar el ReferenceError
 const ReplaceModal = ({ replaceData, setReplaceData, students, replaceStudentInClass }) => {
     if (replaceData.classId === null) return null;
 
@@ -1154,6 +1155,64 @@ __initial_auth_token : null;
                                         <option value="Potencial">Potencial</option>
                                     </select>
                                 </div>
+                                <div>
+                                    <h3 className="block text-gray-700 font-bold mb-2">Horario de Clases</h3>
+                                    <div className="grid grid-cols-2 gap-2 p-3 bg-gray-100 rounded-lg">
+                                        <select
+                                            className="w-full p-2 border rounded-lg"
+                                            onChange={(e) => {
+                                                const day = e.target.value;
+                                                const time = newStudent.schedule.find(s => s.day === day)?.time || '';
+                                                setNewStudent(prev => ({
+                                                    ...prev,
+                                                    schedule: prev.schedule.map(s => s.day === day ? { ...s, time } : s)
+                                                }));
+                                            }}
+                                        >
+                                            <option value="">Seleccionar Día</option>
+                                            {daysOfWeek.map(day => <option key={day} value={day}>{day}</option>)}
+                                        </select>
+                                        <select
+                                            className="w-full p-2 border rounded-lg"
+                                            onChange={(e) => {
+                                                const time = e.target.value;
+                                                const newSchedule = newStudent.schedule.length > 0 ? [...newStudent.schedule] : [{ day: daysOfWeek[0], time }];
+                                                setNewStudent(prev => ({
+                                                    ...prev,
+                                                    schedule: newSchedule.map(s => s.day === newStudent.schedule[0]?.day ? { ...s, time } : s)
+                                                }));
+                                            }}
+                                        >
+                                            <option value="">Seleccionar Hora</option>
+                                            {timesOfDay.map(time => <option key={time} value={time}>{time}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="mt-2 space-y-1">
+                                        {newStudent.schedule.map((sch, index) => (
+                                            <div key={index} className="flex items-center justify-between p-2 bg-gray-200 rounded-lg">
+                                                <span className="text-sm">{sch.day} - {sch.time}</span>
+                                                <button onClick={() => setNewStudent(prev => ({
+                                                    ...prev,
+                                                    schedule: prev.schedule.filter((_, i) => i !== index)
+                                                }))} className="text-red-500 hover:text-red-700">
+                                                    <i className="fas fa-times-circle"></i>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            const newDay = newStudent.schedule.length > 0 ? daysOfWeek[(daysOfWeek.indexOf(newStudent.schedule[newStudent.schedule.length - 1].day) + 1) % 7] : daysOfWeek[0];
+                                            setNewStudent(prev => ({
+                                                ...prev,
+                                                schedule: [...prev.schedule, { day: newDay, time: '' }]
+                                            }));
+                                        }}
+                                        className="mt-2 w-full py-2 px-4 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+                                    >
+                                        + Agregar Horario
+                                    </button>
+                                </div>
                             </div>
                             <div className="mt-6 flex justify-end space-x-4">
                                 {isEditingStudent && (
@@ -1205,9 +1264,16 @@ __initial_auth_token : null;
                                                 <h3 className="text-lg font-bold text-gray-800">{student.firstName} {student.lastName}</h3>
                                                 <p className="text-sm text-gray-500"><i className="fas fa-phone mr-2"></i>{student.phone}</p>
                                                 <p className="text-sm text-gray-500 mt-2">{student.description}</p>
-                                                <span className={`inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full ${student.status === 'Activo' ? 'bg-green-100 text-green-800' : student.status === 'Inactivo' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                    {student.status}
-                                                </span>
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                    <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${student.status === 'Activo' ? 'bg-green-100 text-green-800' : student.status === 'Inactivo' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                        {student.status}
+                                                    </span>
+                                                    {student.schedule && student.schedule.map((sch, index) => (
+                                                        <span key={index} className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                            {sch.day} - {sch.time}
+                                                        </span>
+                                                    ))}
+                                                </div>
                                             </div>
                                             <div className="mt-4 flex space-x-2">
                                                 <button onClick={() => sendWhatsApp(student.phone)} className="flex-1 py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-md">
