@@ -1780,10 +1780,10 @@ const currentClasses = filteredClasses.slice(indexOfFirstClass, indexOfLastClass
                                     ))}
                                 </div>
                                 <div className="md:p-2 flex items-center justify-center space-x-2">
-                                    <button onClick={() => sendWhatsAppMessage(student.phone, student.firstName)} className="text-green-500" title="Enviar WhatsApp">
+                                    <button onClick={() => sendWhatsApp(student.phone)} className="text-green-500" title="Enviar WhatsApp">
                                         <i className="fab fa-whatsapp"></i>
                                     </button>
-                                    <button onClick={() => editStudent(student.id)} className="text-blue-600" title="Editar">
+                                    <button onClick={() => editStudent(student)} className="text-blue-600" title="Editar">
                                         <i className="fas fa-edit"></i>
                                     </button>
                                     <button onClick={() => deleteStudent(student.id)} className="text-red-600" title="Eliminar">
@@ -1931,6 +1931,7 @@ const currentClasses = filteredClasses.slice(indexOfFirstClass, indexOfLastClass
     </script>
 </body>
 </html>
+
 
 
 
