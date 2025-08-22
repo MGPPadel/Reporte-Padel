@@ -1391,7 +1391,7 @@
                                                                     .map(s => (
                                                                         <li key={s.id} className="flex items-center justify-between bg-white p-2 rounded">
                                                                             <span className="font-medium">{s.name}</span>
-                                                                            <div className="flex gap-2">
+                                                                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                                                                                 <button
                                                                                     onClick={() => marcarAusente(clase.day, clase.time, s.id)}
                                                                                     className="px-3 py-1 bg-red-500 text-white rounded shadow hover:bg-red-600"
