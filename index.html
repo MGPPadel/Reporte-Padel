@@ -803,6 +803,7 @@
                 setEditedClassId(classToEdit.id);
                 setView('list');
             };
+            
             const generatePDF = () => {
                 if (!reportTableRef.current) return;
                 setLoading(true);
@@ -810,18 +811,29 @@
                 window.html2canvas(input, { scale: 2 }).then((canvas) => {
                     const imgData = canvas.toDataURL('image/png');
                     const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
-                    const imgWidth = 210;
-                    const pageHeight = 295;
-                    const imgHeight = canvas.height * imgWidth / canvas.width;
-                    let heightLeft = imgHeight;
-                    let position = 0;
-                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
-                    while (heightLeft >= 0) {
-                        position = heightLeft - imgHeight;
-                        pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                        heightLeft -= pageHeight;
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const marginX = 15;
+                    const marginY = 15;
+                    const contentWidth = pdfWidth - (marginX * 2);
+                    const contentHeight = (canvas.height * contentWidth) / canvas.width;
+                    const pageContentHeight = pdfHeight - (marginY * 2);
+
+                    if (contentHeight < pageContentHeight) {
+                        const y = (pdfHeight - contentHeight) / 2;
+                        pdf.addImage(imgData, 'PNG', marginX, y, contentWidth, contentHeight);
+                    } else {
+                        let heightLeft = contentHeight;
+                        let position = marginY;
+                        pdf.addImage(imgData, 'PNG', marginX, position, contentWidth, contentHeight);
+                        heightLeft -= pageContentHeight;
+
+                        while (heightLeft > 0) {
+                            position = heightLeft - contentHeight + marginY;
+                            pdf.addPage();
+                            pdf.addImage(imgData, 'PNG', marginX, position, contentWidth, contentHeight);
+                            heightLeft -= pageContentHeight;
+                        }
                     }
                     pdf.save(`informe_clases.pdf`);
                     setLoading(false);
@@ -838,11 +850,30 @@
                 window.html2canvas(input, { scale: 2 }).then((canvas) => {
                     const imgData = canvas.toDataURL('image/png');
                     const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
-                    const imgWidth = 210;
-                    const pageHeight = 295;
-                    const imgHeight = canvas.height * imgWidth / canvas.width;
-                    let position = 0;
-                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const marginX = 15;
+                    const marginY = 15;
+                    const contentWidth = pdfWidth - (marginX * 2);
+                    const contentHeight = (canvas.height * contentWidth) / canvas.width;
+                    const pageContentHeight = pdfHeight - (marginY * 2);
+
+                    if (contentHeight < pageContentHeight) {
+                        const y = (pdfHeight - contentHeight) / 2;
+                        pdf.addImage(imgData, 'PNG', marginX, y, contentWidth, contentHeight);
+                    } else {
+                        let heightLeft = contentHeight;
+                        let position = marginY;
+                        pdf.addImage(imgData, 'PNG', marginX, position, contentWidth, contentHeight);
+                        heightLeft -= pageContentHeight;
+
+                        while (heightLeft > 0) {
+                            position = heightLeft - contentHeight + marginY;
+                            pdf.addPage();
+                            pdf.addImage(imgData, 'PNG', marginX, position, contentWidth, contentHeight);
+                            heightLeft -= pageContentHeight;
+                        }
+                    }
                     pdf.save(`informe_pagos_anual_${new Date().getFullYear()}.pdf`);
                     setLoading(false);
                 }).catch(err => {
@@ -850,6 +881,7 @@
                     setLoading(false);
                 });
             };
+
             const uniqueMonths = useMemo(() => {
                 const months = new Set();
                 classes.forEach(cls => {
