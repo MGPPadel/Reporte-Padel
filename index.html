@@ -1618,8 +1618,8 @@
                                                         <div className="text-center">Acciones</div>
                                                     </div>
                                                     <div className="divide-y divide-gray-200">
-                                                        {currentClasses.map(cls => (
-                                                            <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center border-l-4 ${colorMap[cls.studentCount]}`}>
+                                                        {currentClasses.map((cls, index) => (
+                                                            <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center border-l-4 ${colorMap[cls.studentCount]} ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} md:rounded-none`}>
                                                                 <div className="text-sm text-gray-600 md:text-base">{cls.date}</div>
                                                                 <div className="text-sm text-gray-600 md:text-base">{cls.day}</div>
                                                                 <div className="text-sm text-gray-600 md:text-base">{cls.time}</div>
@@ -1634,10 +1634,10 @@
                                                                 </div>
                                                                 <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
                                                                 <div className="flex justify-end md:justify-center space-x-2 mt-2 md:mt-0">
-                                                                    <button onClick={() => editClass(cls)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar clase">
+                                                                    <button onClick={() => editClass(cls)} className="p-2 text-blue-800 hover:text-blue-900 transition-colors rounded-full hover:bg-blue-100" title="Editar clase">
                                                                         <i className="fas fa-edit"></i>
                                                                     </button>
-                                                                    <button onClick={() => deleteClass(cls.id, cls)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar clase">
+                                                                    <button onClick={() => deleteClass(cls.id, cls)} className="p-2 text-red-600 hover:text-red-800 transition-colors rounded-full hover:bg-red-100" title="Eliminar clase">
                                                                         <i className="fas fa-trash-alt"></i>
                                                                     </button>
                                                                 </div>
@@ -1837,8 +1837,8 @@
                                                         <div className="text-center">Acciones</div>
                                                     </div>
                                                     <div className="divide-y divide-gray-200">
-                                                        {filteredStudentsList.slice((currentPage - 1) * classesPerPage, currentPage * classesPerPage).map(student => (
-                                                            <div key={student.id} className="grid grid-cols-1 md:grid-cols-7 gap-4 p-4 md:p-2 bg-white hover:bg-gray-50 transition-colors">
+                                                        {filteredStudentsList.map((student, index) => (
+                                                            <div key={student.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 md:p-2 items-center ${editedStudentId === student.id ? 'bg-blue-50' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50')}`}>
                                                                 <div className="md:p-2 flex items-center">{student.firstName}</div>
                                                                 <div className="md:p-2 flex items-center">{student.lastName}</div>
                                                                 <div className="md:p-2 flex items-center break-words">{student.phone}</div>
@@ -1854,13 +1854,13 @@
                                                                     ))}
                                                                 </div>
                                                                 <div className="md:p-2 flex items-center justify-center space-x-2">
-                                                                    <button onClick={() => sendWhatsApp(student.phone)} className="text-green-500" title="Enviar WhatsApp">
+                                                                    <button onClick={() => sendWhatsApp(student.phone)} className="p-2 text-green-500 rounded-full hover:bg-green-100" title="Enviar WhatsApp">
                                                                         <i className="fab fa-whatsapp"></i>
                                                                     </button>
-                                                                    <button onClick={() => editStudent(student)} className="text-blue-600" title="Editar">
+                                                                    <button onClick={() => editStudent(student)} className="p-2 text-blue-600 rounded-full hover:bg-blue-100" title="Editar">
                                                                         <i className="fas fa-edit"></i>
                                                                     </button>
-                                                                    <button onClick={() => deleteStudent(student.id)} className="text-red-600" title="Eliminar">
+                                                                    <button onClick={() => deleteStudent(student.id)} className="p-2 text-red-600 rounded-full hover:bg-red-100" title="Eliminar">
                                                                         <i className="fas fa-trash-alt"></i>
                                                                     </button>
                                                                 </div>
@@ -1943,7 +1943,7 @@
                                                         <div className="text-center">Acciones</div>
                                                     </div>
                                                     <div className="divide-y divide-gray-200">
-                                                        {payments.map(payment => (
+                                                        {payments.slice((currentPage - 1) * classesPerPage, currentPage * classesPerPage).map(payment => (
                                                             <div key={payment.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-center">
                                                                 <div className="text-gray-600">{payment.date}</div>
                                                                 <div className="font-bold text-gray-800">{formatPrice(payment.amount)}</div>
