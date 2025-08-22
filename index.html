@@ -1297,13 +1297,43 @@ const currentClasses = filteredClasses.slice(indexOfFirstClass, indexOfLastClass
                                     {/* --- CLASES DE MAÑANA --- */}
                                     {(() => {
                                         const tomorrow = new Date();
-                                        tomorrow.setDate(tomorrow.getDate() + 1);
-                                        const y = tomorrow.getFullYear();
-                                        const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
-                                        const d = String(tomorrow.getDate()).padStart(2, '0');
-                                        const tomorrowStr = `${y}-${m}-${d}`;
-                                        const tClasses = (classes || []).filter(cls => cls.date === tomorrowStr);
+tomorrow.setDate(tomorrow.getDate() + 1);
 
+// 1. Obtener el nombre del día de mañana (ej. "Viernes")
+const tomorrowDayName = daysOfWeek[tomorrow.getDay()];
+
+// 2. Agrupar alumnos por hora según su horario para mañana
+const scheduledClassesByTime = {};
+
+students.forEach(student => {
+    if (student.schedule && student.status === 'Activo') {
+        student.schedule.forEach(slot => {
+            if (slot.day === tomorrowDayName && slot.time) {
+                // Si la hora no existe en el objeto, la creamos
+                if (!scheduledClassesByTime[slot.time]) {
+                    scheduledClassesByTime[slot.time] = [];
+                }
+                // Añadimos el alumno a esa hora
+                scheduledClassesByTime[slot.time].push(student);
+            }
+        });
+    }
+});
+
+// 3. Convertir los grupos en el formato que el panel puede mostrar
+const tClasses = Object.entries(scheduledClassesByTime).map(([time, scheduledStudents]) => {
+    return {
+        id: `auto-${time}`, // Un ID único para la vista
+        time: time,
+        studentIds: scheduledStudents.map(s => s.id),
+        studentNames: scheduledStudents.map(s => `${s.firstName} ${s.lastName}`),
+        studentCount: scheduledStudents.length,
+        // Las siguientes propiedades son necesarias para que la vista no se rompa
+        price: 0, 
+        date: tomorrow.toISOString().split('T')[0],
+        day: tomorrowDayName,
+    };
+}).sort((a, b) => timesOfDay.indexOf(a.time) - timesOfDay.indexOf(b.time));
                                         const getPhoneById = (id) => {
                                             const s = (students || []).find(st => st.id === id);
                                             return s ? (s.phone || '') : '';
@@ -1317,9 +1347,9 @@ const currentClasses = filteredClasses.slice(indexOfFirstClass, indexOfLastClass
                                         if (!tClasses.length) {
                                             return (
                                                 <div className="bg-yellow-50 p-6 rounded-xl shadow-md mb-6">
-                                                    <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                                                        📅 Clases de Mañana ({tomorrow.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })})
-                                                    </h2>
+                                                    <h2 className="text-2xl font-bold text-gray-800 mb-4">
+    📅 Clases de Mañana ({tomorrowDayName})
+</h2>
                                                     <p className="text-gray-600 italic">No hay clases programadas para mañana.</p>
                                                 </div>
                                             );
