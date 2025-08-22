@@ -171,10 +171,10 @@
             '6:00 p. m.', '7:00 p. m.', '8:00 p. m.', '9:00 p. m.', '10:00 p. m.',
         ];
         const colorMap = {
-            1: 'bg-yellow-100',
-            2: 'bg-green-100',
-            3: 'bg-blue-100',
-            4: 'bg-purple-100',
+            1: 'border-yellow-500',
+            2: 'border-green-500',
+            3: 'border-blue-500',
+            4: 'border-purple-500',
         };
         const MessageBox = ({ show, title, content, type, onConfirm, onClose }) => {
             if (!show) return null;
@@ -314,6 +314,9 @@
             const fileInputRef = useRef(null);
             const reportTableRef = useRef(null);
             const annualPaymentsReportRef = useRef(null);
+            const formRef = useRef(null);
+            const studentsListRef = useRef(null);
+
             const formatPrice = (price) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price);
             const formatMonthYear = (monthYearString) => {
                 const [year, month] = monthYearString.split('-');
@@ -521,6 +524,10 @@
                 setNewStudent({ ...studentToEdit, schedule: studentToEdit.schedule || [] });
                 setIsEditingStudent(true);
                 setEditedStudentId(studentToEdit.id);
+                // Desplazar al formulario de edición
+                if (formRef.current) {
+                    formRef.current.scrollIntoView({ behavior: 'smooth' });
+                }
             };
             const deleteStudent = (studentId) => {
                 setMessageBox({
@@ -914,7 +921,7 @@
                                         </div>
                                         <div className="text-right">
                                             <p className="text-sm text-gray-500">Ganancia</p>
-                                            <p className="text-lg font-bold text-green-600">{formatPrice(clase.price)}</p>
+                                            <p className="text-lg font-bold text-blue-800">{formatPrice(clase.price)}</p>
                                         </div>
                                     </div>
                                 ))
@@ -925,7 +932,7 @@
                         <div className="mt-8 pt-4 border-t border-gray-200">
                             <div className="flex justify-between items-center text-lg font-semibold text-gray-800">
                                 <span>Ganancia Total del Día:</span>
-                                <span className="text-2xl font-bold text-green-600">{formatPrice(totalEarnings)}</span>
+                                <span className="text-2xl font-bold text-blue-800">{formatPrice(totalEarnings)}</span>
                             </div>
                         </div>
                     </div>
@@ -1089,15 +1096,29 @@
                 });
             };
 
-            const agregarReemplazo = (dia, time) => {
-                const nombre = prompt("Nombre del reemplazo:");
-                if (!nombre) return;
-                const nuevo = { id: Date.now(), name: nombre };
+            const agregarReemplazo = (dia, time, student) => {
+                if (!student) return;
                 setReemplazos((prev) => {
                     const nuevoState = { ...prev };
                     if (!nuevoState[dia]) nuevoState[dia] = {};
                     if (!nuevoState[dia][time]) nuevoState[dia][time] = [];
-                    nuevoState[dia][time].push(nuevo);
+                    nuevoState[dia][time].push({ id: student.id, name: `${student.firstName} ${student.lastName}` });
+                    return nuevoState;
+                });
+            };
+
+            const eliminarReemplazo = (dia, time, reemplazoId) => {
+                setReemplazos((prev) => {
+                    const nuevoState = { ...prev };
+                    if (nuevoState[dia] && nuevoState[dia][time]) {
+                        nuevoState[dia][time] = nuevoState[dia][time].filter(r => r.id !== reemplazoId);
+                        if (nuevoState[dia][time].length === 0) {
+                            delete nuevoState[dia][time];
+                            if (Object.keys(nuevoState[dia]).length === 0) {
+                                delete nuevoState[dia];
+                            }
+                        }
+                    }
                     return nuevoState;
                 });
             };
@@ -1147,6 +1168,65 @@
                     day: tomorrowName,
                 }))
                 .sort((a, b) => timesOfDay.indexOf(a.time) - timesOfDay.indexOf(b.time));
+
+            const AutocompleteReplacementInput = ({ day, time, students, onAddReplacement }) => {
+                const [searchValue, setSearchValue] = React.useState('');
+                const [filteredStudents, setFilteredStudents] = React.useState([]);
+                const [showSuggestions, setShowSuggestions] = React.useState(false);
+                const containerRef = React.useRef(null);
+            
+                React.useEffect(() => {
+                    const newFiltered = students.filter(s =>
+                        `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchValue.toLowerCase())
+                    );
+                    setFilteredStudents(newFiltered);
+                }, [searchValue, students]);
+            
+                React.useEffect(() => {
+                    const handleClickOutside = (e) => {
+                        if (containerRef.current && !containerRef.current.contains(e.target)) {
+                            setShowSuggestions(false);
+                        }
+                    };
+                    document.addEventListener("mousedown", handleClickOutside);
+                    return () => document.removeEventListener("mousedown", handleClickOutside);
+                }, []);
+            
+                const handleSelect = (student) => {
+                    onAddReplacement(day, time, student);
+                    setSearchValue('');
+                    setShowSuggestions(false);
+                };
+            
+                return (
+                    <div className="relative mt-2" ref={containerRef}>
+                        <input
+                            type="text"
+                            value={searchValue}
+                            onChange={(e) => {
+                                setSearchValue(e.target.value);
+                                setShowSuggestions(true);
+                            }}
+                            onFocus={() => setShowSuggestions(true)}
+                            placeholder="Buscar alumno para reemplazar"
+                            className="w-full p-2 border rounded-md"
+                        />
+                        {showSuggestions && searchValue && filteredStudents.length > 0 && (
+                            <ul className="absolute z-10 w-full bg-white border rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                {filteredStudents.map(student => (
+                                    <li
+                                        key={student.id}
+                                        onClick={() => handleSelect(student)}
+                                        className="p-2 cursor-pointer hover:bg-gray-200"
+                                    >
+                                        {student.firstName} {student.lastName}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                );
+            };
 
             return (
                 <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex flex-col items-center">
@@ -1227,7 +1307,6 @@
                                     <button onClick={() => setIsSigningUp(false)} className="mt-2 text-blue-800 hover:underline">¿Ya tienes una cuenta? Iniciar Sesión</button>
                                 ) : (
                                     <>
-                                        <button onClick={() => setIsSigningUp(true)} className="mt-2 text-blue-800 hover:underline">¿No tienes una cuenta? Crear una</button>
                                         <button onClick={handlePasswordReset} className="mt-2 text-blue-800 hover:underline">¿No recuerdas la contraseña?</button>
                                     </>
                                 )}
@@ -1299,11 +1378,11 @@
                                             </select>
                                         </div>
                                         <div className="bg-white p-4 rounded-lg shadow mb-6">
-                                            <h3 className="text-xl font-bold text-gray-800 mb-3">🟦 Hoy ({baseDayName})</h3>
+                                            <h3 className="text-xl font-bold text-gray-800 mb-3">Hoy ({baseDayName})</h3>
                                             {classesToday.length ? (
                                                 <div className="space-y-3">
                                                     {classesToday.map(clase => (
-                                                        <div key={clase.id} className="bg-gray-50 p-3 rounded-lg">
+                                                        <div key={clase.id} className="bg-white p-3 rounded-lg border-l-4 border-blue-500">
                                                             <p className="text-sm text-gray-500 mb-2">Hora: {clase.time}</p>
                                                             <ul className="space-y-2">
                                                                 {clase.studentIds
@@ -1335,15 +1414,18 @@
                                                                 {(reemplazos[clase.day]?.[clase.time] || []).map(r => (
                                                                     <li key={r.id} className="flex items-center justify-between bg-gray-100 p-2 rounded">
                                                                         <span className="font-medium">{r.name} (Reemplazo)</span>
+                                                                        <button onClick={() => eliminarReemplazo(clase.day, clase.time, r.id)} className="text-red-500 hover:text-red-700">
+                                                                            <i className="fas fa-times"></i>
+                                                                        </button>
                                                                     </li>
                                                                 ))}
                                                                 <li>
-                                                                    <button
-                                                                        className="mt-2 px-3 py-1 bg-blue-500 text-white rounded shadow hover:bg-blue-600"
-                                                                        onClick={() => agregarReemplazo(clase.day, clase.time)}
-                                                                    >
-                                                                        <i className="fas fa-user-plus"></i> Agregar Reemplazo
-                                                                    </button>
+                                                                    <AutocompleteReplacementInput 
+                                                                        day={clase.day}
+                                                                        time={clase.time}
+                                                                        students={students}
+                                                                        onAddReplacement={agregarReemplazo}
+                                                                    />
                                                                 </li>
                                                             </ul>
                                                         </div>
@@ -1353,12 +1435,12 @@
                                                 <p className="text-gray-600 italic">No hay clases para hoy.</p>
                                             )}
                                         </div>
-                                        <div className="bg-yellow-50 p-4 rounded-lg shadow">
-                                            <h3 className="text-xl font-bold text-gray-800 mb-3">🟨 Mañana ({tomorrowName})</h3>
+                                        <div className="bg-white p-4 rounded-lg shadow">
+                                            <h3 className="text-xl font-bold text-gray-800 mb-3">Mañana ({tomorrowName})</h3>
                                             {classesTomorrow.length ? (
                                                 <div className="space-y-3">
                                                     {classesTomorrow.map(clase => (
-                                                        <div key={clase.id} className="bg-white p-3 rounded-lg">
+                                                        <div key={clase.id} className="bg-white p-3 rounded-lg border-l-4 border-yellow-500">
                                                             <p className="text-sm text-gray-500 mb-2">Hora: {clase.time}</p>
                                                             <ul className="space-y-2">
                                                                 {clase.studentIds
@@ -1390,15 +1472,18 @@
                                                                 {(reemplazos[clase.day]?.[clase.time] || []).map(r => (
                                                                     <li key={r.id} className="flex items-center justify-between bg-gray-100 p-2 rounded">
                                                                         <span className="font-medium">{r.name} (Reemplazo)</span>
+                                                                        <button onClick={() => eliminarReemplazo(clase.day, clase.time, r.id)} className="text-red-500 hover:text-red-700">
+                                                                            <i className="fas fa-times"></i>
+                                                                        </button>
                                                                     </li>
                                                                 ))}
                                                                 <li>
-                                                                    <button
-                                                                        className="mt-2 px-3 py-1 bg-blue-500 text-white rounded shadow hover:bg-blue-600"
-                                                                        onClick={() => agregarReemplazo(clase.day, clase.time)}
-                                                                    >
-                                                                        <i className="fas fa-user-plus"></i> Agregar Reemplazo
-                                                                    </button>
+                                                                    <AutocompleteReplacementInput 
+                                                                        day={clase.day}
+                                                                        time={clase.time}
+                                                                        students={students}
+                                                                        onAddReplacement={agregarReemplazo}
+                                                                    />
                                                                 </li>
                                                             </ul>
                                                         </div>
@@ -1413,100 +1498,101 @@
                                 <ReplaceModal />
                                 {view === 'list' && (
                                     <>
-                                        <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                                            {isEditing ? "Editar Clase" : "Añadir Nueva Clase"}
-                                        </h2>
-                                        <div className="flex flex-col md:flex-row gap-4 mb-4">
-                                            <div className="w-full md:w-1/3">
-                                                <label className="block text-gray-700 font-medium">Fecha:</label>
-                                                <input
-                                                    type="date"
-                                                    name="date"
-                                                    value={newEntry.date}
-                                                    onChange={handleDateChange}
-                                                    className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                                />
-                                            </div>
-                                            <div className="w-full md:w-1/3">
-                                                <label className="block text-gray-700 font-medium">Día:</label>
-                                                <p className="p-3 w-full border rounded-lg bg-gray-200 text-gray-800 font-bold transition-shadow">
-                                                    {newEntry.day}
-                                                </p>
-                                            </div>
-                                            <div className="w-full md:w-1/3">
-                                                <label className="block text-gray-700 font-medium">Personas:</label>
-                                                <select
-                                                    name="studentCount"
-                                                    value={newEntry.studentCount}
-                                                    onChange={handleNewEntryChange}
-                                                    className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                                >
-                                                    {peopleOptions.map(count => (
-                                                        <option key={count} value={count}>
-                                                            {count}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col md:flex-row gap-4 mb-4">
-                                            <div className="w-full md:w-1/2">
-                                                <label className="block text-gray-700 font-medium mb-2">Nombres de los alumnos:</label>
-                                                {Array.from({ length: newEntry.studentCount }).map((_, index) => (
-                                                    <AutocompleteStudentInput
-                                                        key={index}
-                                                        index={index}
-                                                        value={newEntry.studentNames[index] || ""}
-                                                        newEntry={newEntry}
-                                                        setNewEntry={setNewEntry}
-                                                        students={students}
+                                        <div ref={formRef} className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
+                                            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                                                {isEditing ? "Editar Clase" : "Añadir Nueva Clase"}
+                                            </h2>
+                                            <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                                <div className="w-full md:w-1/3">
+                                                    <label className="block text-gray-700 font-medium">Fecha:</label>
+                                                    <input
+                                                        type="date"
+                                                        name="date"
+                                                        value={newEntry.date}
+                                                        onChange={handleDateChange}
+                                                        className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                                                     />
-                                                ))}
-                                            </div>
-                                            <div className="w-full md:w-1/2 flex flex-col justify-between">
-                                                <div>
-                                                    <label className="block text-gray-700 font-medium">Hora:</label>
+                                                </div>
+                                                <div className="w-full md:w-1/3">
+                                                    <label className="block text-gray-700 font-medium">Día:</label>
+                                                    <p className="p-3 w-full border rounded-lg bg-gray-200 text-gray-800 font-bold transition-shadow">
+                                                        {newEntry.day}
+                                                    </p>
+                                                </div>
+                                                <div className="w-full md:w-1/3">
+                                                    <label className="block text-gray-700 font-medium">Personas:</label>
                                                     <select
-                                                        name="time"
-                                                        value={newEntry.time}
+                                                        name="studentCount"
+                                                        value={newEntry.studentCount}
                                                         onChange={handleNewEntryChange}
                                                         className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                                                     >
-                                                        {timesOfDay.map(time => (
-                                                            <option key={time} value={time}>
-                                                                {time}
+                                                        {peopleOptions.map(count => (
+                                                            <option key={count} value={count}>
+                                                                {count}
                                                             </option>
                                                         ))}
                                                     </select>
                                                 </div>
-                                                <div className="mt-4">
-                                                    <label className="block text-gray-700 font-medium">Precio:</label>
-                                                    <p className="p-3 w-full border rounded-lg bg-gray-200 text-gray-800 font-bold transition-shadow">
-                                                        {formatPrice(newEntry.price)}
-                                                    </p>
+                                            </div>
+                                            <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                                <div className="w-full md:w-1/2">
+                                                    <label className="block text-gray-700 font-medium mb-2">Nombres de los alumnos:</label>
+                                                    {Array.from({ length: newEntry.studentCount }).map((_, index) => (
+                                                        <AutocompleteStudentInput
+                                                            key={index}
+                                                            index={index}
+                                                            value={newEntry.studentNames[index] || ""}
+                                                            newEntry={newEntry}
+                                                            setNewEntry={setNewEntry}
+                                                            students={students}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <div className="w-full md:w-1/2 flex flex-col justify-between">
+                                                    <div>
+                                                        <label className="block text-gray-700 font-medium">Hora:</label>
+                                                        <select
+                                                            name="time"
+                                                            value={newEntry.time}
+                                                            onChange={handleNewEntryChange}
+                                                            className="p-3 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
+                                                        >
+                                                            {timesOfDay.map(time => (
+                                                                <option key={time} value={time}>
+                                                                    {time}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="mt-4">
+                                                        <label className="block text-gray-700 font-medium">Precio:</label>
+                                                        <p className="p-3 w-full border rounded-lg bg-gray-200 text-gray-800 font-bold transition-shadow">
+                                                            {formatPrice(newEntry.price)}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mt-6">
-                                            <button
-                                                onClick={addClass}
-                                                className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors flex-1"
-                                            >
-                                                {isEditing ? "Guardar Cambios" : "Añadir Clase"}
-                                            </button>
-                                            {isEditing && (
+                                            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mt-6">
                                                 <button
-                                                    onClick={() => {
-                                                        setIsEditing(false);
-                                                        setEditedClassId(null);
-                                                    }}
-                                                    className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors"
+                                                    onClick={addClass}
+                                                    className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors flex-1"
                                                 >
-                                                    Cancelar
+                                                    {isEditing ? "Guardar Cambios" : "Añadir Clase"}
                                                 </button>
-                                            )}
+                                                {isEditing && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setIsEditing(false);
+                                                            setEditedClassId(null);
+                                                        }}
+                                                        className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="mt-8"></div>
                                         <div className="mb-6">
                                             <div className="flex flex-wrap gap-2 mb-4">
                                                 <button onClick={() => setSelectedMonthYear('')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${selectedMonthYear === '' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}>Todos</button>
@@ -1533,7 +1619,7 @@
                                                     </div>
                                                     <div className="divide-y divide-gray-200">
                                                         {currentClasses.map(cls => (
-                                                            <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center ${colorMap[cls.studentCount]} md:rounded-none`}>
+                                                            <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center border-l-4 ${colorMap[cls.studentCount]}`}>
                                                                 <div className="text-sm text-gray-600 md:text-base">{cls.date}</div>
                                                                 <div className="text-sm text-gray-600 md:text-base">{cls.day}</div>
                                                                 <div className="text-sm text-gray-600 md:text-base">{cls.time}</div>
@@ -1615,7 +1701,7 @@
                                 {view === 'daily-report' && <DailyReportView />}
                                 {view === 'students' && (
                                     <div className="mt-8">
-                                        <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
+                                        <div ref={formRef} className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
                                             <h3 className="text-2xl font-bold text-gray-800 mb-4">{isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}</h3>
                                             {isEditingStudent && (
                                                 <p className="mb-4 text-blue-700 font-medium">
@@ -1648,7 +1734,7 @@
                                                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
                                                 >
                                                     <option value="Activo">Activo</option>
-                                                    <option value="Probable">Probable</option>
+                                                    <option value="Pendiente">Pendiente</option>
                                                 </select>
                                             </div>
                                             <div className="mb-4">
@@ -1727,7 +1813,7 @@
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="overflow-x-auto rounded-xl shadow-lg">
+                                        <div ref={studentsListRef} className="overflow-x-auto rounded-xl shadow-lg mt-8">
                                             <div className="flex flex-col md:flex-row justify-between items-center p-4 bg-white border-b-2 gap-2">
                                                 <h3 className="text-xl font-bold text-gray-800">Lista de Alumnos</h3>
                                                 <div className="flex gap-2">
@@ -1735,8 +1821,7 @@
                                                     <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="p-2 border rounded-lg">
                                                         <option value="Todos">Todos</option>
                                                         <option value="Activo">Solo Activos</option>
-                                                        <option value="Probable">Solo Probables</option>
-                                                        <option value="Finalizado">Finalizados</option>
+                                                        <option value="Pendiente">Solo Pendientes</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -1752,14 +1837,14 @@
                                                         <div className="text-center">Acciones</div>
                                                     </div>
                                                     <div className="divide-y divide-gray-200">
-                                                        {filteredStudentsList.map(student => (
+                                                        {filteredStudentsList.slice((currentPage - 1) * classesPerPage, currentPage * classesPerPage).map(student => (
                                                             <div key={student.id} className="grid grid-cols-1 md:grid-cols-7 gap-4 p-4 md:p-2 bg-white hover:bg-gray-50 transition-colors">
                                                                 <div className="md:p-2 flex items-center">{student.firstName}</div>
                                                                 <div className="md:p-2 flex items-center">{student.lastName}</div>
                                                                 <div className="md:p-2 flex items-center break-words">{student.phone}</div>
                                                                 <div className="md:p-2 flex items-center break-words">{student.description}</div>
                                                                 <div className="md:p-2 flex items-center">
-                                                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${student.status === 'Activo' ? 'bg-green-100 text-green-800' : student.status === 'Probable' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                                                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${student.status === 'Activo' ? 'bg-green-100 text-green-800' : student.status === 'Pendiente' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
                                                                         {student.status}
                                                                     </span>
                                                                 </div>
@@ -1787,12 +1872,29 @@
                                                 <p className="text-center text-gray-500 p-8 bg-white">No hay alumnos que coincidan con la búsqueda o filtro.</p>
                                             )}
                                         </div>
+                                        <div className="flex justify-center items-center mt-4 space-x-2">
+                                            <button
+                                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                disabled={currentPage === 1}
+                                                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
+                                            >
+                                                Anterior
+                                            </button>
+                                            <span className="text-gray-700">Página {currentPage} de {Math.ceil(filteredStudentsList.length / classesPerPage)}</span>
+                                            <button
+                                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredStudentsList.length / classesPerPage)))}
+                                                disabled={currentPage === Math.ceil(filteredStudentsList.length / classesPerPage)}
+                                                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
+                                            >
+                                                Siguiente
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                                 {view === 'payments' && (
                                     <div className="mt-8">
                                         <div ref={annualPaymentsReportRef} className="p-6 bg-white rounded-xl shadow-lg mb-6">
-                                            <h3 className="text-2xl font-bold text-gray-800 mb-4">Reporte Anual de Pagos al Club</h3>
+                                            <h3 className="text-2xl font-bold mb-4 text-center">Reporte Anual de Pagos al Club</h3>
                                             {Object.keys(annualPaymentsReport).length > 0 ? (
                                                 <div className="space-y-4">
                                                     {Object.keys(annualPaymentsReport).sort((a, b) => b - a).map(year => (
@@ -1862,32 +1964,68 @@
                                                 <p className="text-center text-gray-500 p-8 bg-white">No hay pagos registrados.</p>
                                             )}
                                         </div>
+                                        <div className="flex justify-center items-center mt-4 space-x-2">
+                                            <button
+                                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                disabled={currentPage === 1}
+                                                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
+                                            >
+                                                Anterior
+                                            </button>
+                                            <span className="text-gray-700">Página {currentPage} de {Math.ceil(payments.length / classesPerPage)}</span>
+                                            <button
+                                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(payments.length / classesPerPage)))}
+                                                disabled={currentPage === Math.ceil(payments.length / classesPerPage)}
+                                                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
+                                            >
+                                                Siguiente
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
-                                <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
-                                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Historial de Actividad</h2>
-                                    <div className="overflow-x-auto rounded-xl shadow-lg">
-                                        {activityLog.length > 0 ? (
-                                            <div className="bg-white p-4">
-                                                <ul className="divide-y divide-gray-200">
-                                                    {activityLog.map(log => (
-                                                        <li key={log.id} className="py-4 flex justify-between items-center text-sm">
-                                                            <div className="flex-1">
-                                                                <span className="font-bold text-blue-800 uppercase mr-2">{log.action}:</span>
-                                                                <span className="text-gray-700">{log.details}</span>
-                                                            </div>
-                                                            <span className="text-gray-500 text-xs">{formatDate(log.timestamp)}</span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        ) : (
-                                            <p className="text-center text-gray-500 p-8 bg-white">
-                                                No hay actividad reciente.
-                                            </p>
-                                        )}
+                                {view === 'activity-log' && (
+                                    <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
+                                        <h2 className="text-2xl font-bold text-gray-800 mb-4">Historial de Actividad</h2>
+                                        <div className="overflow-x-auto rounded-xl shadow-lg">
+                                            {activityLog.length > 0 ? (
+                                                <div className="bg-white p-4">
+                                                    <ul className="divide-y divide-gray-200">
+                                                        {activityLog.slice((currentPage - 1) * classesPerPage, currentPage * classesPerPage).map(log => (
+                                                            <li key={log.id} className="py-4 flex justify-between items-center text-sm">
+                                                                <div className="flex-1">
+                                                                    <span className="font-bold text-blue-800 uppercase mr-2">{log.action}:</span>
+                                                                    <span className="text-gray-700">{log.details}</span>
+                                                                </div>
+                                                                <span className="text-gray-500 text-xs">{formatDate(log.timestamp)}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            ) : (
+                                                <p className="text-center text-gray-500 p-8 bg-white">
+                                                    No hay actividad reciente.
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="flex justify-center items-center mt-4 space-x-2">
+                                            <button
+                                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                disabled={currentPage === 1}
+                                                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
+                                            >
+                                                Anterior
+                                            </button>
+                                            <span className="text-gray-700">Página {currentPage} de {Math.ceil(activityLog.length / classesPerPage)}</span>
+                                            <button
+                                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(activityLog.length / classesPerPage)))}
+                                                disabled={currentPage === Math.ceil(activityLog.length / classesPerPage)}
+                                                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
+                                            >
+                                                Siguiente
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         )}
                         {userId && (
