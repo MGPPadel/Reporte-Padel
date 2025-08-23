@@ -257,7 +257,7 @@ const [classes, setClasses] = useState([]);
             const [students, setStudents] = useState([]);
             const [payments, setPayments] = useState([]);
             const [activityLog, setActivityLog] = useState([]);
-            const [expenses, setExpenses] = useState([]); // <-- NUEVO ESTADO PARA GASTOS
+            const [expenses, setExpenses] = useState([]);
 const [customPrices, setCustomPrices] = useState(defaultClassPrices);
             const [currentPage, setCurrentPage] = useState(1);
             const [classesPerPage, setClassesPerPage] = useState(10);
@@ -281,7 +281,7 @@ const [newStudent, setNewStudent] = useState({
            
 schedule: [],
             });
-            const [newExpense, setNewExpense] = useState({  // <-- NUEVO ESTADO PARA FORMULARIO DE GASTOS
+            const [newExpense, setNewExpense] = useState({
                 date: new Date().toISOString().split('T')[0],
                 amount: '',
                 description: '',
@@ -291,9 +291,10 @@ const [replaceData, setReplaceData] = useState({ classId: null, studentIndex: nu
             const [editedStudentId, setEditedStudentId] = useState(null);
 const [filterStatus, setFilterStatus] = useState('Todos');
             const [studentSearch, setStudentSearch] = useState('');
+            const [studentSortCriteria, setStudentSortCriteria] = useState('lastName'); // <-- NUEVO ESTADO DE ORDENAMIENTO
 const filteredStudentsList = React.useMemo(() => {
                 const term = (studentSearch || '').toLowerCase();
-                return students.filter(s => {
+                let filtered = students.filter(s => {
                     const status = s.status || 'Activo';
                     const matchesStatus = filterStatus === 'Todos' || status === filterStatus;
  
@@ -301,8 +302,21 @@ const haystack = `${s.firstName || ''} ${s.lastName || ''} ${s.phone || ''} ${s.
                     const matchesSearch = !term || haystack.includes(term);
                     return matchesStatus && matchesSearch;
                 });
+
+                // Lógica de ordenamiento
+                filtered.sort((a, b) => {
+                    if (studentSortCriteria === 'firstName') {
+                        return (a.firstName || '').localeCompare(b.firstName || '');
+                    }
+                    if (studentSortCriteria === 'status') {
+                        return (a.status || '').localeCompare(b.status || '');
+                    }
+                    return (a.lastName || '').localeCompare(b.lastName || '');
+                });
+
+                return filtered;
    
-}, [students, studentSearch, filterStatus]);
+}, [students, studentSearch, filterStatus, studentSortCriteria]);
 const [newPayment, setNewPayment] = useState({
                 date: new Date().toISOString().split('T')[0],
                 amount: 0,
@@ -310,8 +324,8 @@ const [newPayment, setNewPayment] = useState({
             });
 const [isEditingPayment, setIsEditingPayment] = useState(false);
             const [editedPaymentId, setEditedPaymentId] = useState(null);
-            const [isEditingExpense, setIsEditingExpense] = useState(false); // <-- NUEVO
-            const [editedExpenseId, setEditedExpenseId] = useState(null); // <-- NUEVO
+            const [isEditingExpense, setIsEditingExpense] = useState(false);
+            const [editedExpenseId, setEditedExpenseId] = useState(null);
             const [monthlyReports, setMonthlyReports] = useState({});
             const [annualPaymentsReport, setAnnualPaymentsReport] = useState({});
 const [selectedMonthYear, setSelectedMonthYear] = useState('');
@@ -323,7 +337,7 @@ const [view, setView] = useState('panel');
             const [panelDay, setPanelDay] = useState(localStorage.getItem('panelDay') || '');
             useEffect(() => { localStorage.setItem('panelDay', panelDay); }, [panelDay]);
 const [filterText, setFilterText] = useState('');
-            const [filterTextExpenses, setFilterTextExpenses] = useState(''); // <-- NUEVO
+            const [filterTextExpenses, setFilterTextExpenses] = useState('');
 const [isSigningUp, setIsSigningUp] = useState(false);
             const [messageBox, setMessageBox] = useState({
                 show: false,
@@ -532,7 +546,7 @@ setUserId(null);
                             setLoading(false);
                         }
                     },
-                    onClose: () => setMessageBox({ show: false })
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
                 });
             };
 
@@ -706,8 +720,6 @@ setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido e
                     onClose: () => setMessageBox({ ...messageBox, show: false })
                 });
 };
-
-            // --- FUNCIONES CRUD PARA GASTOS ---
             const addExpense = async () => {
                 if (!dbRef.current || !userId) return;
                 if (!newExpense.date || !newExpense.amount || newExpense.amount <= 0) {
@@ -771,7 +783,6 @@ setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido e
                     onClose: () => setMessageBox({ ...messageBox, show: false })
                 });
             };
-            // --- FIN FUNCIONES CRUD GASTOS ---
 
             useEffect(() => {
                 if (userId && dbRef.current) {
@@ -781,14 +792,19 @@ setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido e
                     const classesQuery = window.query(classesColRef);
                     const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
                         const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        setClasses(fetchedClasses.sort((a, b) => new Date(b.date) - new Date(a.date)));
+                        fetchedClasses.sort((a, b) => {
+                            const dateComparison = new Date(b.date) - new Date(a.date);
+                            if (dateComparison !== 0) return dateComparison;
+                            return timesOfDay.indexOf(a.time) - timesOfDay.indexOf(b.time);
+                        });
+                        setClasses(fetchedClasses);
                     });
 
                     const studentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'students');
                     const studentsQuery = window.query(studentsColRef);
                     const unsubscribeStudents = window.onSnapshot(studentsQuery, (snapshot) => {
                         const fetchedStudents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        setStudents(fetchedStudents.sort((a, b) => a.lastName.localeCompare(b.lastName)));
+                        setStudents(fetchedStudents);
                     });
 
                     const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
@@ -797,15 +813,13 @@ setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido e
                         const fetchedPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         setPayments(fetchedPayments.sort((a, b) => new Date(b.date) - new Date(a.date)));
                     });
-
-                    // --- AÑADIDO: Cargar Gastos ---
+                    
                     const expensesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'expenses');
                     const expensesQuery = window.query(expensesColRef);
                     const unsubscribeExpenses = window.onSnapshot(expensesQuery, (snapshot) => {
                         const fetchedExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         setExpenses(fetchedExpenses.sort((a, b) => new Date(b.date) - new Date(a.date)));
                     });
-                    // --- FIN ---
 
 const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
                     const logQuery = window.query(logColRef);
@@ -818,14 +832,14 @@ return () => {
                         unsubscribeClasses();
 unsubscribeStudents();
                         unsubscribePayments();
-                        unsubscribeExpenses(); // <-- AÑADIDO
+                        unsubscribeExpenses();
                         unsubscribeLog();
                     };
                 } else {
                     setClasses([]);
 setStudents([]);
                     setPayments([]);
-                    setExpenses([]); // <-- AÑADIDO
+                    setExpenses([]);
                     setActivityLog([]);
                     setClosedMonths([]);
                 }
@@ -1099,7 +1113,7 @@ const filteredClasses = useMemo(() => {
                 return filtered;
             }, [classes, selectedMonthYear, filterText]);
 
-            const filteredExpenses = useMemo(() => { // <-- NUEVO
+            const filteredExpenses = useMemo(() => {
                 return expenses.filter(exp => 
                     exp.description.toLowerCase().includes(filterTextExpenses.toLowerCase())
                 );
@@ -1196,7 +1210,7 @@ hover:bg-gray-300"
 };
 
             const exportData = () => {
-                const data = JSON.stringify({ classes, students, payments }, null, 2);
+                const data = JSON.stringify({ classes, students, payments, expenses }, null, 2); // Agregado expenses
 const blob = new Blob([data], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -1246,6 +1260,7 @@ try {
                     if (jsonData.students) setStudents(jsonData.students);
 if (jsonData.classes) setClasses(jsonData.classes);
                     if (jsonData.payments) setPayments(jsonData.payments);
+                    if (jsonData.expenses) setExpenses(jsonData.expenses); // Agregado expenses
                     setMessageBox({
                         show: true,
                         title: "Importación exitosa",
@@ -2469,18 +2484,20 @@ Cancelar
 </div>
                                         <div ref={studentsListRef} className="overflow-x-auto rounded-xl shadow-lg mt-8">
                                 
-<div className="flex flex-col md:flex-row justify-between items-center p-4 bg-white border-b-2 gap-2">
+<div className="flex flex-col md:flex-row justify-between items-center p-4 bg-white border-b-2 gap-4">
                                                 <h3 className="text-xl font-bold text-gray-800">Lista de Alumnos</h3>
                           
 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                                                     <input type="text" placeholder="Buscar..." value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} className="p-2 border rounded-lg"/>
-           
-<select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="p-2 border rounded-lg">
-                                                    
-<option value="Todos">Todos</option>
+                                                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="p-2 border rounded-lg">
+                                                        <option value="Todos">Todos</option>
                                                         <option value="Activo">Solo Activos</option>
-                                     
-<option value="Pendiente">Solo Pendientes</option>
+                                                        <option value="Pendiente">Solo Pendientes</option>
+                                                    </select>
+                                                    <select value={studentSortCriteria} onChange={(e) => setStudentSortCriteria(e.target.value)} className="p-2 border rounded-lg">
+                                                        <option value="lastName">Ordenar por Apellido</option>
+                                                        <option value="firstName">Ordenar por Nombre</option>
+                                                        <option value="status">Ordenar por Estado</option>
                                                     </select>
                            
 </div>
@@ -2517,7 +2534,7 @@ Cancelar
                                                                     </span>
                                                                 </div>
                                                                 <div className="flex flex-col space-y-1 text-sm text-gray-600 my-2 md:my-0">
-                                                                    {student.schedule && student.schedule.map((s, idx) => (
+                                                                    {(student.schedule || []).map((s, idx) => (
                                                                         <div key={idx} className="bg-gray-100 rounded-md p-1 px-2 w-fit">
                                                                             <i className="fas fa-calendar-alt mr-1 text-gray-400"></i>
                                                                             {s.day} a las {s.time}
@@ -2693,7 +2710,7 @@ p-4 bg-white border-b-2">Pagos Registrados</h3>
                                
 </div>
                                 )}
-
+                                
                                 {/* --- NUEVA VISTA DE GASTOS --- */}
                                 {view === 'expenses' && (
                                     <div className="mt-8">
@@ -2754,7 +2771,6 @@ p-4 bg-white border-b-2">Pagos Registrados</h3>
                                         </div>
                                     </div>
                                 )}
-
                                 {view === 'activity-log' && (
                            
 <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
