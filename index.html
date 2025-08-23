@@ -257,9 +257,11 @@ const [classes, setClasses] = useState([]);
             const [students, setStudents] = useState([]);
             const [payments, setPayments] = useState([]);
             const [activityLog, setActivityLog] = useState([]);
+            const [expenses, setExpenses] = useState([]); // <-- NUEVO ESTADO PARA GASTOS
 const [customPrices, setCustomPrices] = useState(defaultClassPrices);
             const [currentPage, setCurrentPage] = useState(1);
             const [classesPerPage, setClassesPerPage] = useState(10);
+            const [closedMonths, setClosedMonths] = useState([]);
 const [newEntry, setNewEntry] = useState({
                 studentCount: 1,
                 studentNames: [''],
@@ -278,6 +280,11 @@ const [newStudent, setNewStudent] = useState({
                 status: 'Activo',
            
 schedule: [],
+            });
+            const [newExpense, setNewExpense] = useState({  // <-- NUEVO ESTADO PARA FORMULARIO DE GASTOS
+                date: new Date().toISOString().split('T')[0],
+                amount: '',
+                description: '',
             });
 const [replaceData, setReplaceData] = useState({ classId: null, studentIndex: null });
             const [isEditingStudent, setIsEditingStudent] = useState(false);
@@ -303,6 +310,8 @@ const [newPayment, setNewPayment] = useState({
             });
 const [isEditingPayment, setIsEditingPayment] = useState(false);
             const [editedPaymentId, setEditedPaymentId] = useState(null);
+            const [isEditingExpense, setIsEditingExpense] = useState(false); // <-- NUEVO
+            const [editedExpenseId, setEditedExpenseId] = useState(null); // <-- NUEVO
             const [monthlyReports, setMonthlyReports] = useState({});
             const [annualPaymentsReport, setAnnualPaymentsReport] = useState({});
 const [selectedMonthYear, setSelectedMonthYear] = useState('');
@@ -314,8 +323,9 @@ const [view, setView] = useState('panel');
             const [panelDay, setPanelDay] = useState(localStorage.getItem('panelDay') || '');
             useEffect(() => { localStorage.setItem('panelDay', panelDay); }, [panelDay]);
 const [filterText, setFilterText] = useState('');
-            const [isSigningUp, setIsSigningUp] = useState(false);
-const [messageBox, setMessageBox] = useState({
+            const [filterTextExpenses, setFilterTextExpenses] = useState(''); // <-- NUEVO
+const [isSigningUp, setIsSigningUp] = useState(false);
+            const [messageBox, setMessageBox] = useState({
                 show: false,
                 title: '',
                 content: '',
@@ -487,6 +497,45 @@ setUserId(null);
                     console.error("Error signing out:", error);
 }
             };
+
+            const loadClosedMonths = async () => {
+                if (!dbRef.current || !userId) return;
+                try {
+                    const docRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'closedMonths');
+                    const docSnap = await window.getDoc(docRef);
+                    if (docSnap.exists() && docSnap.data().months) {
+                        setClosedMonths(docSnap.data().months);
+                    }
+                } catch (error) {
+                    console.error("Error loading closed months:", error);
+                }
+            };
+
+            const handleCloseMonth = (monthYear) => {
+                setMessageBox({
+                    show: true,
+                    title: 'Confirmar Cierre de Mes',
+                    content: `¿Estás seguro de que quieres cerrar ${formatMonthYear(monthYear)}? Una vez cerrado, no podrás editar ni eliminar las clases de este mes.`,
+                    type: 'confirm',
+                    onConfirm: async () => {
+                        const newClosedMonths = [...new Set([...closedMonths, monthYear])];
+                        try {
+                            setLoading(true);
+                            const docRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'closedMonths');
+                            await window.setDoc(docRef, { months: newClosedMonths });
+                            setClosedMonths(newClosedMonths);
+                            setMessageBox({ show: true, title: 'Mes Cerrado', content: 'El mes ha sido cerrado exitosamente.', type: 'success', onClose: () => setMessageBox({ show: false }) });
+                        } catch (error) {
+                            console.error("Error closing month:", error);
+                            setMessageBox({ show: true, title: 'Error', content: 'No se pudo cerrar el mes.', type: 'error', onClose: () => setMessageBox({ show: false }) });
+                        } finally {
+                            setLoading(false);
+                        }
+                    },
+                    onClose: () => setMessageBox({ show: false })
+                });
+            };
+
 const saveCustomPrices = async () => {
                 if (!dbRef.current || !userId) return;
 try {
@@ -557,7 +606,6 @@ const editStudent = (studentToEdit) => {
                 setNewStudent({ ...studentToEdit, schedule: studentToEdit.schedule || [] });
 setIsEditingStudent(true);
                 setEditedStudentId(studentToEdit.id);
-                // Desplazarse al formulario de edición
                 if (formRef.current) {
                     formRef.current.scrollIntoView({ behavior: 'smooth' });
 }
@@ -658,52 +706,128 @@ setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido e
                     onClose: () => setMessageBox({ ...messageBox, show: false })
                 });
 };
+
+            // --- FUNCIONES CRUD PARA GASTOS ---
+            const addExpense = async () => {
+                if (!dbRef.current || !userId) return;
+                if (!newExpense.date || !newExpense.amount || newExpense.amount <= 0) {
+                    setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, ingresa una fecha y un monto válido para el gasto.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    return;
+                }
+                try {
+                    setLoading(true);
+                    const expensesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'expenses');
+                    const expenseData = {
+                        ...newExpense,
+                        amount: parseFloat(newExpense.amount),
+                        timestamp: window.Timestamp.fromDate(new Date(newExpense.date))
+                    };
+
+                    if (isEditingExpense) {
+                        const expenseDocRef = window.doc(expensesColRef, editedExpenseId);
+                        await window.setDoc(expenseDocRef, expenseData);
+                        setMessageBox({ show: true, title: 'Gasto actualizado', content: 'El gasto se ha actualizado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    } else {
+                        await window.addDoc(expensesColRef, expenseData);
+                        setMessageBox({ show: true, title: 'Gasto añadido', content: 'El nuevo gasto se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    }
+                    setNewExpense({ date: new Date().toISOString().split('T')[0], amount: '', description: '' });
+                    setIsEditingExpense(false);
+                    setEditedExpenseId(null);
+                } catch (error) {
+                    setMessageBox({ show: true, title: 'Error al guardar el gasto', content: 'Hubo un error al guardar los datos del gasto. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    console.error("Error adding/updating expense:", error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const editExpense = (expenseToEdit) => {
+                setNewExpense({ ...expenseToEdit, amount: expenseToEdit.amount.toString() });
+                setIsEditingExpense(true);
+                setEditedExpenseId(expenseToEdit.id);
+            };
+
+            const deleteExpense = (expenseId) => {
+                setMessageBox({
+                    show: true,
+                    title: 'Confirmar eliminación',
+                    content: '¿Estás seguro de que quieres eliminar este gasto? Esta acción es irreversible.',
+                    type: 'confirm',
+                    onConfirm: async () => {
+                        if (!dbRef.current || !userId) return;
+                        try {
+                            setLoading(true);
+                            const expenseDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'expenses', expenseId);
+                            await window.deleteDoc(expenseDocRef);
+                            setMessageBox({ show: true, title: 'Gasto eliminado', content: 'El gasto ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        } catch (error) {
+                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar el gasto. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                            console.error("Error deleting expense:", error);
+                        } finally {
+                            setLoading(false);
+                        }
+                    },
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                });
+            };
+            // --- FIN FUNCIONES CRUD GASTOS ---
+
             useEffect(() => {
                 if (userId && dbRef.current) {
                     loadCustomPrices();
+                    loadClosedMonths();
                     const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
                     const classesQuery = window.query(classesColRef);
-      
-const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
+                    const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
                         const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        const sortedClasses = fetchedClasses.sort((a, b) => new Date(b.date) - new Date(a.date));
-             
-setClasses(sortedClasses);
+                        setClasses(fetchedClasses.sort((a, b) => new Date(b.date) - new Date(a.date)));
                     });
+
                     const studentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'students');
                     const studentsQuery = window.query(studentsColRef);
-                  
-const unsubscribeStudents = window.onSnapshot(studentsQuery, (snapshot) => {
+                    const unsubscribeStudents = window.onSnapshot(studentsQuery, (snapshot) => {
                         const fetchedStudents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-setStudents(fetchedStudents.sort((a, b) => a.lastName.localeCompare(b.lastName)));
+                        setStudents(fetchedStudents.sort((a, b) => a.lastName.localeCompare(b.lastName)));
                     });
+
                     const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
                     const paymentsQuery = window.query(paymentsColRef);
-const unsubscribePayments = window.onSnapshot(paymentsQuery, (snapshot) => {
+                    const unsubscribePayments = window.onSnapshot(paymentsQuery, (snapshot) => {
                         const fetchedPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        const sortedPayments = fetchedPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
-                        setPayments(sortedPayments);
-   
-});
+                        setPayments(fetchedPayments.sort((a, b) => new Date(b.date) - new Date(a.date)));
+                    });
+
+                    // --- AÑADIDO: Cargar Gastos ---
+                    const expensesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'expenses');
+                    const expensesQuery = window.query(expensesColRef);
+                    const unsubscribeExpenses = window.onSnapshot(expensesQuery, (snapshot) => {
+                        const fetchedExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setExpenses(fetchedExpenses.sort((a, b) => new Date(b.date) - new Date(a.date)));
+                    });
+                    // --- FIN ---
+
 const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
                     const logQuery = window.query(logColRef);
 const unsubscribeLog = window.onSnapshot(logQuery, (snapshot) => {
                         const fetchedLog = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        const sortedLog = fetchedLog.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
-                        setActivityLog(sortedLog);
+                        setActivityLog(fetchedLog.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds));
      
 });
 return () => {
                         unsubscribeClasses();
 unsubscribeStudents();
                         unsubscribePayments();
+                        unsubscribeExpenses(); // <-- AÑADIDO
                         unsubscribeLog();
                     };
                 } else {
                     setClasses([]);
 setStudents([]);
                     setPayments([]);
+                    setExpenses([]); // <-- AÑADIDO
                     setActivityLog([]);
+                    setClosedMonths([]);
                 }
             }, [userId]);
 useEffect(() => {
@@ -818,6 +942,11 @@ console.error("Error adding/updating class:", error);
 }
             };
 const deleteClass = (id, classData) => {
+                const monthYear = classData.date.substring(0, 7);
+                if (closedMonths.includes(monthYear)) {
+                    setMessageBox({ show: true, title: 'Acción no permitida', content: 'Este mes está cerrado y no se pueden eliminar sus clases.', type: 'error', onClose: () => setMessageBox({ show: false }) });
+                    return;
+                }
                 setMessageBox({
                     show: true,
                     title: 'Confirmar eliminación',
@@ -846,6 +975,11 @@ console.error("Error deleting class:", error);
 };
 
             const editClass = (classToEdit) => {
+                const monthYear = classToEdit.date.substring(0, 7);
+                if (closedMonths.includes(monthYear)) {
+                    setMessageBox({ show: true, title: 'Acción no permitida', content: 'Este mes está cerrado y no se pueden modificar sus clases.', type: 'error', onClose: () => setMessageBox({ show: false }) });
+                    return;
+                }
                 setNewEntry({
                     studentCount: classToEdit.studentCount,
                     studentNames: classToEdit.studentNames,
@@ -951,7 +1085,7 @@ setLoading(false);
                     months.add(monthYear);
             
 });
-                return Array.from(months).sort((a, b) => new Date(a) - new Date(b));
+                return Array.from(months).sort((a, b) => new Date(b) - new Date(a));
             }, [classes]);
 const filteredClasses = useMemo(() => {
                 let filtered = classes;
@@ -964,6 +1098,13 @@ const filteredClasses = useMemo(() => {
                 }
                 return filtered;
             }, [classes, selectedMonthYear, filterText]);
+
+            const filteredExpenses = useMemo(() => { // <-- NUEVO
+                return expenses.filter(exp => 
+                    exp.description.toLowerCase().includes(filterTextExpenses.toLowerCase())
+                );
+            }, [expenses, filterTextExpenses]);
+
 const indexOfLastClass = currentPage * classesPerPage;
             const indexOfFirstClass = indexOfLastClass - classesPerPage;
             const currentClasses = filteredClasses.slice(indexOfFirstClass, indexOfLastClass);
@@ -997,7 +1138,7 @@ return newDate;
                      
 title="Día anterior"
                             >
-                                <i className="fas fa-arrow-left"></i>
+                                <i className="fas fa-arrow-left text-gray-600"></i>
                           
 </button>
                             <p className="text-lg font-semibold text-gray-700">
@@ -1010,7 +1151,7 @@ title="Día anterior"
 hover:bg-gray-300"
                                 title="Día siguiente"
                             >
-                                <i className="fas fa-arrow-right"></i>
+                                <i className="fas fa-arrow-right text-gray-600"></i>
      
 </button>
                         </div>
@@ -1184,7 +1325,7 @@ await replaceStudentInClass(replaceData.classId, replaceData.studentIndex, selec
                                 <option value="">-- Seleccionar alumno --</option>
                                 {students.map(s => (
   
-<option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+<option key={s.id} value={s.id}>{s.firstName} ${s.lastName}</option>
                                 ))}
                             </select>
    
@@ -1489,43 +1630,46 @@ setShowConfigModal(false); }} className="bg-blue-800 text-white font-bold py-2 p
 {userId && (
                             <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
                                 <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-                                    {/* MODIFICACIÓN: TÍTULOS DE SECCIÓN */}
                                     <h2 className="text-2xl font-bold text-gray-800">
                                         {view === 'panel' ? 'Panel de Control'
                                             : view === 'list' ? 'Clases de Padel'
                                             : view === 'report' ? 'Reporte Mensual'
                                             : view === 'students' ? 'Alumnos'
                                             : view === 'daily-report' ? 'Reporte Diario'
-                                            : 'Pagos del Club'}
+                                            : view === 'payments' ? 'Pagos del Club'
+                                            : view === 'expenses' ? 'Gastos'
+                                            : 'Default'}
                                     </h2>
                 
-                                    {/* MODIFICACIÓN: ORDEN DE BOTONES E ICONOS */}
-                                    <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
-                                        <button onClick={() => setView('panel')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'panel' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Panel de Control">
+                                    <div className="flex flex-wrap justify-center gap-2 mt-4 md:mt-0">
+                                        <button onClick={() => setView('panel')} className={`w-12 h-10 flex items-center justify-center rounded-lg font-bold transition-colors shadow-md ${view === 'panel' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Panel de Control">
                                             <i className="fas fa-home"></i>
                                         </button>
-                                        <button onClick={() => setView('list')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'list' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Clases de Padel">
+                                        <button onClick={() => setView('list')} className={`w-12 h-10 flex items-center justify-center rounded-lg font-bold transition-colors shadow-md ${view === 'list' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Clases de Padel">
                                             <i className="fas fa-list"></i>
                                         </button>
-                                        <button onClick={() => setView('students')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'students' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Alumnos">
+                                        <button onClick={() => setView('students')} className={`w-12 h-10 flex items-center justify-center rounded-lg font-bold transition-colors shadow-md ${view === 'students' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Alumnos">
                                             <i className="fas fa-user-friends"></i>
                                         </button>
-                                        <button onClick={() => setView('daily-report')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'daily-report' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Reporte Diario">
-                                            <i className="fas fa-calendar-day"></i> {/* <-- ICONO CAMBIADO */}
+                                        <button onClick={() => setView('daily-report')} className={`w-12 h-10 flex items-center justify-center rounded-lg font-bold transition-colors shadow-md ${view === 'daily-report' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Reporte Diario">
+                                            <i className="fas fa-calendar-day"></i>
                                         </button>
-                                        <button onClick={() => setView('report')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'report' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Reporte Mensual">
-                                            <i className="fas fa-file-invoice-dollar"></i> {/* <-- ICONO CAMBIADO */}
+                                        <button onClick={() => setView('report')} className={`w-12 h-10 flex items-center justify-center rounded-lg font-bold transition-colors shadow-md ${view === 'report' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Reporte Mensual">
+                                            <i className="fas fa-file-invoice-dollar"></i>
                                         </button>
-                                        <button onClick={() => setView('payments')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'payments' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Pagos del Club">
+                                        <button onClick={() => setView('payments')} className={`w-12 h-10 flex items-center justify-center rounded-lg font-bold transition-colors shadow-md ${view === 'payments' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Pagos del Club">
                                             <i className="fas fa-money-bill-alt"></i>
                                         </button>
-                                        <button onClick={() => setShowConfigModal(true)} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Configurar Precios">
+                                        <button onClick={() => setView('expenses')} className={`w-12 h-10 flex items-center justify-center rounded-lg font-bold transition-colors shadow-md ${view === 'expenses' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Gastos">
+                                            <i className="fas fa-receipt"></i>
+                                        </button>
+                                        <button onClick={() => setShowConfigModal(true)} className="w-12 h-10 flex items-center justify-center bg-gray-200 text-gray-800 font-bold rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Configurar Precios">
                                             <i className="fas fa-dollar-sign"></i>
                                         </button>
-                                        <button onClick={exportData} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Exportar Datos">
+                                        <button onClick={exportData} className="w-12 h-10 flex items-center justify-center bg-gray-200 text-gray-800 font-bold rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Exportar Datos">
                                             <i className="fas fa-file-export"></i>
                                         </button>
-                                        <button onClick={() => fileInputRef.current.click()} className="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Importar Datos">
+                                        <button onClick={() => fileInputRef.current.click()} className="w-12 h-10 flex items-center justify-center bg-gray-200 text-gray-800 font-bold rounded-lg shadow-md hover:bg-gray-300 transition-colors" title="Importar Datos">
                                             <i className="fas fa-file-import"></i>
                                         </button>
                                     </div>
@@ -1536,7 +1680,7 @@ setShowConfigModal(false); }} className="bg-blue-800 text-white font-bold py-2 p
                                     <div className="w-full">
           
 <div className="mb-6">
-                                            <label className="block mb-2 font-bold text-gray-700">📅 Seleccionar Día de Referencia</label>
+                                            <label className="block mb-2 font-bold text-gray-700">Seleccionar Día de Referencia</label>
                  
 <select
                                                 className="w-full md:w-1/3 p-2 border rounded-lg shadow-sm"
@@ -1562,7 +1706,7 @@ value={panelDay ||
 <div className="lg:w-1/2 flex flex-col gap-4">
                                                 <div className="bg-white p-3 rounded-lg shadow flex items-center">
                            
-<i className="fas fa-sun text-yellow-500 text-2xl mr-3"></i>
+                                                    <i className="fas fa-calendar-check text-blue-500 text-2xl mr-3"></i>
                                                     <h3 className="text-xl font-bold text-gray-800">Hoy ({baseDayName})</h3>
               
 </div>
@@ -1575,7 +1719,7 @@ value={panelDay ||
                  
 <div className="flex items-center">
                                                    
-<i className="far fa-clock text-blue-500 mr-2"></i>
+<i className="far fa-clock text-gray-500 mr-2"></i>
                                                                     <span className="font-bold text-lg text-gray-700">{clase.time}</span>
         
 </div>
@@ -1676,7 +1820,7 @@ onAddReplacement={agregarReemplazo}
                
 <div className="bg-white p-6 rounded-lg text-center text-gray-500 shadow-sm">
                                                         <i 
-className="fas fa-calendar-check text-2xl mb-2"></i>
+className="fas fa-calendar-times text-2xl mb-2 text-gray-400"></i>
                                                         <p>No hay clases programadas.</p>
                                       
 </div>
@@ -1702,7 +1846,7 @@ flex-col gap-4">
                  
 <div className="flex items-center">
                                                    
-<i className="far fa-clock text-blue-500 mr-2"></i>
+<i className="far fa-clock text-gray-500 mr-2"></i>
                                                                     <span className="font-bold text-lg text-gray-700">{clase.time}</span>
         
 </div>
@@ -1803,7 +1947,7 @@ onAddReplacement={agregarReemplazo}
                
 <div className="bg-white p-6 rounded-lg text-center text-gray-500 shadow-sm">
                                                         <i 
-className="fas fa-calendar-check text-2xl mb-2"></i>
+className="fas fa-calendar-times text-2xl mb-2 text-gray-400"></i>
                                                         <p>No hay clases programadas.</p>
                                       
 </div>
@@ -2099,7 +2243,7 @@ disabled={currentPage === totalPages}
                                                     className="mt-1 p-2 border rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
                                                 >
                                                     <option value="todos">Todos los meses</option>
-                                                    {Object.keys(monthlyReports).sort().map(monthYear => (
+                                                    {Object.keys(monthlyReports).sort((a, b) => new Date(b) - new Date(a)).map(monthYear => (
                                                         <option key={monthYear} value={monthYear}>
                                                             {formatMonthYear(monthYear)}
                                                         </option>
@@ -2120,10 +2264,24 @@ disabled={currentPage === totalPages}
                                                 <div className="space-y-6">
                                                     {Object.keys(monthlyReports)
                                                         .filter(monthYear => reportFilterMonth === 'todos' || monthYear === reportFilterMonth)
-                                                        .sort()
+                                                        .sort((a, b) => new Date(b) - new Date(a))
                                                         .map(monthYear => (
-                                                            <div key={monthYear} className="border-b pb-4">
-                                                                <h4 className="text-xl font-bold text-gray-700 mb-2">{formatMonthYear(monthYear)}</h4>
+                                                            <div key={monthYear} className="border-b pb-4 mb-4">
+                                                                <div className="flex justify-between items-center mb-2">
+                                                                    <h4 className="text-xl font-bold text-gray-700">{formatMonthYear(monthYear)}</h4>
+                                                                    {closedMonths.includes(monthYear) ? (
+                                                                        <span className="text-sm font-semibold text-gray-500 flex items-center bg-gray-200 px-3 py-1 rounded-full">
+                                                                            <i className="fas fa-lock mr-2"></i> Mes Cerrado
+                                                                        </span>
+                                                                    ) : (
+                                                                        <button 
+                                                                            onClick={() => handleCloseMonth(monthYear)}
+                                                                            className="bg-green-600 text-white text-xs font-bold py-1 px-3 rounded-lg shadow-md hover:bg-green-700 transition-colors"
+                                                                        >
+                                                                            <i className="fas fa-check-circle mr-1"></i>Cerrar Mes
+                                                                        </button>
+                                                                    )}
+                                                                </div>
                                                                 <p className="text-gray-600">Ingreso total: <span className="font-bold text-blue-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
                                                                 <p className="text-gray-600">Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span></p>
                                                                 <div className="mt-2 text-sm text-gray-500">
@@ -2332,87 +2490,52 @@ Cancelar
 (
                                                 <div className="bg-white">
                                                    
-<div className="hidden md:grid grid-cols-7 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2">
+                                                    <div className="hidden md:grid grid-cols-8 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2">
                                                         <div>Nombre</div>
-                                  
-<div>Apellido</div>
-                                                        <div>Teléfono</div>
-                      
-<div>Descripción</div>
+                                                        <div>Apellido</div>
+                                                        <div className="col-span-2">Teléfono</div>
+                                                        <div>Descripción</div>
                                                         <div>Estado</div>
-          
-<div>Horario</div>
-                                                      
-<div className="text-center">Acciones</div>
+                                                        <div>Horario</div>
+                                                        <div className="text-center">Acciones</div>
                                                     </div>
                                              
 <div className="divide-y divide-gray-200">
                                                         {filteredStudentsList.map((student, index) => (
                                 
-<div key={student.id} className={`block md:grid md:grid-cols-7 md:gap-2 p-4 border-b transition-colors ${editedStudentId === student.id ?
-'bg-blue-50' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50')}`}>
-    {/* --- Contenido visible en Móvil y Escritorio --- */}
-    
-    {/* Nombre y Apellido (más grandes en móvil) */}
-    <div className="md:col-span-1 font-bold text-lg md:font-normal md:text-base">
-        {student.firstName}
-    </div>
-    <div className="md:col-span-1 font-bold text-lg md:font-normal md:text-base -mt-2 md:mt-0">
-        {student.lastName}
-    </div>
-
-    {/* Teléfono */}
-    <div className="md:col-span-1 text-gray-700 mt-2 md:mt-0 break-words">
-  
-<i className="fas fa-phone mr-2 text-gray-400"></i>
-        {student.phone}
-    </div>
-
-    {/* Descripción */}
-    <div className="md:col-span-1 text-gray-600 italic my-2 md:my-0 break-words">
-        {student.description}
-    </div>
-
-    {/* Estado */}
-    <div className="md:col-span-1 my-2 md:my-0">
-        {student.status === 'Activo' ?
-(
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold text-green-800 bg-green-100">
-                <i className="fas fa-circle text-xs mr-1"></i> Activo
-            </span>
-        ) : (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold text-yellow-800 bg-yellow-100">
-               
-<i className="fas fa-circle text-xs mr-1"></i> Pendiente
-            </span>
-        )}
-    </div>
-
-    {/* Horario */}
-    <div className="md:col-span-1 flex flex-col space-y-1 text-sm text-gray-600 my-2 md:my-0">
-        {student.schedule && student.schedule.map((s, idx) => (
-            <div key={idx} className="bg-gray-100 rounded-md p-1 px-2 w-fit">
-                <i className="fas fa-calendar-alt mr-1 text-gray-400"></i>
- 
-{s.day} a las {s.time}
-            </div>
-        ))}
-    </div>
-
-    {/* Acciones */}
-    <div className="md:col-span-1 flex items-center justify-end md:justify-center space-x-2 mt-3 md:mt-0">
-        <button onClick={() => sendWhatsApp(student.phone)} className="p-2 text-green-500 rounded-full hover:bg-green-100" title="Enviar WhatsApp">
-            <i className="fab fa-whatsapp"></i>
-        </button>
- 
-<button onClick={() => editStudent(student)} className="p-2 text-blue-600 rounded-full hover:bg-blue-100" title="Editar">
-            <i className="fas fa-edit"></i>
-        </button>
-        <button onClick={() => deleteStudent(student.id)} className="p-2 text-red-600 rounded-full hover:bg-red-100" title="Eliminar">
-            <i className="fas fa-trash-alt"></i>
-        </button>
-    </div>
-</div>
+<div key={student.id} className={`block md:grid md:grid-cols-8 md:gap-4 p-4 items-center transition-colors ${editedStudentId === student.id ? 'bg-blue-50' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50')}`}>
+                                                                <div className="font-bold text-lg md:font-normal md:text-base">{student.firstName}</div>
+                                                                <div className="font-bold text-lg md:font-normal md:text-base -mt-2 md:mt-0">{student.lastName}</div>
+                                                                <div className="md:col-span-2 text-gray-700 mt-2 md:mt-0 break-words flex items-center">
+                                                                    <i className="fas fa-phone mr-2 text-gray-400"></i>
+                                                                    {student.phone}
+                                                                </div>
+                                                                <div className="text-gray-600 italic my-2 md:my-0 break-words">{student.description}</div>
+                                                                <div className="my-2 md:my-0">
+                                                                    <span className={`font-semibold ${student.status === 'Activo' ? 'text-green-700' : 'text-yellow-700'}`}>
+                                                                        {student.status}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex flex-col space-y-1 text-sm text-gray-600 my-2 md:my-0">
+                                                                    {student.schedule && student.schedule.map((s, idx) => (
+                                                                        <div key={idx} className="bg-gray-100 rounded-md p-1 px-2 w-fit">
+                                                                            <i className="fas fa-calendar-alt mr-1 text-gray-400"></i>
+                                                                            {s.day} a las {s.time}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                                <div className="flex items-center justify-end md:justify-center space-x-2 mt-3 md:mt-0">
+                                                                    <button onClick={() => sendWhatsApp(student.phone)} className="p-2 text-green-500 rounded-full hover:bg-green-100" title="Enviar WhatsApp">
+                                                                        <i className="fab fa-whatsapp"></i>
+                                                                    </button>
+                                                                    <button onClick={() => editStudent(student)} className="p-2 text-blue-600 rounded-full hover:bg-blue-100" title="Editar">
+                                                                        <i className="fas fa-edit"></i>
+                                                                    </button>
+                                                                    <button onClick={() => deleteStudent(student.id)} className="p-2 text-red-600 rounded-full hover:bg-red-100" title="Eliminar">
+                                                                        <i className="fas fa-trash-alt"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                      
 ))}
                                                     </div>
@@ -2456,7 +2579,7 @@ disabled={currentPage === Math.ceil(filteredStudentsList.length / classesPerPage
                                     <div className="mt-8">
                   
 <div ref={annualPaymentsReportRef} className="p-6 bg-white rounded-xl shadow-lg mb-6">
-                                            <h3 className="text-2xl font-bold mb-4 text-center">Reporte Anual de Pagos al Club</h3>
+                                            <h3 className="text-2xl font-bold mb-4 text-center">Reporte Anual de Pagos</h3>
                    
 {Object.keys(annualPaymentsReport).length > 0 ?
 (
@@ -2570,6 +2693,68 @@ p-4 bg-white border-b-2">Pagos Registrados</h3>
                                
 </div>
                                 )}
+
+                                {/* --- NUEVA VISTA DE GASTOS --- */}
+                                {view === 'expenses' && (
+                                    <div className="mt-8">
+                                        <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
+                                            <h3 className="text-2xl font-bold text-gray-800 mb-4">{isEditingExpense ? 'Editar Gasto' : 'Añadir Nuevo Gasto'}</h3>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                                                <input type="date" name="date" value={newExpense.date} onChange={(e) => setNewExpense(prev => ({ ...prev, date: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                                <input type="number" placeholder="Monto (ej: 1500)" value={newExpense.amount} onChange={(e) => setNewExpense(prev => ({ ...prev, amount: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                                <input type="text" placeholder="Descripción (ej: Alquiler, Pelotas)" value={newExpense.description} onChange={(e) => setNewExpense(prev => ({ ...prev, description: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
+                                            </div>
+                                            <div className="flex space-x-4">
+                                                <button onClick={addExpense} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                                                    {isEditingExpense ? 'Guardar Cambios' : 'Añadir Gasto'}
+                                                </button>
+                                                {isEditingExpense && (
+                                                    <button onClick={() => { setIsEditingExpense(false); setEditedExpenseId(null); setNewExpense({ date: new Date().toISOString().split('T')[0], amount: '', description: '' }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
+                                                        Cancelar
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-6">
+                                            <input type="text" placeholder="Buscar por descripción..." value={filterTextExpenses} onChange={(e) => setFilterTextExpenses(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full"/>
+                                        </div>
+
+                                        <div className="overflow-x-auto rounded-xl shadow-lg">
+                                            <h3 className="text-xl font-bold text-gray-800 p-4 bg-white border-b-2">Gastos Registrados</h3>
+                                            {filteredExpenses.length > 0 ? (
+                                                <div className="bg-white">
+                                                    <div className="hidden md:grid grid-cols-4 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
+                                                        <div>Fecha</div>
+                                                        <div>Monto</div>
+                                                        <div>Descripción</div>
+                                                        <div className="text-center">Acciones</div>
+                                                    </div>
+                                                    <div className="divide-y divide-gray-200">
+                                                        {filteredExpenses.map(expense => (
+                                                            <div key={expense.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-center">
+                                                                <div className="text-gray-600">{expense.date}</div>
+                                                                <div className="font-bold text-red-600">{formatPrice(expense.amount)}</div>
+                                                                <div className="text-gray-600">{expense.description || '-'}</div>
+                                                                <div className="flex justify-end md:justify-center space-x-2">
+                                                                    <button onClick={() => editExpense(expense)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar gasto">
+                                                                        <i className="fas fa-edit"></i>
+                                                                    </button>
+                                                                    <button onClick={() => deleteExpense(expense.id)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar gasto">
+                                                                        <i className="fas fa-trash-alt"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="text-center text-gray-500 p-8 bg-white">No hay gastos registrados.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {view === 'activity-log' && (
                            
 <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
