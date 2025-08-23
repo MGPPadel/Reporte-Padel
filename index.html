@@ -236,6 +236,7 @@
             const [classes, setClasses] = useState([]);
             const [students, setStudents] = useState([]);
             const [payments, setPayments] = useState([]);
+            const [closures, setClosures] = useState([]);
             const [activityLog, setActivityLog] = useState([]);
             const [customPrices, setCustomPrices] = useState(defaultClassPrices);
             const [currentPage, setCurrentPage] = useState(1);
@@ -320,10 +321,12 @@
 
             const formatPrice = (price) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(price);
             const formatMonthYear = (monthYearString) => {
+                if (!monthYearString || !monthYearString.includes('-')) return "Fecha inválida";
                 const [year, month] = monthYearString.split('-');
                 return new Date(year, month - 1).toLocaleString('es-AR', { month: 'long', year: 'numeric' });
             };
             const formatDate = (timestamp) => {
+                if (!timestamp || !timestamp.seconds) return "Fecha inválida";
                 const date = new Date(timestamp.seconds * 1000);
                 return date.toLocaleString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
             };
@@ -622,51 +625,59 @@
             useEffect(() => {
                 if (userId && dbRef.current) {
                     loadCustomPrices();
+                    // Listener para Clases
                     const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
-                    const classesQuery = window.query(classesColRef);
-                    const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
+                    const unsubscribeClasses = window.onSnapshot(query(classesColRef), snapshot => {
                         const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        const sortedClasses = fetchedClasses.sort((a, b) => new Date(b.date) - new Date(a.date));
-                        setClasses(sortedClasses);
+                        setClasses(fetchedClasses.sort((a, b) => new Date(b.date) - new Date(a.date)));
                     });
+                    // Listener para Alumnos
                     const studentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'students');
-                    const studentsQuery = window.query(studentsColRef);
-                    const unsubscribeStudents = window.onSnapshot(studentsQuery, (snapshot) => {
+                    const unsubscribeStudents = window.onSnapshot(query(studentsColRef), snapshot => {
                         const fetchedStudents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         setStudents(fetchedStudents.sort((a, b) => a.lastName.localeCompare(b.lastName)));
                     });
+                    // Listener para Pagos del Club
                     const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
-                    const paymentsQuery = window.query(paymentsColRef);
-                    const unsubscribePayments = window.onSnapshot(paymentsQuery, (snapshot) => {
+                    const unsubscribePayments = window.onSnapshot(query(paymentsColRef), snapshot => {
                         const fetchedPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        const sortedPayments = fetchedPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
-                        setPayments(sortedPayments);
+                        setPayments(fetchedPayments.sort((a, b) => new Date(b.date) - new Date(a.date)));
                     });
+                    // Listener para Cierres Mensuales
+                    const closuresColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'monthlyClosures');
+                    const unsubscribeClosures = window.onSnapshot(query(closuresColRef), snapshot => {
+                        const fetchedClosures = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setClosures(fetchedClosures.sort((a, b) => b.id.localeCompare(a.id)));
+                    });
+                    // Listener para Log de Actividad
                     const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
-                    const logQuery = window.query(logColRef);
-                    const unsubscribeLog = window.onSnapshot(logQuery, (snapshot) => {
+                    const unsubscribeLog = window.onSnapshot(query(logColRef), snapshot => {
                         const fetchedLog = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        const sortedLog = fetchedLog.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
-                        setActivityLog(sortedLog);
+                        setActivityLog(fetchedLog.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds));
                     });
+
                     return () => {
                         unsubscribeClasses();
                         unsubscribeStudents();
                         unsubscribePayments();
+                        unsubscribeClosures();
                         unsubscribeLog();
                     };
                 } else {
                     setClasses([]);
                     setStudents([]);
                     setPayments([]);
+                    setClosures([]);
                     setActivityLog([]);
                 }
             }, [userId]);
+
             useEffect(() => {
                 if (Object.keys(customPrices).length > 0) {
                     setNewEntry(prev => ({ ...prev, price: customPrices[prev.studentCount] || 0 }));
                 }
             }, [customPrices]);
+
             useEffect(() => {
                 const report = {};
                 classes.forEach(cls => {
@@ -724,6 +735,12 @@
                     setMessageBox({ show: true, title: 'Error de validación', content: 'Por favor, completa todos los campos de los alumnos y el precio.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     return;
                 }
+                const classMonth = newEntry.date.substring(0, 7);
+                if (closures.some(c => c.id === classMonth)) {
+                    setMessageBox({ show: true, title: 'Mes Cerrado', content: 'No se pueden añadir ni editar clases en un mes que ya ha sido cerrado.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    return;
+                }
+
                 try {
                     setLoading(true);
                     const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
@@ -791,6 +808,11 @@
             };
 
             const editClass = (classToEdit) => {
+                const classMonth = classToEdit.date.substring(0, 7);
+                if (closures.some(c => c.id === classMonth)) {
+                    setMessageBox({ show: true, title: 'Mes Cerrado', content: 'No se pueden editar clases de un mes cerrado.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    return;
+                }
                 setNewEntry({
                     studentCount: classToEdit.studentCount,
                     studentNames: classToEdit.studentNames,
@@ -804,43 +826,82 @@
                 setView('list');
             };
             
-            const generatePDF = () => {
+            const handleCloseMonth = (monthYearToClose) => {
+                const reportData = monthlyReports[monthYearToClose];
+                if (!reportData) {
+                    setMessageBox({ show: true, title: 'Error', content: 'No hay datos para cerrar este mes.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                    return;
+                }
+                setMessageBox({
+                    show: true,
+                    title: 'Confirmar Cierre de Mes',
+                    content: `Estás a punto de cerrar el mes de ${formatMonthYear(monthYearToClose)}. Una vez cerrado, no podrás añadir ni editar clases de este período. ¿Deseas continuar?`,
+                    type: 'confirm',
+                    onConfirm: async () => {
+                        if (!dbRef.current || !userId) return;
+                        setLoading(true);
+                        try {
+                            const closureDocRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'monthlyClosures', monthYearToClose);
+                            await window.setDoc(closureDocRef, {
+                                monthYear: monthYearToClose,
+                                totalIncome: reportData.totalIncome,
+                                classCount: reportData.classCount,
+                                closedAt: window.Timestamp.now(),
+                            });
+                             setMessageBox({ show: true, title: 'Mes Cerrado', content: 'El mes se ha cerrado y facturado exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        } catch(e) {
+                            console.error("Error closing month: ", e);
+                            setMessageBox({ show: true, title: 'Error', content: 'No se pudo cerrar el mes.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
+                        } finally {
+                            setLoading(false);
+                        }
+                    },
+                    onClose: () => setMessageBox({ ...messageBox, show: false })
+                });
+            };
+            
+            const generatePDF = (monthFilter = null) => {
                 if (!reportTableRef.current) return;
                 setLoading(true);
-                const input = reportTableRef.current;
-                window.html2canvas(input, { scale: 2 }).then((canvas) => {
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
-                    const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = pdf.internal.pageSize.getHeight();
-                    const marginX = 15;
-                    const marginY = 15;
-                    const contentWidth = pdfWidth - (marginX * 2);
-                    const contentHeight = (canvas.height * contentWidth) / canvas.width;
-                    const pageContentHeight = pdfHeight - (marginY * 2);
+                // Si hay un filtro de mes, nos aseguramos que el reporte lo refleje antes de capturar
+                setSelectedMonthYear(monthFilter || '');
 
-                    if (contentHeight < pageContentHeight) {
-                        const y = (pdfHeight - contentHeight) / 2;
-                        pdf.addImage(imgData, 'PNG', marginX, y, contentWidth, contentHeight);
-                    } else {
-                        let heightLeft = contentHeight;
-                        let position = marginY;
-                        pdf.addImage(imgData, 'PNG', marginX, position, contentWidth, contentHeight);
-                        heightLeft -= pageContentHeight;
+                setTimeout(() => { // Damos un instante para que React re-renderice la tabla filtrada
+                    const input = reportTableRef.current;
+                    window.html2canvas(input, { scale: 2 }).then((canvas) => {
+                        const imgData = canvas.toDataURL('image/png');
+                        const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+                        const pdfWidth = pdf.internal.pageSize.getWidth();
+                        const pdfHeight = pdf.internal.pageSize.getHeight();
+                        const marginX = 15;
+                        const marginY = 15;
+                        const contentWidth = pdfWidth - (marginX * 2);
+                        const contentHeight = (canvas.height * contentWidth) / canvas.width;
+                        const pageContentHeight = pdfHeight - (marginY * 2);
 
-                        while (heightLeft > 0) {
-                            position = heightLeft - contentHeight + marginY;
-                            pdf.addPage();
-                            pdf.addImage(imgData, 'PNG', marginX, position, contentWidth, contentHeight);
+                        if (contentHeight < pageContentHeight) {
+                            const y = (pdfHeight - contentHeight) / 2;
+                            pdf.addImage(imgData, 'PNG', marginX, y, contentWidth, contentHeight);
+                        } else {
+                            let heightLeft = contentHeight;
+                            let position = marginY;
+                             pdf.addImage(imgData, 'PNG', marginX, position, contentWidth, contentHeight);
                             heightLeft -= pageContentHeight;
+
+                            while (heightLeft > 0) {
+                                position = heightLeft - contentHeight + marginY;
+                                pdf.addPage();
+                                pdf.addImage(imgData, 'PNG', marginX, position, contentWidth, contentHeight);
+                                heightLeft -= pageContentHeight;
+                            }
                         }
-                    }
-                    pdf.save(`informe_clases.pdf`);
-                    setLoading(false);
-                }).catch(err => {
-                    console.error("Error generating PDF:", err);
-                    setLoading(false);
-                });
+                        pdf.save(`informe_clases_${monthFilter || 'general'}.pdf`);
+                        setLoading(false);
+                    }).catch(err => {
+                        console.error("Error generating PDF:", err);
+                        setLoading(false);
+                    });
+                }, 500);
             };
             
             const generateAnnualPaymentsPDF = () => {
@@ -888,8 +949,9 @@
                     const monthYear = cls.date.substring(0, 7);
                     months.add(monthYear);
                 });
-                return Array.from(months).sort((a, b) => new Date(a) - new Date(b));
+                return Array.from(months).sort((a, b) => b.localeCompare(a));
             }, [classes]);
+
             const filteredClasses = useMemo(() => {
                 let filtered = classes;
                 if (selectedMonthYear) {
@@ -973,7 +1035,7 @@
             };
 
             const exportData = () => {
-                const data = JSON.stringify({ classes, students, payments }, null, 2);
+                const data = JSON.stringify({ classes, students, payments, closures }, null, 2);
                 const blob = new Blob([data], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -1349,17 +1411,7 @@
                             <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
                                 <div className="flex flex-col md:flex-row justify-between items-center mb-6">
                                     <h2 className="text-2xl font-bold text-gray-800">
-                                        Sección de {view === 'panel'
-                                            ? 'Panel de Control'
-                                            : view === 'list'
-                                            ? 'Clases'
-                                            : view === 'report'
-                                            ? 'Reportes'
-                                            : view === 'students'
-                                            ? 'Alumnos'
-                                            : view === 'daily-report'
-                                            ? 'Reporte Diario'
-                                            : 'Pagos del Club'}
+                                        Sección de {view === 'panel' ? 'Panel de Control' : view === 'list' ? 'Clases' : view === 'report' ? 'Reportes' : view === 'students' ? 'Alumnos' : view === 'daily-report' ? 'Reporte Diario' : view === 'closures' ? 'Mis Facturaciones' : 'Pagos del Club'}
                                     </h2>
                                     <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
                                         <button onClick={() => setView('panel')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'panel' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Panel de Control">
@@ -1370,6 +1422,9 @@
                                         </button>
                                         <button onClick={() => setView('report')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'report' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver reporte mensual">
                                             <i className="fas fa-chart-bar"></i>
+                                        </button>
+                                         <button onClick={() => setView('closures')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'closures' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Mis Facturaciones">
+                                            <i className="fas fa-file-invoice-dollar"></i>
                                         </button>
                                         <button onClick={() => setView('daily-report')} className={`py-2 px-4 rounded-lg font-bold transition-colors shadow-md ${view === 'daily-report' ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} title="Ver reporte diario">
                                             <i className="fas fa-sun"></i>
@@ -1685,31 +1740,40 @@
                                                         <div className="text-center">Acciones</div>
                                                     </div>
                                                     <div className="divide-y divide-gray-200">
-                                                        {currentClasses.map((cls, index) => (
-                                                            <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center border-l-4 ${colorMap[cls.studentCount]} ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                                                                <div className="text-sm text-gray-600 md:text-base">{cls.date}</div>
-                                                                <div className="text-sm text-gray-600 md:text-base">{cls.day}</div>
-                                                                <div className="text-sm text-gray-600 md:text-base">{cls.time}</div>
-                                                                <div className="md:col-span-2">
-                                                                    {cls.studentCount > 1 ? (
-                                                                        <ul className="list-disc list-inside">
-                                                                            {cls.studentNames.map((name, index) => <li key={index}>{name}</li>)}
-                                                                        </ul>
-                                                                    ) : (
-                                                                        <span>{cls.studentNames[0]}</span>
-                                                                    )}
+                                                        {currentClasses.map((cls, index) => {
+                                                             const isClosed = closures.some(c => c.id === cls.date.substring(0, 7));
+                                                             return (
+                                                                <div key={cls.id} className={`grid grid-cols-1 md:grid-cols-7 gap-4 p-4 items-center border-l-4 ${colorMap[cls.studentCount]} ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                                                                    <div className="text-sm text-gray-600 md:text-base">{cls.date}</div>
+                                                                    <div className="text-sm text-gray-600 md:text-base">{cls.day}</div>
+                                                                    <div className="text-sm text-gray-600 md:text-base">{cls.time}</div>
+                                                                    <div className="md:col-span-2">
+                                                                        {cls.studentCount > 1 ? (
+                                                                            <ul className="list-disc list-inside">
+                                                                                {cls.studentNames.map((name, index) => <li key={index}>{name}</li>)}
+                                                                            </ul>
+                                                                        ) : (
+                                                                            <span>{cls.studentNames[0]}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
+                                                                    <div className="flex justify-end md:justify-center space-x-2 mt-2 md:mt-0">
+                                                                        {isClosed ? (
+                                                                            <span title="Este mes está cerrado y no se puede editar."><i className="fas fa-lock text-gray-400"></i></span>
+                                                                        ) : (
+                                                                            <>
+                                                                                <button onClick={() => editClass(cls)} className="p-2 text-blue-800 hover:text-blue-900 transition-colors rounded-full hover:bg-blue-100" title="Editar clase">
+                                                                                    <i className="fas fa-edit"></i>
+                                                                                </button>
+                                                                                <button onClick={() => deleteClass(cls.id, cls)} className="p-2 text-red-600 hover:text-red-800 transition-colors rounded-full hover:bg-red-100" title="Eliminar clase">
+                                                                                    <i className="fas fa-trash-alt"></i>
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
-                                                                <div className="font-bold md:text-base">{formatPrice(cls.price)}</div>
-                                                                <div className="flex justify-end md:justify-center space-x-2 mt-2 md:mt-0">
-                                                                    <button onClick={() => editClass(cls)} className="p-2 text-blue-800 hover:text-blue-900 transition-colors rounded-full hover:bg-blue-100" title="Editar clase">
-                                                                        <i className="fas fa-edit"></i>
-                                                                    </button>
-                                                                    <button onClick={() => deleteClass(cls.id, cls)} className="p-2 text-red-600 hover:text-red-800 transition-colors rounded-full hover:bg-red-100" title="Eliminar clase">
-                                                                        <i className="fas fa-trash-alt"></i>
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        ))}
+                                                             );
+                                                        })}
                                                     </div>
                                                 </div>
                                             ) : (
@@ -1737,32 +1801,86 @@
                                 )}
                                 {view === 'report' && (
                                     <div>
-                                        <div className="flex justify-end mb-4">
-                                            <button onClick={generatePDF} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Generar PDF</button>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="text-2xl font-bold text-center">Reporte Mensual</h3>
+                                            <button onClick={() => generatePDF(selectedMonthYear)} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                                                <i className="fas fa-file-pdf mr-2"></i>Generar PDF
+                                            </button>
                                         </div>
                                         <div ref={reportTableRef} className="bg-white p-6 rounded-xl shadow-lg">
-                                            <h3 className="text-2xl font-bold mb-2 text-center">Reporte Mensual</h3>
                                             <p className="text-center text-lg font-semibold text-gray-700 mb-6">Prof. Mariana G. Pinto</p>
-                                            {Object.keys(monthlyReports).length > 0 ? (
+                                            {Object.keys(monthlyReports).filter(month => !selectedMonthYear || month === selectedMonthYear).length > 0 ? (
                                                 <div className="space-y-6">
-                                                    {Object.keys(monthlyReports).sort().map(monthYear => (
-                                                        <div key={monthYear} className="border-b pb-4">
-                                                            <h4 className="text-xl font-bold text-gray-700 mb-2">{formatMonthYear(monthYear)}</h4>
-                                                            <p className="text-gray-600">Ingreso total: <span className="font-bold text-blue-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
-                                                            <p className="text-gray-600">Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span></p>
-                                                            <div className="mt-2 text-sm text-gray-500">
-                                                                <p className="font-bold">Clases por cantidad de alumnos:</p>
-                                                                <ul className="list-disc list-inside ml-4">
-                                                                    {Object.entries(monthlyReports[monthYear].classCountByStudent).map(([count, numClasses]) => (<li key={count}>{count} {count === '1' ? 'persona' : 'personas'}: {numClasses}</li>))}
-                                                                </ul>
+                                                    {Object.keys(monthlyReports).sort((a,b) => b.localeCompare(a)).filter(month => !selectedMonthYear || month === selectedMonthYear).map(monthYear => {
+                                                        const isMonthClosed = closures.some(c => c.id === monthYear);
+                                                        return (
+                                                            <div key={monthYear} className="border-b pb-4">
+                                                                <div className="flex justify-between items-center mb-2">
+                                                                    <h4 className="text-xl font-bold text-gray-700">{formatMonthYear(monthYear)}</h4>
+                                                                    {isMonthClosed ? (
+                                                                        <span className="flex items-center text-sm font-semibold text-green-700 bg-green-100 px-3 py-1 rounded-full">
+                                                                            <i className="fas fa-check-circle mr-2"></i>Mes Cerrado
+                                                                        </span>
+                                                                    ) : (
+                                                                        <button 
+                                                                            onClick={() => handleCloseMonth(monthYear)}
+                                                                            className="bg-red-500 text-white font-bold py-1 px-3 rounded-lg shadow-md hover:bg-red-600 transition-colors text-sm"
+                                                                        >
+                                                                            <i className="fas fa-lock mr-2"></i>Cerrar Mes
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-gray-600">Ingreso total: <span className="font-bold text-blue-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
+                                                                <p className="text-gray-600">Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span></p>
+                                                                <div className="mt-2 text-sm text-gray-500">
+                                                                    <p className="font-bold">Clases por cantidad de alumnos:</p>
+                                                                    <ul className="list-disc list-inside ml-4">
+                                                                        {Object.entries(monthlyReports[monthYear].classCountByStudent).map(([count, numClasses]) => (<li key={count}>{count} {count === '1' ? 'persona' : 'personas'}: {numClasses}</li>))}
+                                                                    </ul>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             ) : (
-                                                <p className="text-center text-gray-500">No hay reportes disponibles.</p>
+                                                <p className="text-center text-gray-500">No hay reportes para el período seleccionado.</p>
                                             )}
                                         </div>
+                                    </div>
+                                )}
+                                {view === 'closures' && (
+                                    <div className="bg-white p-6 rounded-xl shadow-lg">
+                                        <h3 className="text-2xl font-bold mb-4 text-center">Historial de Facturaciones</h3>
+                                        {closures.length > 0 ? (
+                                             <div className="divide-y divide-gray-200">
+                                                <div className="hidden md:grid grid-cols-4 gap-4 p-4 text-sm font-bold text-gray-600">
+                                                    <div>Período</div>
+                                                    <div>Total Facturado</div>
+                                                    <div>Fecha de Cierre</div>
+                                                    <div className="text-center">Acciones</div>
+                                                </div>
+                                                 {closures.map(closure => (
+                                                     <div key={closure.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-center">
+                                                         <div className="font-bold text-gray-800">{formatMonthYear(closure.monthYear)}</div>
+                                                         <div className="text-blue-600 font-semibold">{formatPrice(closure.totalIncome)}</div>
+                                                         <div className="text-gray-500 text-sm">{formatDate(closure.closedAt)}</div>
+                                                         <div className="flex justify-end md:justify-center">
+                                                             <button 
+                                                                onClick={() => {
+                                                                    setSelectedMonthYear(closure.id);
+                                                                    setView('report');
+                                                                }}
+                                                                className="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-gray-300 transition-colors text-sm"
+                                                            >
+                                                                 <i className="fas fa-eye mr-2"></i>Ver Detalle
+                                                             </button>
+                                                         </div>
+                                                     </div>
+                                                 ))}
+                                             </div>
+                                        ) : (
+                                            <p className="text-center text-gray-500 py-8">Aún no has cerrado ningún mes.</p>
+                                        )}
                                     </div>
                                 )}
                                 {view === 'daily-report' && <DailyReportView />}
