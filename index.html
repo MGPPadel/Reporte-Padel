@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Informe Clases de Padel</title>
+    <title>Informe de Clases de Padel</title>
     <link rel="apple-touch-icon" sizes="180x180" href="https://i.postimg.cc/R0BrhVnV/REPORTE-PADEL-LOGO.png">
 
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -180,6 +180,8 @@ const defaultClassPrices = {
 const peopleOptions = [1, 2, 3, 4];
         const timesOfDay = [
             '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
+            '1:00 p. m.', '2:00 p. m.', '3:00 p. m.', '4:00 p. m.', '5:00 p. m.',
+            '6:00 p. m.', '7:00 p. m.', '8:00 p. m.', '9:00 p. m.', '10:00 p. m.',
         ];
         const colorMap = {
             1: 'border-yellow-500',
@@ -346,16 +348,9 @@ const [isSigningUp, setIsSigningUp] = useState(false);
            
 });
 
-            const [ausentes, setAusentes] = useState(() => {
-                return JSON.parse(localStorage.getItem("ausentes") || "{}");
-            });
-const [reemplazos, setReemplazos] = useState(() => {
-                return JSON.parse(localStorage.getItem("reemplazos") || "{}");
-            });
-useEffect(() => {
-                localStorage.setItem("ausentes", JSON.stringify(ausentes));
-                localStorage.setItem("reemplazos", JSON.stringify(reemplazos));
-            }, [ausentes, reemplazos]);
+            const [ausentes, setAusentes] = useState({});
+const [reemplazos, setReemplazos] = useState({});
+
 const dbRef = useRef(null);
             const authRef = useRef(null);
             const fileInputRef = useRef(null);
@@ -787,13 +782,16 @@ setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido e
                     loadCustomPrices();
                     loadClosedMonths();
                     const classesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'classes');
+         
                     const classesQuery = window.query(classesColRef);
                     const unsubscribeClasses = window.onSnapshot(classesQuery, (snapshot) => {
                         const fetchedClasses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        fetchedClasses.sort((a, b) => {
+                        fetchedClasses.sort((a, b) => 
+                        {
                             const dateComparison = new Date(b.date) - new Date(a.date);
                             if (dateComparison !== 0) return dateComparison;
                             return timesOfDay.indexOf(a.time) - timesOfDay.indexOf(b.time);
+ 
                         });
                         setClasses(fetchedClasses);
                     });
@@ -804,38 +802,53 @@ setMessageBox({ show: true, title: 'Pago eliminado', content: 'El pago ha sido e
                         const fetchedStudents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         setStudents(fetchedStudents);
                     });
-
                     const paymentsColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'clubPayments');
                     const paymentsQuery = window.query(paymentsColRef);
                     const unsubscribePayments = window.onSnapshot(paymentsQuery, (snapshot) => {
                         const fetchedPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         setPayments(fetchedPayments.sort((a, b) => new Date(b.date) - new Date(a.date)));
                     });
-                    
                     const expensesColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'expenses');
                     const expensesQuery = window.query(expensesColRef);
                     const unsubscribeExpenses = window.onSnapshot(expensesQuery, (snapshot) => {
                         const fetchedExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         setExpenses(fetchedExpenses.sort((a, b) => new Date(b.date) - new Date(a.date)));
                     });
-
-const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
+                    const logColRef = window.collection(dbRef.current, 'artifacts', appId, 'users', userId, 'activityLog');
                     const logQuery = window.query(logColRef);
-const unsubscribeLog = window.onSnapshot(logQuery, (snapshot) => {
+                    const unsubscribeLog = window.onSnapshot(logQuery, (snapshot) => {
                         const fetchedLog = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         setActivityLog(fetchedLog.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds));
      
-});
-return () => {
+                    });
+                    
+                    // --- CÓDIGO NUEVO A INSERTAR ---
+                    // Listener para el estado del panel (ausentes y reemplazos)
+                    const panelStateRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'panelState');
+                    const unsubscribePanel = window.onSnapshot(panelStateRef, (docSnap) => {
+                        if (docSnap.exists()) {
+                            const data = docSnap.data();
+                            setAusentes(data.ausentes || {});
+                            setReemplazos(data.reemplazos || {});
+                        } else {
+                            // Si el documento no existe, inicializamos los estados como vacíos
+                            setAusentes({});
+                            setReemplazos({});
+                        }
+                    });
+                    // --- FIN DEL CÓDIGO NUEVO ---
+
+                    return () => {
                         unsubscribeClasses();
-unsubscribeStudents();
+                        unsubscribeStudents();
                         unsubscribePayments();
                         unsubscribeExpenses();
                         unsubscribeLog();
+                        unsubscribePanel(); // <-- Agrégalo también aquí
                     };
                 } else {
                     setClasses([]);
-setStudents([]);
+                    setStudents([]);
                     setPayments([]);
                     setExpenses([]);
                     setActivityLog([]);
