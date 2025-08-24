@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Informe de Clases de Padel</title>
+    <title>Informe Clases de Padel</title>
     <link rel="apple-touch-icon" sizes="180x180" href="https://i.postimg.cc/R0BrhVnV/REPORTE-PADEL-LOGO.png">
 
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -180,8 +180,6 @@ const defaultClassPrices = {
 const peopleOptions = [1, 2, 3, 4];
         const timesOfDay = [
             '8:00 a. m.', '9:00 a. m.', '10:00 a. m.', '11:00 a. m.', '12:00 p. m.',
-            '1:00 p. m.', '2:00 p. m.', '3:00 p. m.', '4:00 p. m.', '5:00 p. m.',
-            '6:00 p. m.', '7:00 p. m.', '8:00 p. m.', '9:00 p. m.', '10:00 p. m.',
         ];
         const colorMap = {
             1: 'border-yellow-500',
@@ -947,7 +945,7 @@ date: new Date().toISOString().split('T')[0],
  
 });
 setIsEditing(false);
-                    setEditedClassId(null);
+        setEditedClassId(null);
                 } catch (error) {
                     setMessageBox({ show: true, title: 'Error al guardar la clase', content: 'Hubo un error al guardar los datos de la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
 console.error("Error adding/updating class:", error);
@@ -1006,6 +1004,9 @@ day: classToEdit.day,
 setIsEditing(true);
                 setEditedClassId(classToEdit.id);
                 setView('list');
+    if (formRef.current) {
+        formRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
             };
             
             const generatePDF = () => {
