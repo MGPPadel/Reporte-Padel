@@ -1364,12 +1364,17 @@ const getPhoneById = (id) => {
 return s ? s.phone || "" : "";
             };
 
-            const sendWhatsAppPanel = (phone, name) => {
-                const formatted = (phone || "").replace(/\D/g, "");
-if (!formatted) return;
-                const msg = encodeURIComponent(`Hola ${name || ""}, ¿confirmás la clase?`);
+            const sendWhatsAppPanel = (phone) => {
+    const formatted = (phone || "").replace(/\D/g, "");
+    if (!formatted) return;
+                    const customMessage = prompt(
+        "Escribí el mensaje que quieras enviar:",
+        "Hola! Como andas? Estas para la clase de mañana?"
+    );
+                    if (!customMessage) return; // si cancelás, no hace nada
+                const msg = encodeURIComponent(customMessage);
                 window.open(`https://wa.me/${formatted}?text=${msg}`, "_blank");
-            };
+};
 const marcarAusente = (dia, time, studentId) => {
                 setAusentes((prev) => {
                     const nuevo = { ...prev };
@@ -2827,3 +2832,4 @@ No hay actividad reciente.
     </script>
 </body>
 </html>
+
