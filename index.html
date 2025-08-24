@@ -325,7 +325,6 @@
                 onConfirm: null,
             });
 
-            // CORRECCIÓN: Se quita el guardado en localStorage y se inicializa vacío
             const [ausentes, setAusentes] = useState({});
             const [reemplazos, setReemplazos] = useState({});
             
@@ -745,7 +744,7 @@
                             await window.deleteDoc(expenseDocRef);
                             setMessageBox({ show: true, title: 'Gasto eliminado', content: 'El gasto ha sido eliminado exitosamente.', type: 'success', onClose: () => setMessageBox({ show: false }) });
                         } catch (error) {
-                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar el gasto. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ show: false }) });
+                            setMessageBox({ show: true, title: 'Error al eliminar', content: 'Hubo un error al eliminar el gasto. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                             console.error("Error deleting expense:", error);
                         } finally {
                             setLoading(false);
@@ -755,7 +754,6 @@
                 });
             };
 
-            // CORRECCIÓN: Se agrega el listener para el panel de control y se añade su unsubscribe
             useEffect(() => {
                 if (userId && dbRef.current) {
                     loadCustomPrices();
@@ -888,6 +886,19 @@
 
             const handleCustomPriceChange = (studentCount, price) => setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 }));
 
+            // CORRECCIÓN BUG CANCELAR: Nueva función para resetear el formulario.
+            const resetNewEntryForm = () => {
+                setNewEntry({
+                    studentCount: 1,
+                    studentNames: [''],
+                    studentIds: [''],
+                    date: new Date().toISOString().split('T')[0],
+                    day: daysOfWeek[new Date().getDay()],
+                    time: timesOfDay[0],
+                    price: customPrices[1] || 0,
+                });
+            };
+
             const addClass = async () => {
                 if (!dbRef.current || !userId) return;
                 if (newEntry.studentNames.some(name => name.trim() === '') || newEntry.price <= 0) {
@@ -917,17 +928,12 @@
                         setMessageBox({ show: true, title: 'Clase añadida', content: 'La nueva clase se ha añadido exitosamente.', type: 'success', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                         addLogEntry('Clase añadida', `Clase con ${classData.studentNames.join(', ')} añadida para el día ${classData.date} a las ${classData.time}.`);
                     }
-                    setNewEntry({
-                        studentCount: 1,
-                        studentNames: [''],
-                        studentIds: [''],
-                        date: new Date().toISOString().split('T')[0],
-                        day: daysOfWeek[new Date().getDay()],
-                        time: timesOfDay[0],
-                        price: customPrices[1] || 0,
-                    });
+                    
+                    // CORRECCIÓN BUG CANCELAR: Usamos la nueva función de reseteo.
+                    resetNewEntryForm();
                     setIsEditing(false);
                     setEditedClassId(null);
+
                 } catch (error) {
                     setMessageBox({ show: true, title: 'Error al guardar la clase', content: 'Hubo un error al guardar los datos de la clase. Inténtalo de nuevo.', type: 'error', onClose: () => setMessageBox({ ...messageBox, show: false }) });
                     console.error("Error adding/updating class:", error);
@@ -975,6 +981,7 @@
                 setNewEntry({
                     studentCount: classToEdit.studentCount,
                     studentNames: classToEdit.studentNames,
+                    studentIds: classToEdit.studentIds || Array(classToEdit.studentCount).fill(''), // Asegurar que studentIds exista
                     date: classToEdit.date,
                     day: classToEdit.day,
                     time: classToEdit.time,
@@ -1314,39 +1321,48 @@
                 const msg = encodeURIComponent(`Hola, como andas? Estas para la clase de mañana?`);
                 window.open(`https://wa.me/${formatted}?text=${msg}`, "_blank");
             };
-
-            // CORRECCIÓN: Función de `marcarAusente` mejorada a un interruptor (toggle)
+            
+            // CORRECCIÓN BOTÓN CIRCULAR: Función robusta que lee desde Firestore antes de escribir.
             const marcarAusente = async (dia, time, studentId) => {
+                console.log(`Intentando cambiar ausencia para: Alumno=${studentId}, Día=${dia}, Hora=${time}`);
+
                 if (!dbRef.current || !userId) return;
 
-                const nuevosAusentes = JSON.parse(JSON.stringify(ausentes));
-                if (!nuevosAusentes[dia]) nuevosAusentes[dia] = {};
-                if (!nuevosAusentes[dia][time]) nuevosAusentes[dia][time] = [];
-
-                const yaEstaAusente = nuevosAusentes[dia][time].includes(studentId);
-
-                if (yaEstaAusente) {
-                    nuevosAusentes[dia][time] = nuevosAusentes[dia][time].filter(id => id !== studentId);
-                } else {
-                    nuevosAusentes[dia][time].push(studentId);
-                }
-
-                if (nuevosAusentes[dia][time].length === 0) {
-                    delete nuevosAusentes[dia][time];
-                    if (Object.keys(nuevosAusentes[dia]).length === 0) {
-                        delete nuevosAusentes[dia];
-                    }
-                }
-
+                const panelStateRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'panelState');
+                
                 try {
-                    const panelStateRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'panelState');
+                    const docSnap = await window.getDoc(panelStateRef);
+                    const currentData = docSnap.exists() ? docSnap.data() : {};
+                    const nuevosAusentes = JSON.parse(JSON.stringify(currentData.ausentes || {}));
+                    
+                    if (!nuevosAusentes[dia]) nuevosAusentes[dia] = {};
+                    if (!nuevosAusentes[dia][time]) nuevosAusentes[dia][time] = [];
+
+                    const yaEstaAusente = nuevosAusentes[dia][time].includes(studentId);
+                    
+                    console.log('¿El alumno ya estaba ausente?', yaEstaAusente);
+
+                    if (yaEstaAusente) {
+                        nuevosAusentes[dia][time] = nuevosAusentes[dia][time].filter(id => id !== studentId);
+                    } else {
+                        nuevosAusentes[dia][time].push(studentId);
+                    }
+
+                    if (nuevosAusentes[dia][time].length === 0) {
+                        delete nuevosAusentes[dia][time];
+                        if (Object.keys(nuevosAusentes[dia]).length === 0) {
+                            delete nuevosAusentes[dia];
+                        }
+                    }
+
                     await window.setDoc(panelStateRef, { ausentes: nuevosAusentes }, { merge: true });
+                    console.log('¡Estado de ausencia guardado en Firestore!', nuevosAusentes);
+
                 } catch (error) {
                     console.error("Error al cambiar estado de ausencia:", error);
                 }
             };
             
-            // CORRECCIÓN: Funciones de reemplazo ahora guardan en Firestore
             const agregarReemplazo = async (dia, time, student) => {
                 if (!student || !dbRef.current || !userId) return;
             
@@ -1661,7 +1677,6 @@
                                                                     <span className="font-bold text-lg text-gray-700">{clase.time}</span>
                                                                 </div>
                                                             </div>
-                                                            {/* CORRECCIÓN: Interfaz de alumnos mejorada */}
                                                             <ul className="flex flex-col gap-2">
                                                                 {clase.studentIds
                                                                     .map((id, idx) => ({ id, name: clase.studentNames[idx] }))
@@ -1740,7 +1755,6 @@
                                                                     <span className="font-bold text-lg text-gray-700">{clase.time}</span>
                                                                 </div>
                                                             </div>
-                                                             {/* CORRECCIÓN: Interfaz de alumnos mejorada */}
                                                             <ul className="flex flex-col gap-2">
                                                                 {clase.studentIds
                                                                     .map((id, idx) => ({ id, name: clase.studentNames[idx] }))
@@ -1892,11 +1906,13 @@
                                                 >
                                                     {isEditing ? "Guardar Cambios" : "Añadir Clase"}
                                                 </button>
+                                                {/* CORRECCIÓN BUG CANCELAR: El botón ahora limpia el formulario */}
                                                 {isEditing && (
                                                     <button
                                                         onClick={() => {
                                                             setIsEditing(false);
                                                             setEditedClassId(null);
+                                                            resetNewEntryForm();
                                                         }}
                                                         className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors"
                                                     >
