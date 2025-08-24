@@ -1,53 +1,60 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Informe de Clases de Padel</title>
-    <link rel="apple-touch-icon" sizes="180x180" href="https://i.postimg.cc/R0BrhVnV/REPORTE-PADEL-LOGO.png">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Informe de Clases de Padel</title>
+<link rel="apple-touch-icon" sizes="180x180" href="https://i.postimg.cc/R0BrhVnV/REPORTE-PADEL-LOGO.png">
 
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, browserSessionPersistence, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, setDoc, query, onSnapshot, writeBatch, Timestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        window.initializeApp = initializeApp;
+
+
+window.initializeApp = initializeApp;
 window.getAuth = getAuth;
-        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
-        window.signOut = signOut;
-        window.onAuthStateChanged = onAuthStateChanged;
-        window.getFirestore = getFirestore;
-        window.collection = collection;
+window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+window.signOut = signOut;
+window.onAuthStateChanged = onAuthStateChanged;
+window.getFirestore = getFirestore;
+window.collection = collection;
 window.addDoc = addDoc;
-        window.getDocs = getDocs;
-        window.doc = doc;
-        window.deleteDoc = deleteDoc;
-        window.setDoc = setDoc;
-        window.query = query;
+window.getDocs = getDocs;
+window.doc = doc;
+window.deleteDoc = deleteDoc;
+window.setDoc = setDoc;
+window.query = query;
 window.onSnapshot = onSnapshot;
-        window.writeBatch = writeBatch;
-        window.Timestamp = Timestamp;
-        window.getDoc = getDoc;
-        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
-        window.sendPasswordResetEmail = sendPasswordResetEmail;
+window.writeBatch = writeBatch;
+window.Timestamp = Timestamp;
+window.getDoc = getDoc;
+window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+window.sendPasswordResetEmail = sendPasswordResetEmail;
 window.browserSessionPersistence = browserSessionPersistence;
-        window.browserLocalPersistence = browserLocalPersistence;
-        window.setPersistence = setPersistence;
-    </script>
+window.browserLocalPersistence = browserLocalPersistence;
+window.setPersistence = setPersistence;
+</script>
 </head>
 <body class="bg-gray-100 font-sans">
-    <div id="root"></div>
-    <script type="text/babel">
+<div id="root"></div>
+<script type="text/babel">
         const AutocompleteStudentInput = ({ index, value, newEntry, setNewEntry, students }) => {
             const [activeIndex, setActiveIndex] = React.useState(-1);
 const [open, setOpen] = React.useState(false);
@@ -989,24 +996,24 @@ console.error("Error deleting class:", error);
 };
 
             const editClass = (classToEdit) => {
-                const monthYear = classToEdit.date.substring(0, 7);
-                if (closedMonths.includes(monthYear)) {
-                    setMessageBox({ show: true, title: 'Acción no permitida', content: 'Este mes está cerrado y no se pueden modificar sus clases.', type: 'error', onClose: () => setMessageBox({ show: false }) });
-                    return;
-                }
-                setNewEntry({
-                    studentCount: classToEdit.studentCount,
-                    studentNames: classToEdit.studentNames,
-                    date: classToEdit.date,
-               
+const monthYear = classToEdit.date.substring(0, 7);
+if (closedMonths.includes(monthYear)) {
+setMessageBox({ show: true, title: 'Acción no permitida', content: 'Este mes está cerrado y no se pueden modificar sus clases.', type: 'error', onClose: () => setMessageBox({ show: false }) });
+return;
+}
+                ssetNewEntry({
+studentCount: classToEdit.studentCount,
+studentNames: classToEdit.studentNames,
+studentIds: classToEdit.studentIds || [], // ✅ FIX agregado
+date: classToEdit.date,
 day: classToEdit.day,
-                    time: classToEdit.time,
-                    price: classToEdit.price,
-                });
+time: classToEdit.time,
+price: classToEdit.price,
+});
 setIsEditing(true);
-                setEditedClassId(classToEdit.id);
-                setView('list');
-            };
+setEditedClassId(classToEdit.id);
+setView('list');
+};
             
             const generatePDF = () => {
                 if (!reportTableRef.current) return;
@@ -1364,17 +1371,12 @@ const getPhoneById = (id) => {
 return s ? s.phone || "" : "";
             };
 
-            const sendWhatsAppPanel = (phone) => {
-    const formatted = (phone || "").replace(/\D/g, "");
-    if (!formatted) return;
-                    const customMessage = prompt(
-        "Escribí el mensaje que quieras enviar:",
-        "Hola! Como andas? Estas para la clase de mañana?"
-    );
-                    if (!customMessage) return; // si cancelás, no hace nada
-                const msg = encodeURIComponent(customMessage);
+            const sendWhatsAppPanel = (phone, name) => {
+                const formatted = (phone || "").replace(/\D/g, "");
+if (!formatted) return;
+                const msg = encodeURIComponent(`Hola ${name || ""}, ¿confirmás la clase?`);
                 window.open(`https://wa.me/${formatted}?text=${msg}`, "_blank");
-};
+            };
 const marcarAusente = (dia, time, studentId) => {
                 setAusentes((prev) => {
                     const nuevo = { ...prev };
@@ -2832,4 +2834,3 @@ No hay actividad reciente.
     </script>
 </body>
 </html>
-
