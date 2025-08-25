@@ -17,6 +17,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
+    <style>
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #28a745; } /* Verde para PRESENTE */
+        input:not(:checked) + .slider { background-color: #dc3545; } /* Rojo para AUSENTE */
+        input:checked + .slider:before { transform: translateX(22px); }
+    </style>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, browserSessionPersistence, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -1323,7 +1333,6 @@
             const marcarAusente = async (dia, time, studentId) => {
                 if (!dbRef.current || !userId) return;
 
-                // Usamos el estado local (que es actualizado en tiempo real por onSnapshot) como la fuente de verdad.
                 const nuevosAusentes = JSON.parse(JSON.stringify(ausentes));
                 
                 if (!nuevosAusentes[dia]) nuevosAusentes[dia] = {};
@@ -1332,14 +1341,11 @@
                 const yaEstaAusente = nuevosAusentes[dia][time].includes(studentId);
 
                 if (yaEstaAusente) {
-                    // Si ya estaba ausente, lo quitamos de la lista.
                     nuevosAusentes[dia][time] = nuevosAusentes[dia][time].filter(id => id !== studentId);
                 } else {
-                    // Si no estaba ausente, lo agregamos.
                     nuevosAusentes[dia][time].push(studentId);
                 }
 
-                // Limpiamos el objeto si un día u horario queda vacío
                 if (nuevosAusentes[dia][time].length === 0) {
                     delete nuevosAusentes[dia][time];
                     if (Object.keys(nuevosAusentes[dia]).length === 0) {
@@ -1349,7 +1355,6 @@
 
                 try {
                     const panelStateRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'panelState');
-                    // Guardamos el objeto actualizado en Firestore.
                     await window.setDoc(panelStateRef, { ausentes: nuevosAusentes }, { merge: true });
                 } catch (error) {
                     console.error("Error al cambiar estado de ausencia:", error);
@@ -1676,26 +1681,27 @@
                                                                     .map(s => {
                                                                         const isAusente = (ausentes[clase.day]?.[clase.time] || []).includes(s.id);
                                                                         return (
-                                                                            <li key={s.id} className={`flex items-center justify-between p-2 rounded-md transition-all ${isAusente ? 'bg-red-100' : 'bg-gray-50'}`}>
+                                                                            <li key={s.id} className="flex items-center justify-between p-2 rounded-md bg-gray-50">
                                                                                 <div className="flex items-center">
-                                                                                    <i className={`fas fa-user mr-3 ${isAusente ? 'text-gray-400' : 'text-gray-400'}`}></i>
-                                                                                    <span className={`font-medium ${isAusente ? 'text-gray-500 line-through' : 'text-gray-800'}`}>{s.name}</span>
+                                                                                    <i className="fas fa-user mr-3 text-gray-400"></i>
+                                                                                    <span className="font-medium text-gray-800">{s.name}</span>
                                                                                 </div>
-                                                                                <div className="flex items-center gap-1">
-                                                                                    <button
-                                                                                        onClick={() => marcarAusente(clase.day, clase.time, s.id)}
-                                                                                        className={`p-2 rounded-full transition-colors ${isAusente ? 'text-gray-500 hover:bg-yellow-100 hover:text-yellow-600' : 'text-gray-500 hover:bg-red-100 hover:text-red-600'}`}
-                                                                                        title={isAusente ? "Marcar como presente" : "Marcar ausente"}
-                                                                                    >
-                                                                                        <i className={`fas ${isAusente ? 'fa-undo' : 'fa-ban'}`}></i>
-                                                                                    </button>
-                                                                                    {!isAusente && getPhoneById(s.id) && (
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <label className="toggle-switch" title={isAusente ? "Marcar como presente" : "Marcar como ausente"}>
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            checked={!isAusente}
+                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
+                                                                                        />
+                                                                                        <span className="slider"></span>
+                                                                                    </label>
+                                                                                    {getPhoneById(s.id) && (
                                                                                         <button
                                                                                             onClick={() => sendWhatsAppPanel(getPhoneById(s.id), s.name)}
-                                                                                            className="p-2 rounded-full text-gray-500 hover:bg-green-100 hover:text-green-600 transition-colors"
+                                                                                            className="p-2 w-10 h-10 flex items-center justify-center rounded-full text-gray-500 hover:bg-green-100 hover:text-green-600 transition-colors"
                                                                                             title="Enviar WhatsApp"
                                                                                         >
-                                                                                            <i className="fab fa-whatsapp"></i>
+                                                                                            <i className="fab fa-whatsapp text-xl"></i>
                                                                                         </button>
                                                                                     )}
                                                                                 </div>
@@ -1754,26 +1760,27 @@
                                                                     .map(s => {
                                                                         const isAusente = (ausentes[clase.day]?.[clase.time] || []).includes(s.id);
                                                                         return (
-                                                                            <li key={s.id} className={`flex items-center justify-between p-2 rounded-md transition-all ${isAusente ? 'bg-red-100' : 'bg-gray-50'}`}>
+                                                                            <li key={s.id} className="flex items-center justify-between p-2 rounded-md bg-gray-50">
                                                                                 <div className="flex items-center">
-                                                                                    <i className={`fas fa-user mr-3 ${isAusente ? 'text-gray-400' : 'text-gray-400'}`}></i>
-                                                                                    <span className={`font-medium ${isAusente ? 'text-gray-500 line-through' : 'text-gray-800'}`}>{s.name}</span>
+                                                                                    <i className="fas fa-user mr-3 text-gray-400"></i>
+                                                                                    <span className="font-medium text-gray-800">{s.name}</span>
                                                                                 </div>
-                                                                                <div className="flex items-center gap-1">
-                                                                                    <button
-                                                                                        onClick={() => marcarAusente(clase.day, clase.time, s.id)}
-                                                                                        className={`p-2 rounded-full transition-colors ${isAusente ? 'text-gray-500 hover:bg-yellow-100 hover:text-yellow-600' : 'text-gray-500 hover:bg-red-100 hover:text-red-600'}`}
-                                                                                        title={isAusente ? "Marcar como presente" : "Marcar ausente"}
-                                                                                    >
-                                                                                        <i className={`fas ${isAusente ? 'fa-undo' : 'fa-ban'}`}></i>
-                                                                                    </button>
-                                                                                    {!isAusente && getPhoneById(s.id) && (
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <label className="toggle-switch" title={isAusente ? "Marcar como presente" : "Marcar como ausente"}>
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            checked={!isAusente}
+                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
+                                                                                        />
+                                                                                        <span className="slider"></span>
+                                                                                    </label>
+                                                                                    {getPhoneById(s.id) && (
                                                                                         <button
                                                                                             onClick={() => sendWhatsAppPanel(getPhoneById(s.id), s.name)}
-                                                                                            className="p-2 rounded-full text-gray-500 hover:bg-green-100 hover:text-green-600 transition-colors"
+                                                                                            className="p-2 w-10 h-10 flex items-center justify-center rounded-full text-gray-500 hover:bg-green-100 hover:text-green-600 transition-colors"
                                                                                             title="Enviar WhatsApp"
                                                                                         >
-                                                                                            <i className="fab fa-whatsapp"></i>
+                                                                                            <i className="fab fa-whatsapp text-xl"></i>
                                                                                         </button>
                                                                                     )}
                                                                                 </div>
