@@ -1331,35 +1331,48 @@
             };
             
             // VERSIÓN FINAL Y CORREGIDA DE LA FUNCIÓN
-            const marcarAusente = async (dia, time, studentId, yaEstaAusente) => {
+// Función auxiliar para guardar en la base de datos en segundo plano
+            const guardarPanelStateEnFirestore = async (nuevosAusentes) => {
                 if (!dbRef.current || !userId) return;
-
-                const nuevosAusentes = JSON.parse(JSON.stringify(ausentes));
-                
-                if (!nuevosAusentes[dia]) nuevosAusentes[dia] = {};
-                if (!nuevosAusentes[dia][time]) nuevosAusentes[dia][time] = [];
-
-                if (yaEstaAusente) {
-                    // Si ya estaba ausente, lo quitamos de la lista.
-                    nuevosAusentes[dia][time] = nuevosAusentes[dia][time].filter(id => id !== studentId);
-                } else {
-                    // Si no estaba ausente, lo agregamos.
-                    nuevosAusentes[dia][time].push(studentId);
-                }
-
-                if (nuevosAusentes[dia][time].length === 0) {
-                    delete nuevosAusentes[dia][time];
-                    if (Object.keys(nuevosAusentes[dia]).length === 0) {
-                        delete nuevosAusentes[dia];
-                    }
-                }
-
                 try {
                     const panelStateRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'panelState');
                     await window.setDoc(panelStateRef, { ausentes: nuevosAusentes }, { merge: true });
                 } catch (error) {
-                    console.error("Error al cambiar estado de ausencia:", error);
+                    console.error("Error al guardar el estado del panel:", error);
                 }
+            };
+
+            // Nueva función principal que actualiza la pantalla al instante
+            const marcarAusente = (dia, time, studentId) => {
+                setAusentes(currentAusentes => {
+                    // Usamos la versión más actualizada del estado para evitar errores
+                    const nuevosAusentes = JSON.parse(JSON.stringify(currentAusentes));
+                    
+                    if (!nuevosAusentes[dia]) nuevosAusentes[dia] = {};
+                    if (!nuevosAusentes[dia][time]) nuevosAusentes[dia][time] = [];
+
+                    const yaEstaAusente = nuevosAusentes[dia][time].includes(studentId);
+
+                    if (yaEstaAusente) {
+                        nuevosAusentes[dia][time] = nuevosAusentes[dia][time].filter(id => id !== studentId);
+                    } else {
+                        nuevosAusentes[dia][time].push(studentId);
+                    }
+
+                    // Limpieza del objeto
+                    if (nuevosAusentes[dia][time].length === 0) {
+                        delete nuevosAusentes[dia][time];
+                        if (Object.keys(nuevosAusentes[dia]).length === 0) {
+                            delete nuevosAusentes[dia];
+                        }
+                    }
+
+                    // Guardamos en la base de datos en segundo plano
+                    guardarPanelStateEnFirestore(nuevosAusentes);
+
+                    // Devolvemos el nuevo estado para que la pantalla se actualice al instante
+                    return nuevosAusentes;
+                });
             };
             
             const agregarReemplazo = async (dia, time, student) => {
@@ -1692,7 +1705,7 @@
                                                                                         <input
                                                                                             type="checkbox"
                                                                                             checked={!isAusente}
-                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id, isAusente)}
+                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
                                                                                         />
                                                                                         <span className="slider"></span>
                                                                                     </label>
@@ -1771,7 +1784,7 @@
                                                                                         <input
                                                                                             type="checkbox"
                                                                                             checked={!isAusente}
-                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id, isAusente)}
+                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
                                                                                         />
                                                                                         <span className="slider"></span>
                                                                                     </label>
