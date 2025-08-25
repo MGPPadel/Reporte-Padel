@@ -886,7 +886,6 @@
 
             const handleCustomPriceChange = (studentCount, price) => setCustomPrices(prev => ({ ...prev, [studentCount]: parseInt(price) || 0 }));
 
-            // CORRECCIÓN BUG CANCELAR: Nueva función para resetear el formulario.
             const resetNewEntryForm = () => {
                 setNewEntry({
                     studentCount: 1,
@@ -929,7 +928,6 @@
                         addLogEntry('Clase añadida', `Clase con ${classData.studentNames.join(', ')} añadida para el día ${classData.date} a las ${classData.time}.`);
                     }
                     
-                    // CORRECCIÓN BUG CANCELAR: Usamos la nueva función de reseteo.
                     resetNewEntryForm();
                     setIsEditing(false);
                     setEditedClassId(null);
@@ -981,7 +979,7 @@
                 setNewEntry({
                     studentCount: classToEdit.studentCount,
                     studentNames: classToEdit.studentNames,
-                    studentIds: classToEdit.studentIds || Array(classToEdit.studentCount).fill(''), // Asegurar que studentIds exista
+                    studentIds: classToEdit.studentIds || Array(classToEdit.studentCount).fill(''),
                     date: classToEdit.date,
                     day: classToEdit.day,
                     time: classToEdit.time,
@@ -1322,42 +1320,41 @@
                 window.open(`https://wa.me/${formatted}?text=${msg}`, "_blank");
             };
             
-            // CORRECCIÓN BOTÓN CIRCULAR: Función robusta que lee desde Firestore antes de escribir.
-const marcarAusente = async (dia, time, studentId) => {
-            if (!dbRef.current || !userId) return;
+            const marcarAusente = async (dia, time, studentId) => {
+                if (!dbRef.current || !userId) return;
 
-            // Creamos una copia del estado actual que vemos en pantalla. Esta es la fuente de verdad.
-            const nuevosAusentes = JSON.parse(JSON.stringify(ausentes));
-            
-            if (!nuevosAusentes[dia]) nuevosAusentes[dia] = {};
-            if (!nuevosAusentes[dia][time]) nuevosAusentes[dia][time] = [];
+                // Usamos el estado local (que es actualizado en tiempo real por onSnapshot) como la fuente de verdad.
+                const nuevosAusentes = JSON.parse(JSON.stringify(ausentes));
+                
+                if (!nuevosAusentes[dia]) nuevosAusentes[dia] = {};
+                if (!nuevosAusentes[dia][time]) nuevosAusentes[dia][time] = [];
 
-            const yaEstaAusente = nuevosAusentes[dia][time].includes(studentId);
+                const yaEstaAusente = nuevosAusentes[dia][time].includes(studentId);
 
-            if (yaEstaAusente) {
-                // Si ya estaba ausente, lo quitamos de la lista.
-                nuevosAusentes[dia][time] = nuevosAusentes[dia][time].filter(id => id !== studentId);
-            } else {
-                // Si no estaba ausente, lo agregamos.
-                nuevosAusentes[dia][time].push(studentId);
-            }
-
-            // Limpiamos el objeto si un día u horario queda vacío
-            if (nuevosAusentes[dia][time].length === 0) {
-                delete nuevosAusentes[dia][time];
-                if (Object.keys(nuevosAusentes[dia]).length === 0) {
-                    delete nuevosAusentes[dia];
+                if (yaEstaAusente) {
+                    // Si ya estaba ausente, lo quitamos de la lista.
+                    nuevosAusentes[dia][time] = nuevosAusentes[dia][time].filter(id => id !== studentId);
+                } else {
+                    // Si no estaba ausente, lo agregamos.
+                    nuevosAusentes[dia][time].push(studentId);
                 }
-            }
 
-            try {
-                const panelStateRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'panelState');
-                // Guardamos el objeto actualizado en Firestore.
-                await window.setDoc(panelStateRef, { ausentes: nuevosAusentes }, { merge: true });
-            } catch (error) {
-                console.error("Error al cambiar estado de ausencia:", error);
-            }
-        };
+                // Limpiamos el objeto si un día u horario queda vacío
+                if (nuevosAusentes[dia][time].length === 0) {
+                    delete nuevosAusentes[dia][time];
+                    if (Object.keys(nuevosAusentes[dia]).length === 0) {
+                        delete nuevosAusentes[dia];
+                    }
+                }
+
+                try {
+                    const panelStateRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'panelState');
+                    // Guardamos el objeto actualizado en Firestore.
+                    await window.setDoc(panelStateRef, { ausentes: nuevosAusentes }, { merge: true });
+                } catch (error) {
+                    console.error("Error al cambiar estado de ausencia:", error);
+                }
+            };
             
             const agregarReemplazo = async (dia, time, student) => {
                 if (!student || !dbRef.current || !userId) return;
@@ -1902,7 +1899,6 @@ const marcarAusente = async (dia, time, studentId) => {
                                                 >
                                                     {isEditing ? "Guardar Cambios" : "Añadir Clase"}
                                                 </button>
-                                                {/* CORRECCIÓN BUG CANCELAR: El botón ahora limpia el formulario */}
                                                 {isEditing && (
                                                     <button
                                                         onClick={() => {
