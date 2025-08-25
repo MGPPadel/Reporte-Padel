@@ -1330,7 +1330,8 @@
                 window.open(`https://wa.me/${formatted}?text=${msg}`, "_blank");
             };
             
-            const marcarAusente = async (dia, time, studentId) => {
+            // VERSIÓN FINAL Y CORREGIDA DE LA FUNCIÓN
+            const marcarAusente = async (dia, time, studentId, yaEstaAusente) => {
                 if (!dbRef.current || !userId) return;
 
                 const nuevosAusentes = JSON.parse(JSON.stringify(ausentes));
@@ -1338,11 +1339,11 @@
                 if (!nuevosAusentes[dia]) nuevosAusentes[dia] = {};
                 if (!nuevosAusentes[dia][time]) nuevosAusentes[dia][time] = [];
 
-                const yaEstaAusente = nuevosAusentes[dia][time].includes(studentId);
-
                 if (yaEstaAusente) {
+                    // Si ya estaba ausente, lo quitamos de la lista.
                     nuevosAusentes[dia][time] = nuevosAusentes[dia][time].filter(id => id !== studentId);
                 } else {
+                    // Si no estaba ausente, lo agregamos.
                     nuevosAusentes[dia][time].push(studentId);
                 }
 
@@ -1691,7 +1692,7 @@
                                                                                         <input
                                                                                             type="checkbox"
                                                                                             checked={!isAusente}
-                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
+                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id, isAusente)}
                                                                                         />
                                                                                         <span className="slider"></span>
                                                                                     </label>
@@ -1770,7 +1771,7 @@
                                                                                         <input
                                                                                             type="checkbox"
                                                                                             checked={!isAusente}
-                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
+                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id, isAusente)}
                                                                                         />
                                                                                         <span className="slider"></span>
                                                                                     </label>
