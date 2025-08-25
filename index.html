@@ -1323,45 +1323,41 @@
             };
             
             // CORRECCIÓN BOTÓN CIRCULAR: Función robusta que lee desde Firestore antes de escribir.
-            const marcarAusente = async (dia, time, studentId) => {
-                console.log(`Intentando cambiar ausencia para: Alumno=${studentId}, Día=${dia}, Hora=${time}`);
+const marcarAusente = async (dia, time, studentId) => {
+            if (!dbRef.current || !userId) return;
 
-                if (!dbRef.current || !userId) return;
+            // Creamos una copia del estado actual que vemos en pantalla. Esta es la fuente de verdad.
+            const nuevosAusentes = JSON.parse(JSON.stringify(ausentes));
+            
+            if (!nuevosAusentes[dia]) nuevosAusentes[dia] = {};
+            if (!nuevosAusentes[dia][time]) nuevosAusentes[dia][time] = [];
 
-                const panelStateRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'panelState');
-                
-                try {
-                    const docSnap = await window.getDoc(panelStateRef);
-                    const currentData = docSnap.exists() ? docSnap.data() : {};
-                    const nuevosAusentes = JSON.parse(JSON.stringify(currentData.ausentes || {}));
-                    
-                    if (!nuevosAusentes[dia]) nuevosAusentes[dia] = {};
-                    if (!nuevosAusentes[dia][time]) nuevosAusentes[dia][time] = [];
+            const yaEstaAusente = nuevosAusentes[dia][time].includes(studentId);
 
-                    const yaEstaAusente = nuevosAusentes[dia][time].includes(studentId);
-                    
-                    console.log('¿El alumno ya estaba ausente?', yaEstaAusente);
+            if (yaEstaAusente) {
+                // Si ya estaba ausente, lo quitamos de la lista.
+                nuevosAusentes[dia][time] = nuevosAusentes[dia][time].filter(id => id !== studentId);
+            } else {
+                // Si no estaba ausente, lo agregamos.
+                nuevosAusentes[dia][time].push(studentId);
+            }
 
-                    if (yaEstaAusente) {
-                        nuevosAusentes[dia][time] = nuevosAusentes[dia][time].filter(id => id !== studentId);
-                    } else {
-                        nuevosAusentes[dia][time].push(studentId);
-                    }
-
-                    if (nuevosAusentes[dia][time].length === 0) {
-                        delete nuevosAusentes[dia][time];
-                        if (Object.keys(nuevosAusentes[dia]).length === 0) {
-                            delete nuevosAusentes[dia];
-                        }
-                    }
-
-                    await window.setDoc(panelStateRef, { ausentes: nuevosAusentes }, { merge: true });
-                    console.log('¡Estado de ausencia guardado en Firestore!', nuevosAusentes);
-
-                } catch (error) {
-                    console.error("Error al cambiar estado de ausencia:", error);
+            // Limpiamos el objeto si un día u horario queda vacío
+            if (nuevosAusentes[dia][time].length === 0) {
+                delete nuevosAusentes[dia][time];
+                if (Object.keys(nuevosAusentes[dia]).length === 0) {
+                    delete nuevosAusentes[dia];
                 }
-            };
+            }
+
+            try {
+                const panelStateRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'panelState');
+                // Guardamos el objeto actualizado en Firestore.
+                await window.setDoc(panelStateRef, { ausentes: nuevosAusentes }, { merge: true });
+            } catch (error) {
+                console.error("Error al cambiar estado de ausencia:", error);
+            }
+        };
             
             const agregarReemplazo = async (dia, time, student) => {
                 if (!student || !dbRef.current || !userId) return;
