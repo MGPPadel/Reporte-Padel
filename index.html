@@ -1677,7 +1677,8 @@ const marcarAusente = (dateString, time, studentId) => { // Cambiamos `dia` por 
                                         </button>
                                     </div>
                                 </div>
-
+                            {/* AÑADE ESTA LÍNEA DE APERTURA AQUÍ */}
+                    <>
                                 {view === 'panel' && (
                                     <div className="w-full">
                                         <div className="mb-6">
@@ -2468,6 +2469,7 @@ const marcarAusente = (dateString, time, studentId) => { // Cambiamos `dia` por 
                                         </div>
                                     </div>
                                 )}
+                                </>
                             </div>
                         )}
                         {userId && (
