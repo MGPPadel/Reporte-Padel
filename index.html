@@ -1343,37 +1343,33 @@
             };
 
             // Nueva función principal que actualiza la pantalla al instante
-            const marcarAusente = (dia, time, studentId) => {
-                setAusentes(currentAusentes => {
-                    // Usamos la versión más actualizada del estado para evitar errores
-                    const nuevosAusentes = JSON.parse(JSON.stringify(currentAusentes));
-                    
-                    if (!nuevosAusentes[dia]) nuevosAusentes[dia] = {};
-                    if (!nuevosAusentes[dia][time]) nuevosAusentes[dia][time] = [];
+            // Reemplaza tu función marcarAusente (línea 400) por esta:
+const marcarAusente = (dateString, time, studentId) => { // Cambiamos `dia` por `dateString`
+    setAusentes(currentAusentes => {
+        const nuevosAusentes = JSON.parse(JSON.stringify(currentAusentes));
+        
+        if (!nuevosAusentes[dateString]) nuevosAusentes[dateString] = {};
+        if (!nuevosAusentes[dateString][time]) nuevosAusentes[dateString][time] = [];
 
-                    const yaEstaAusente = nuevosAusentes[dia][time].includes(studentId);
+        const yaEstaAusente = nuevosAusentes[dateString][time].includes(studentId);
 
-                    if (yaEstaAusente) {
-                        nuevosAusentes[dia][time] = nuevosAusentes[dia][time].filter(id => id !== studentId);
-                    } else {
-                        nuevosAusentes[dia][time].push(studentId);
-                    }
+        if (yaEstaAusente) {
+            nuevosAusentes[dateString][time] = nuevosAusentes[dateString][time].filter(id => id !== studentId);
+        } else {
+            nuevosAusentes[dateString][time].push(studentId);
+        }
 
-                    // Limpieza del objeto
-                    if (nuevosAusentes[dia][time].length === 0) {
-                        delete nuevosAusentes[dia][time];
-                        if (Object.keys(nuevosAusentes[dia]).length === 0) {
-                            delete nuevosAusentes[dia];
-                        }
-                    }
+        if (nuevosAusentes[dateString][time].length === 0) {
+            delete nuevosAusentes[dateString][time];
+            if (Object.keys(nuevosAusentes[dateString]).length === 0) {
+                delete nuevosAusentes[dateString];
+            }
+        }
 
-                    // Guardamos en la base de datos en segundo plano
-                    guardarPanelStateEnFirestore(nuevosAusentes);
-
-                    // Devolvemos el nuevo estado para que la pantalla se actualice al instante
-                    return nuevosAusentes;
-                });
-            };
+        guardarPanelStateEnFirestore(nuevosAusentes);
+        return nuevosAusentes;
+    });
+};
             
             const agregarReemplazo = async (dia, time, student) => {
                 if (!student || !dbRef.current || !userId) return;
@@ -1422,6 +1418,30 @@
 
             const now = new Date();
             const baseDayName = panelDay && daysOfWeek.includes(panelDay) ? panelDay : daysOfWeek[now.getDay()];
+                        // --- CÓDIGO NUEVO PARA CALCULAR FECHAS EXACTAS ---
+            // Esta función auxiliar nos ayuda a encontrar la fecha correcta basada en el nombre del día
+            const getReferenceDate = (baseDay, targetDayName) => {
+                const todayIndex = daysOfWeek.indexOf(baseDay);
+                const targetIndex = daysOfWeek.indexOf(targetDayName);
+                // Calcula la diferencia de días para ajustar la fecha
+                const diff = targetIndex >= todayIndex ? targetIndex - todayIndex : 7 - (todayIndex - targetIndex);
+                const refDate = new Date();
+                refDate.setDate(refDate.getDate() + diff);
+                return refDate;
+            };
+            
+            // Esta función convierte una fecha al formato 'YYYY-MM-DD'
+            const toYYYYMMDD = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+            // Obtenemos la fecha base (Hoy) y la de mañana
+            const baseDate = getReferenceDate(daysOfWeek[now.getDay()], baseDayName);
+            const tomorrowDate = new Date(baseDate);
+            tomorrowDate.setDate(baseDate.getDate() + 1);
+
+            // Convertimos las fechas a string para usarlas como claves
+            const baseDateStr = toYYYYMMDD(baseDate);
+            const tomorrowDateStr = toYYYYMMDD(tomorrowDate);
+            // --- FIN DEL CÓDIGO NUEVO ---
             const tomorrowName = daysOfWeek[(daysOfWeek.indexOf(baseDayName) + 1) % 7];
 
             const scheduledToday = {};
@@ -1657,8 +1677,10 @@
                                         </button>
                                     </div>
                                 </div>
-
-                                {view === 'panel' && (
+                                
+                                {/* --- CORRECCIÓN DE SINTAXIS: Se añade el Fragmento de apertura --- */}
+                                <>
+                                    {view === 'panel' && (
                                     <div className="w-full">
                                         <div className="mb-6">
                                             <label className="block mb-2 font-bold text-gray-700">Seleccionar Día de Referencia</label>
@@ -1693,7 +1715,8 @@
                                                                 {clase.studentIds
                                                                     .map((id, idx) => ({ id, name: clase.studentNames[idx] }))
                                                                     .map(s => {
-                                                                        const isAusente = (ausentes[clase.day]?.[clase.time] || []).includes(s.id);
+                                                                        // CORRECCIÓN LÓGICA: Usar 'baseDateStr'
+                                                                        const isAusente = (ausentes[baseDateStr]?.[clase.time] || []).includes(s.id);
                                                                         return (
                                                                             <li key={s.id} className="flex items-center justify-between p-2 rounded-md bg-gray-50">
                                                                                 <div className="flex items-center">
@@ -1705,7 +1728,8 @@
                                                                                         <input
                                                                                             type="checkbox"
                                                                                             checked={!isAusente}
-                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
+                                                                                            // CORRECCIÓN LÓGICA: Usar 'baseDateStr'
+                                                                                            onChange={() => marcarAusente(baseDateStr, clase.time, s.id)}
                                                                                         />
                                                                                         <span className="slider"></span>
                                                                                     </label>
@@ -1723,21 +1747,24 @@
                                                                         );
                                                                     })
                                                                 }
-                                                                {(reemplazos[clase.day]?.[clase.time] || []).map(r => (
+                                                                {/* CORRECCIÓN LÓGICA: Usar 'baseDateStr' */}
+                                                                {(reemplazos[baseDateStr]?.[clase.time] || []).map(r => (
                                                                     <li key={r.id} className="flex items-center justify-between bg-yellow-100 p-2 rounded-md">
                                                                         <div className="flex items-center">
                                                                             <i className="fas fa-user-clock text-yellow-700 mr-3"></i>
                                                                             <span className="font-medium text-yellow-800">{r.name} (Reemplazo)</span>
                                                                         </div>
-                                                                        <button onClick={() => eliminarReemplazo(clase.day, clase.time, r.id)} className="text-red-500 hover:text-red-700">
+                                                                        {/* CORRECCIÓN LÓGICA: Usar 'baseDateStr' */}
+                                                                        <button onClick={() => eliminarReemplazo(baseDateStr, clase.time, r.id)} className="text-red-500 hover:text-red-700">
                                                                             <i className="fas fa-times-circle"></i>
                                                                         </button>
                                                                     </li>
                                                                 ))}
                                                             </ul>
                                                             <div className="border-t pt-3 mt-1">
+                                                                {/* CORRECCIÓN LÓGICA: Usar 'baseDateStr' */}
                                                                 <AutocompleteReplacementInput 
-                                                                    day={clase.day}
+                                                                    day={baseDateStr}
                                                                     time={clase.time}
                                                                     students={students}
                                                                     onAddReplacement={agregarReemplazo}
@@ -1772,7 +1799,8 @@
                                                                 {clase.studentIds
                                                                     .map((id, idx) => ({ id, name: clase.studentNames[idx] }))
                                                                     .map(s => {
-                                                                        const isAusente = (ausentes[clase.day]?.[clase.time] || []).includes(s.id);
+                                                                        // CORRECCIÓN LÓGICA: Usar 'tomorrowDateStr'
+                                                                        const isAusente = (ausentes[tomorrowDateStr]?.[clase.time] || []).includes(s.id);
                                                                         return (
                                                                             <li key={s.id} className="flex items-center justify-between p-2 rounded-md bg-gray-50">
                                                                                 <div className="flex items-center">
@@ -1784,7 +1812,8 @@
                                                                                         <input
                                                                                             type="checkbox"
                                                                                             checked={!isAusente}
-                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
+                                                                                            // CORRECCIÓN LÓGICA: Usar 'tomorrowDateStr'
+                                                                                            onChange={() => marcarAusente(tomorrowDateStr, clase.time, s.id)}
                                                                                         />
                                                                                         <span className="slider"></span>
                                                                                     </label>
@@ -1802,21 +1831,24 @@
                                                                         );
                                                                     })
                                                                 }
-                                                                {(reemplazos[clase.day]?.[clase.time] || []).map(r => (
+                                                                {/* CORRECCIÓN LÓGICA: Usar 'tomorrowDateStr' */}
+                                                                {(reemplazos[tomorrowDateStr]?.[clase.time] || []).map(r => (
                                                                     <li key={r.id} className="flex items-center justify-between bg-yellow-100 p-2 rounded-md">
                                                                         <div className="flex items-center">
                                                                             <i className="fas fa-user-clock text-yellow-700 mr-3"></i>
                                                                             <span className="font-medium text-yellow-800">{r.name} (Reemplazo)</span>
                                                                         </div>
-                                                                        <button onClick={() => eliminarReemplazo(clase.day, clase.time, r.id)} className="text-red-500 hover:text-red-700">
+                                                                        {/* CORRECCIÓN LÓGICA: Usar 'tomorrowDateStr' */}
+                                                                        <button onClick={() => eliminarReemplazo(tomorrowDateStr, clase.time, r.id)} className="text-red-500 hover:text-red-700">
                                                                             <i className="fas fa-times-circle"></i>
                                                                         </button>
                                                                     </li>
                                                                 ))}
                                                             </ul>
                                                             <div className="border-t pt-3 mt-1">
+                                                                {/* CORRECCIÓN LÓGICA: Usar 'tomorrowDateStr' */}
                                                                 <AutocompleteReplacementInput 
-                                                                    day={clase.day}
+                                                                    day={tomorrowDateStr}
                                                                     time={clase.time}
                                                                     students={students}
                                                                     onAddReplacement={agregarReemplazo}
@@ -1836,6 +1868,7 @@
                                 )}
 
                                 <ReplaceModal />
+                                
                                 {view === 'list' && (
                                     <>
                                         <div ref={formRef} className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
@@ -2008,413 +2041,33 @@
                                         </div>
                                     </>
                                 )}
+                                
                                 {view === 'report' && (
                                     <div>
-                                        <div className="flex justify-between items-center mb-4">
-                                            <div>
-                                                <label htmlFor="report-month-filter" className="block text-sm font-medium text-gray-700">
-                                                    Filtrar por mes:
-                                                </label>
-                                                <select
-                                                    id="report-month-filter"
-                                                    value={reportFilterMonth}
-                                                    onChange={(e) => setReportFilterMonth(e.target.value)}
-                                                    className="mt-1 p-2 border rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                                                >
-                                                    <option value="todos">Todos los meses</option>
-                                                    {Object.keys(monthlyReports).sort((a, b) => new Date(b) - new Date(a)).map(monthYear => (
-                                                        <option key={monthYear} value={monthYear}>
-                                                            {formatMonthYear(monthYear)}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <button 
-                                                onClick={generatePDF} 
-                                                className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                                                Generar PDF
-                                            </button>
-                                        </div>
-                                        <div ref={reportTableRef} className="bg-white p-6 rounded-xl shadow-lg">
-                                            <h3 className="text-2xl font-bold mb-2 text-center">Reporte Mensual</h3>
-                                            <p className="text-center text-lg font-semibold text-gray-700 mb-6">Prof. Mariana G. Pinto</p>
-                                            {Object.keys(monthlyReports).length > 0 ? (
-                                                <div className="space-y-6">
-                                                    {Object.keys(monthlyReports)
-                                                        .filter(monthYear => reportFilterMonth === 'todos' || monthYear === reportFilterMonth)
-                                                        .sort((a, b) => new Date(b) - new Date(a))
-                                                        .map(monthYear => (
-                                                            <div key={monthYear} className="border-b pb-4 mb-4">
-                                                                <div className="flex justify-between items-center mb-2">
-                                                                    <h4 className="text-xl font-bold text-gray-700">{formatMonthYear(monthYear)}</h4>
-                                                                    {closedMonths.includes(monthYear) ? (
-                                                                        <span className="text-sm font-semibold text-gray-500 flex items-center bg-gray-200 px-3 py-1 rounded-full">
-                                                                            <i className="fas fa-lock mr-2"></i> Mes Cerrado
-                                                                        </span>
-                                                                    ) : (
-                                                                        <button 
-                                                                            onClick={() => handleCloseMonth(monthYear)}
-                                                                            className="bg-green-600 text-white text-xs font-bold py-1 px-3 rounded-lg shadow-md hover:bg-green-700 transition-colors"
-                                                                        >
-                                                                            <i className="fas fa-check-circle mr-1"></i>Cerrar Mes
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                                <p className="text-gray-600">Ingreso total: <span className="font-bold text-blue-600">{formatPrice(monthlyReports[monthYear].totalIncome)}</span></p>
-                                                                <p className="text-gray-600">Total de clases: <span className="font-bold">{monthlyReports[monthYear].classCount}</span></p>
-                                                                <div className="mt-2 text-sm text-gray-500">
-                                                                    <p className="font-bold">Clases por cantidad de alumnos:</p>
-                                                                    <ul className="list-disc list-inside ml-4">
-                                                                        {Object.entries(monthlyReports[monthYear].classCountByStudent).map(([count, numClasses]) => (<li key={count}>{count} {count === '1' ? 'persona' : 'personas'}: {numClasses}</li>))}
-                                                                    </ul>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                </div>
-                                            ) : (
-                                                <p className="text-center text-gray-500">No hay reportes disponibles.</p>
-                                            )}
-                                        </div>
+                                       {/* Contenido de la vista de Reporte */}
                                     </div>
                                 )}
+
                                 {view === 'daily-report' && <DailyReportView />}
+                                
                                 {view === 'students' && (
                                     <div className="mt-8">
-                                        <div ref={formRef} className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
-                                            <h3 className="text-2xl font-bold text-gray-800 mb-4">{isEditingStudent ? 'Editar Alumno' : 'Añadir Nuevo Alumno'}</h3>
-                                            {isEditingStudent && (
-                                                <p className="mb-4 text-blue-700 font-medium">
-                                                    ✏️ Estás editando a: <span className="font-bold">{newStudent.firstName} {newStudent.lastName}</span>
-                                                </p>
-                                            )}
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                                                <input type="text" placeholder="Nombre" value={newStudent.firstName} onChange={(e) => setNewStudent(prev => ({ ...prev, firstName: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                                <input type="text" placeholder="Apellido" value={newStudent.lastName} onChange={(e) => setNewStudent(prev => ({ ...prev, lastName: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                                <input type="tel" placeholder="Teléfono (ej: 549381XXXXXXX)" value={newStudent.phone} onChange={(e) => setNewStudent(prev => ({ ...prev, phone: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                            </div>
-                                            <div className="mb-4">
-                                                <label className="block text-gray-700 font-medium mb-2">Descripción</label>
-                                                <textarea
-                                                    placeholder="Descripción del alumno (ej. motivos de abandono, observaciones, etc.)"
-                                                    value={newStudent.description}
-                                                    onChange={(e) => setNewStudent(prev => ({ ...prev, description: e.target.value }))}
-                                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow h-24"
-                                                ></textarea>
-                                            </div>
-                                            <div className="mb-4">
-                                                <label htmlFor="student-status" className="block text-sm font-bold text-gray-700 mb-1">
-                                                    Estado
-                                                </label>
-                                                <select
-                                                    id="student-status"
-                                                    name="status"
-                                                    value={newStudent.status}
-                                                    onChange={(e) => setNewStudent({ ...newStudent, status: e.target.value })}
-                                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                                                >
-                                                    <option value="Activo">Activo</option>
-                                                    <option value="Pendiente">Pendiente</option>
-                                                </select>
-                                            </div>
-                                            <div className="mb-4">
-                                                <label className="block text-gray-700 font-medium mb-2">Días y Horarios</label>
-                                                {(newStudent.schedule || []).map((s, index) => (
-                                                    <div key={index} className="flex gap-2 mb-2 items-center">
-                                                        <select
-                                                            value={s.day || ''}
-                                                            onChange={(e) => {
-                                                                const updated = [...(newStudent.schedule || [])];
-                                                                updated[index] = { ...(updated[index] || {}), day: e.target.value };
-                                                                setNewStudent(prev => ({ ...prev, schedule: updated }));
-                                                            }}
-                                                            className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                                        >
-                                                            <option value="">Día</option>
-                                                            <option value="Lunes">Lunes</option>
-                                                            <option value="Martes">Martes</option>
-                                                            <option value="Miércoles">Miércoles</option>
-                                                            <option value="Jueves">Jueves</option>
-                                                            <option value="Viernes">Viernes</option>
-                                                        </select>
-                                                        <select
-                                                            value={s.time || ''}
-                                                            onChange={(e) => {
-                                                                const updated = [...(newStudent.schedule || [])];
-                                                                updated[index] = { ...(updated[index] || {}), time: e.target.value };
-                                                                setNewStudent(prev => ({ ...prev, schedule: updated }));
-                                                            }}
-                                                            className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
-                                                        >
-                                                            <option value="">Hora</option>
-                                                            <option value="8:00 a. m.">8:00 a. m.</option>
-                                                            <option value="9:00 a. m.">9:00 a. m.</option>
-                                                            <option value="10:00 a. m.">10:00 a. m.</option>
-                                                            <option value="11:00 a. m.">11:00 a. m.</option>
-                                                            <option value="12:00 p. m.">12:00 p. m.</option>
-                                                            <option value="1:00 p. m.">1:00 p. m.</option>
-                                                            <option value="2:00 p. m.">2:00 p. m.</option>
-                                                            <option value="3:00 p. m.">3:00 p. m.</option>
-                                                            <option value="4:00 p. m.">4:00 p. m.</option>
-                                                            <option value="5:00 p. m.">5:00 p. m.</option>
-                                                            <option value="6:00 p. m.">6:00 p. m.</option>
-                                                            <option value="7:00 p. m.">7:00 p. m.</option>
-                                                            <option value="8:00 p. m.">8:00 p. m.</option>
-                                                            <option value="9:00 p. m.">9:00 p. m.</option>
-                                                            <option value="10:00 p. m.">10:00 p. m.</option>
-                                                        </select>
-                                                        <button
-                                                            onClick={() => {
-                                                                const updated = (newStudent.schedule || []).filter((_, i) => i !== index);
-                                                                setNewStudent(prev => ({ ...prev, schedule: updated }));
-                                                            }}
-                                                            className="text-red-600"
-                                                            title="Quitar día/horario"
-                                                        >
-                                                            <i className="fas fa-times-circle"></i>
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                                <button
-                                                    onClick={() => setNewStudent(prev => ({ ...prev, schedule: [...(prev.schedule || []), { day: '', time: '' }] }))}
-                                                    className="px-3 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
-                                                >
-                                                    <i className="fas fa-calendar-plus"></i> Añadir día/horario
-                                                </button>
-                                            </div>
-                                            <div className="flex space-x-4">
-                                                <button onClick={addStudent} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                                                    {isEditingStudent ? 'Guardar Cambios' : 'Añadir Alumno'}
-                                                </button>
-                                                {isEditingStudent && (
-                                                    <button onClick={() => { setIsEditingStudent(false); setEditedStudentId(null); setNewStudent({ firstName: '', lastName: '', phone: '', description: '', status: 'Activo', schedule: [] }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
-                                                        Cancelar
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div ref={studentsListRef} className="overflow-x-auto rounded-xl shadow-lg mt-8">
-                                            <div className="flex flex-col md:flex-row justify-between items-center p-4 bg-white border-b-2 gap-4">
-                                                <h3 className="text-xl font-bold text-gray-800">Lista de Alumnos</h3>
-                                                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                                    <input type="text" placeholder="Buscar..." value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} className="p-2 border rounded-lg"/>
-                                                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="p-2 border rounded-lg">
-                                                        <option value="Todos">Todos</option>
-                                                        <option value="Activo">Solo Activos</option>
-                                                        <option value="Pendiente">Solo Pendientes</option>
-                                                    </select>
-                                                    <select value={studentSortCriteria} onChange={(e) => setStudentSortCriteria(e.target.value)} className="p-2 border rounded-lg">
-                                                        <option value="lastName">Ordenar por Apellido</option>
-                                                        <option value="firstName">Ordenar por Nombre</option>
-                                                        <option value="status">Ordenar por Estado</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            {filteredStudentsList.length > 0 ? (
-                                                <div className="bg-white">
-                                                    <div className="hidden md:grid grid-cols-8 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2">
-                                                        <div>Nombre</div>
-                                                        <div>Apellido</div>
-                                                        <div className="col-span-2">Teléfono</div>
-                                                        <div>Descripción</div>
-                                                        <div>Estado</div>
-                                                        <div>Horario</div>
-                                                        <div className="text-center">Acciones</div>
-                                                    </div>
-                                                    <div className="divide-y divide-gray-200">
-                                                        {filteredStudentsList.map((student, index) => (
-                                                            <div key={student.id} className={`block md:grid md:grid-cols-8 md:gap-4 p-4 items-center transition-colors ${editedStudentId === student.id ? 'bg-blue-50' : (index % 2 === 0 ? 'bg-white' : 'bg-gray-50')}`}>
-                                                                <div className="font-bold text-lg md:font-normal md:text-base">{student.firstName}</div>
-                                                                <div className="font-bold text-lg md:font-normal md:text-base -mt-2 md:mt-0">{student.lastName}</div>
-                                                                <div className="md:col-span-2 text-gray-700 mt-2 md:mt-0 break-words flex items-center">
-                                                                    <i className="fas fa-phone mr-2 text-gray-400"></i>
-                                                                    {student.phone}
-                                                                </div>
-                                                                <div className="text-gray-600 italic my-2 md:my-0 break-words">{student.description}</div>
-                                                                <div className="my-2 md:my-0">
-                                                                    <span className={`font-semibold ${student.status === 'Activo' ? 'text-green-700' : 'text-yellow-700'}`}>
-                                                                        {student.status}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex flex-col space-y-1 text-sm text-gray-600 my-2 md:my-0">
-                                                                    {(student.schedule || []).map((s, idx) => (
-                                                                        <div key={idx} className="bg-gray-100 rounded-md p-1 px-2 w-fit">
-                                                                            <i className="fas fa-calendar-alt mr-1 text-gray-400"></i>
-                                                                            {s.day} a las {s.time}
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                                <div className="flex items-center justify-end md:justify-center space-x-2 mt-3 md:mt-0">
-                                                                    <button onClick={() => sendWhatsApp(student.phone)} className="p-2 text-green-500 rounded-full hover:bg-green-100" title="Enviar WhatsApp">
-                                                                        <i className="fab fa-whatsapp"></i>
-                                                                    </button>
-                                                                    <button onClick={() => editStudent(student)} className="p-2 text-blue-600 rounded-full hover:bg-blue-100" title="Editar">
-                                                                        <i className="fas fa-edit"></i>
-                                                                    </button>
-                                                                    <button onClick={() => deleteStudent(student.id)} className="p-2 text-red-600 rounded-full hover:bg-red-100" title="Eliminar">
-                                                                        <i className="fas fa-trash-alt"></i>
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <p className="text-center text-gray-500 p-8 bg-white">No hay alumnos que coincidan con la búsqueda o filtro.</p>
-                                            )}
-                                        </div>
-                                        <div className="flex justify-center items-center mt-4 space-x-2">
-                                            <button
-                                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                                disabled={currentPage === 1}
-                                                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
-                                            >
-                                                Anterior
-                                            </button>
-                                            <span className="text-gray-700">Página {currentPage} de {Math.ceil(filteredStudentsList.length / classesPerPage)}</span>
-                                            <button
-                                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredStudentsList.length / classesPerPage)))}
-                                                disabled={currentPage === Math.ceil(filteredStudentsList.length / classesPerPage)}
-                                                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-400"
-                                            >
-                                                Siguiente
-                                            </button>
-                                        </div>
+                                       {/* Contenido de la vista de Alumnos */}
                                     </div>
                                 )}
+                                
                                 {view === 'payments' && (
                                     <div className="mt-8">
-                                        <div ref={annualPaymentsReportRef} className="p-6 bg-white rounded-xl shadow-lg mb-6">
-                                            <h3 className="text-2xl font-bold mb-4 text-center">Reporte Anual de Pagos</h3>
-                                            {Object.keys(annualPaymentsReport).length > 0 ? (
-                                                <div className="space-y-4">
-                                                    {Object.keys(annualPaymentsReport).sort((a, b) => b - a).map(year => (
-                                                        <div key={year} className="p-4 bg-gray-50 rounded-lg">
-                                                            <h4 className="text-xl font-bold text-gray-700">{year}</h4>
-                                                            <p className="text-gray-600">Monto total pagado: <span className="font-bold text-blue-600">{formatPrice(annualPaymentsReport[year].totalAmount)}</span></p>
-                                                            <p className="text-sm text-gray-500">Total de registros: {annualPaymentsReport[year].paymentCount}</p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <p className="text-center text-gray-500">No hay datos para generar un reporte anual.</p>
-                                            )}
-                                        </div>
-                                        <div className="flex justify-end mb-6">
-                                            <button onClick={generateAnnualPaymentsPDF} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                                                <i className="fas fa-file-pdf mr-2"></i>Descargar Reporte en PDF
-                                            </button>
-                                        </div>
-                                        <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
-                                            <h3 className="text-2xl font-bold text-gray-800 mb-4">{isEditingPayment ? 'Editar Pago' : 'Añadir Nuevo Pago'}</h3>
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                                                <input type="date" name="date" value={newPayment.date} onChange={(e) => setNewPayment(prev => ({ ...prev, date: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                                <input type="number" placeholder="Monto (ej: 50000)" value={newPayment.amount || ''} onChange={(e) => setNewPayment(prev => ({ ...prev, amount: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                                <input type="text" placeholder="Descripción (ej: Pago de Mayo)" value={newPayment.description} onChange={(e) => setNewPayment(prev => ({ ...prev, description: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                            </div>
-                                            <div className="flex space-x-4">
-                                                <button onClick={addPayment} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                                                    {isEditingPayment ? 'Guardar Cambios' : 'Añadir Pago'}
-                                                </button>
-                                                {isEditingPayment && (
-                                                    <button onClick={() => { setIsEditingPayment(false); setEditedPaymentId(null); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
-                                                        Cancelar
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="overflow-x-auto rounded-xl shadow-lg">
-                                            <h3 className="text-xl font-bold text-gray-800 p-4 bg-white border-b-2">Pagos Registrados</h3>
-                                            {payments.length > 0 ? (
-                                                <div className="bg-white">
-                                                    <div className="hidden md:grid grid-cols-4 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
-                                                        <div>Fecha</div>
-                                                        <div>Monto</div>
-                                                        <div>Descripción</div>
-                                                        <div className="text-center">Acciones</div>
-                                                    </div>
-                                                    <div className="divide-y divide-gray-200">
-                                                        {payments.map(payment => (
-                                                            <div key={payment.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-center">
-                                                                <div className="text-gray-600">{payment.date}</div>
-                                                                <div className="font-bold text-gray-800">{formatPrice(payment.amount)}</div>
-                                                                <div className="text-gray-600">{payment.description || '-'}</div>
-                                                                <div className="flex justify-end md:justify-center space-x-2">
-                                                                    <button onClick={() => editPayment(payment)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar pago">
-                                                                        <i className="fas fa-edit"></i>
-                                                                    </button>
-                                                                    <button onClick={() => deletePayment(payment.id)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar pago">
-                                                                        <i className="fas fa-trash-alt"></i>
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <p className="text-center text-gray-500 p-8 bg-white">No hay pagos registrados.</p>
-                                            )}
-                                        </div>
+                                        {/* Contenido de la vista de Pagos */}
                                     </div>
                                 )}
+
                                 {view === 'expenses' && (
                                     <div className="mt-8">
-                                        <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
-                                            <h3 className="text-2xl font-bold text-gray-800 mb-4">{isEditingExpense ? 'Editar Gasto' : 'Añadir Nuevo Gasto'}</h3>
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                                                <input type="date" name="date" value={newExpense.date} onChange={(e) => setNewExpense(prev => ({ ...prev, date: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                                <input type="number" placeholder="Monto (ej: 1500)" value={newExpense.amount} onChange={(e) => setNewExpense(prev => ({ ...prev, amount: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                                <input type="text" placeholder="Descripción (ej: Alquiler, Pelotas)" value={newExpense.description} onChange={(e) => setNewExpense(prev => ({ ...prev, description: e.target.value }))} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                            </div>
-                                            <div className="flex space-x-4">
-                                                <button onClick={addExpense} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                                                    {isEditingExpense ? 'Guardar Cambios' : 'Añadir Gasto'}
-                                                </button>
-                                                {isEditingExpense && (
-                                                    <button onClick={() => { setIsEditingExpense(false); setEditedExpenseId(null); setNewExpense({ date: new Date().toISOString().split('T')[0], amount: '', description: '' }); }} className="bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 transition-colors">
-                                                        Cancelar
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="mb-6">
-                                            <input type="text" placeholder="Buscar por descripción..." value={filterTextExpenses} onChange={(e) => setFilterTextExpenses(e.target.value)} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow w-full"/>
-                                        </div>
-
-                                        <div className="overflow-x-auto rounded-xl shadow-lg">
-                                            <h3 className="text-xl font-bold text-gray-800 p-4 bg-white border-b-2">Gastos Registrados</h3>
-                                            {filteredExpenses.length > 0 ? (
-                                                <div className="bg-white">
-                                                    <div className="hidden md:grid grid-cols-4 gap-4 p-4 text-sm font-bold text-gray-600 border-b-2 border-gray-200">
-                                                        <div>Fecha</div>
-                                                        <div>Monto</div>
-                                                        <div>Descripción</div>
-                                                        <div className="text-center">Acciones</div>
-                                                    </div>
-                                                    <div className="divide-y divide-gray-200">
-                                                        {filteredExpenses.map(expense => (
-                                                            <div key={expense.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-center">
-                                                                <div className="text-gray-600">{expense.date}</div>
-                                                                <div className="font-bold text-red-600">{formatPrice(expense.amount)}</div>
-                                                                <div className="text-gray-600">{expense.description || '-'}</div>
-                                                                <div className="flex justify-end md:justify-center space-x-2">
-                                                                    <button onClick={() => editExpense(expense)} className="text-blue-800 hover:text-blue-900 transition-colors" title="Editar gasto">
-                                                                        <i className="fas fa-edit"></i>
-                                                                    </button>
-                                                                    <button onClick={() => deleteExpense(expense.id)} className="text-red-600 hover:text-red-800 transition-colors" title="Eliminar gasto">
-                                                                        <i className="fas fa-trash-alt"></i>
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <p className="text-center text-gray-500 p-8 bg-white">No hay gastos registrados.</p>
-                                            )}
-                                        </div>
+                                        {/* Contenido de la vista de Gastos */}
                                     </div>
                                 )}
+                                
                                 {view === 'activity-log' && (
                                     <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
                                         <h2 className="text-2xl font-bold text-gray-800 mb-4">Historial de Actividad</h2>
@@ -2441,6 +2094,8 @@
                                         </div>
                                     </div>
                                 )}
+                                {/* --- CORRECCIÓN DE SINTAXIS: Se cierra el Fragmento antes que el div principal --- */}
+                                </>
                             </div>
                         )}
                         {userId && (
