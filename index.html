@@ -1421,6 +1421,100 @@
             };
 
             const now = new Date();
+            // === Helpers de fecha locales ===
+            const toDateStrLocal = (d) => {
+                const x = new Date(d.getTime() - d.getTimezoneOffset()*60000);
+                return x.toISOString().split('T')[0];
+            };
+            const todayDateStr = toDateStrLocal(new Date());
+            const tomorrowDateStr = toDateStrLocal(new Date(Date.now() + 24*60*60*1000));
+
+            // === Guardado genérico de panelState (merge:true) ===
+            const guardarPanelStateEnFirestoreGeneric = async (partial) => {
+                if (!dbRef.current || !userId) return;
+                try {
+                    const panelStateRef = window.doc(dbRef.current, 'artifacts', appId, 'users', userId, 'config', 'panelState');
+                    await window.setDoc(panelStateRef, partial, { merge: true });
+                } catch (e) { console.error('Error al guardar panelState:', e); }
+            };
+
+            // === Nuevas funciones por FECHA ===
+            const marcarAusentePorFecha = (dateStr, time, studentId) => {
+                setAusentes(current => {
+                    const next = JSON.parse(JSON.stringify(current || {}));
+                    if (!next[dateStr]) next[dateStr] = {};
+                    if (!next[dateStr][time]) next[dateStr][time] = [];
+                    const i = next[dateStr][time].indexOf(studentId);
+                    if (i >= 0) next[dateStr][time].splice(i, 1);
+                    else next[dateStr][time].push(studentId);
+                    if (next[dateStr][time].length === 0) {
+                        delete next[dateStr][time];
+                        if (Object.keys(next[dateStr]).length === 0) delete next[dateStr];
+                    }
+                    guardarPanelStateEnFirestoreGeneric({ ausentes: next });
+                    return next;
+                });
+            };
+
+            const agregarReemplazoPorFecha = async (dateStr, time, student) => {
+                if (!student || !dbRef.current || !userId) return;
+                const next = JSON.parse(JSON.stringify(reemplazos || {}));
+                const item = { id: student.id, name: `${student.firstName} ${student.lastName}` };
+                if (!next[dateStr]) next[dateStr] = {};
+                if (!next[dateStr][time]) next[dateStr][time] = [];
+                if (!next[dateStr][time].some(r => r.id === student.id)) next[dateStr][time].push(item);
+                await guardarPanelStateEnFirestoreGeneric({ reemplazos: next });
+                setReemplazos(next);
+            };
+
+            const eliminarReemplazoPorFecha = async (dateStr, time, replId) => {
+                if (!dbRef.current || !userId) return;
+                const next = JSON.parse(JSON.stringify(reemplazos || {}));
+                if (next[dateStr] && next[dateStr][time]) {
+                    next[dateStr][time] = next[dateStr][time].filter(r => r.id !== replId);
+                    if (next[dateStr][time].length === 0) {
+                        delete next[dateStr][time];
+                        if (Object.keys(next[dateStr]).length === 0) delete next[dateStr];
+                    }
+                }
+                await guardarPanelStateEnFirestoreGeneric({ reemplazos: next });
+                setReemplazos(next);
+            };
+
+            // === Limpiezas semanales (Opción B) ===
+            const startOfISOWeekLocal = (base = new Date()) => {
+                const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+                let day = d.getDay(); if (day === 0) day = 7; // domingo = 7
+                d.setDate(d.getDate() - (day - 1)); // ir a lunes
+                return d;
+            };
+
+            const purgeReplacementsBeforeThisWeek = async () => {
+                const cutoff = toDateStrLocal(startOfISOWeekLocal(new Date()));
+                const src = reemplazos || {};
+                const next = {};
+                Object.keys(src).forEach(date => { if (date >= cutoff) next[date] = src[date]; });
+                await guardarPanelStateEnFirestoreGeneric({ reemplazos: next });
+                setReemplazos(next);
+                console.log('Reemplazos previos a', cutoff, 'eliminados.');
+            };
+
+            const purgeAbsencesBeforeThisWeek = async () => {
+                const cutoff = toDateStrLocal(startOfISOWeekLocal(new Date()));
+                const src = ausentes || {};
+                const next = {};
+                Object.keys(src).forEach(date => { if (date >= cutoff) next[date] = src[date]; });
+                await guardarPanelStateEnFirestoreGeneric({ ausentes: next });
+                setAusentes(next);
+                console.log('Ausentes previos a', cutoff, 'eliminados.');
+            };
+
+            React.useEffect(() => {
+                // Al montar el Panel, conservar solo la semana actual
+                purgeReplacementsBeforeThisWeek();
+                purgeAbsencesBeforeThisWeek();
+            }, []);
+
             const baseDayName = panelDay && daysOfWeek.includes(panelDay) ? panelDay : daysOfWeek[now.getDay()];
             const tomorrowName = daysOfWeek[(daysOfWeek.indexOf(baseDayName) + 1) % 7];
 
@@ -1693,7 +1787,7 @@
                                                                 {clase.studentIds
                                                                     .map((id, idx) => ({ id, name: clase.studentNames[idx] }))
                                                                     .map(s => {
-                                                                        const isAusente = (ausentes[clase.day]?.[clase.time] || []).includes(s.id);
+                                                                        const isAusente = (ausentes[todayDateStr]?.[clase.time] || []).includes(s.id);
                                                                         return (
                                                                             <li key={s.id} className="flex items-center justify-between p-2 rounded-md bg-gray-50">
                                                                                 <div className="flex items-center">
@@ -1705,7 +1799,7 @@
                                                                                         <input
                                                                                             type="checkbox"
                                                                                             checked={!isAusente}
-                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
+                                                                                            onChange={() => marcarAusentePorFecha(todayDateStr, clase.time, s.id)}
                                                                                         />
                                                                                         <span className="slider"></span>
                                                                                     </label>
@@ -1723,13 +1817,13 @@
                                                                         );
                                                                     })
                                                                 }
-                                                                {(reemplazos[clase.day]?.[clase.time] || []).map(r => (
+                                                                {(reemplazos[todayDateStr]?.[clase.time] || []).map(r => (
                                                                     <li key={r.id} className="flex items-center justify-between bg-yellow-100 p-2 rounded-md">
                                                                         <div className="flex items-center">
                                                                             <i className="fas fa-user-clock text-yellow-700 mr-3"></i>
                                                                             <span className="font-medium text-yellow-800">{r.name} (Reemplazo)</span>
                                                                         </div>
-                                                                        <button onClick={() => eliminarReemplazo(clase.day, clase.time, r.id)} className="text-red-500 hover:text-red-700">
+                                                                        <button onClick={() => eliminarReemplazoPorFecha(todayDateStr, clase.time, r.id)} className="text-red-500 hover:text-red-700">
                                                                             <i className="fas fa-times-circle"></i>
                                                                         </button>
                                                                     </li>
@@ -1740,7 +1834,7 @@
                                                                     day={clase.day}
                                                                     time={clase.time}
                                                                     students={students}
-                                                                    onAddReplacement={agregarReemplazo}
+                                                                    onAddReplacement={(day, time, student) => agregarReemplazoPorFecha(todayDateStr, time, student)}
                                                                 />
                                                             </div>
                                                         </div>
@@ -1772,7 +1866,7 @@
                                                                 {clase.studentIds
                                                                     .map((id, idx) => ({ id, name: clase.studentNames[idx] }))
                                                                     .map(s => {
-                                                                        const isAusente = (ausentes[clase.day]?.[clase.time] || []).includes(s.id);
+                                                                        const isAusente = (ausentes[tomorrowDateStr]?.[clase.time] || []).includes(s.id);
                                                                         return (
                                                                             <li key={s.id} className="flex items-center justify-between p-2 rounded-md bg-gray-50">
                                                                                 <div className="flex items-center">
@@ -1784,7 +1878,7 @@
                                                                                         <input
                                                                                             type="checkbox"
                                                                                             checked={!isAusente}
-                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
+                                                                                            onChange={() => marcarAusentePorFecha(tomorrowDateStr, clase.time, s.id)}
                                                                                         />
                                                                                         <span className="slider"></span>
                                                                                     </label>
@@ -1802,13 +1896,13 @@
                                                                         );
                                                                     })
                                                                 }
-                                                                {(reemplazos[clase.day]?.[clase.time] || []).map(r => (
+                                                                {(reemplazos[tomorrowDateStr]?.[clase.time] || []).map(r => (
                                                                     <li key={r.id} className="flex items-center justify-between bg-yellow-100 p-2 rounded-md">
                                                                         <div className="flex items-center">
                                                                             <i className="fas fa-user-clock text-yellow-700 mr-3"></i>
                                                                             <span className="font-medium text-yellow-800">{r.name} (Reemplazo)</span>
                                                                         </div>
-                                                                        <button onClick={() => eliminarReemplazo(clase.day, clase.time, r.id)} className="text-red-500 hover:text-red-700">
+                                                                        <button onClick={() => eliminarReemplazoPorFecha(tomorrowDateStr, clase.time, r.id)} className="text-red-500 hover:text-red-700">
                                                                             <i className="fas fa-times-circle"></i>
                                                                         </button>
                                                                     </li>
@@ -1819,7 +1913,7 @@
                                                                     day={clase.day}
                                                                     time={clase.time}
                                                                     students={students}
-                                                                    onAddReplacement={agregarReemplazo}
+                                                                    onAddReplacement={(day, time, student) => agregarReemplazoPorFecha(tomorrowDateStr, time, student)}
                                                                 />
                                                             </div>
                                                         </div>
