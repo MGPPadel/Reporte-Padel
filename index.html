@@ -1677,9 +1677,10 @@ const marcarAusente = (dateString, time, studentId) => { // Cambiamos `dia` por 
                                         </button>
                                     </div>
                                 </div>
-                            {/* AÑADE ESTA LÍNEA DE APERTURA AQUÍ */}
-                    <>
-                                {view === 'panel' && (
+
+                                {/* --- FIX: Se añade el Fragmento de apertura --- */}
+                                <>
+                                    {view === 'panel' && (
                                     <div className="w-full">
                                         <div className="mb-6">
                                             <label className="block mb-2 font-bold text-gray-700">Seleccionar Día de Referencia</label>
@@ -1695,175 +1696,169 @@ const marcarAusente = (dateString, time, studentId) => { // Cambiamos `dia` por 
                                             </select>
                                         </div>
                                         <div className="flex flex-col lg:flex-row gap-6">
-{/* Columna Hoy */}
-<div className="lg:w-1/2 flex flex-col gap-4">
-    <div className="bg-white p-3 rounded-lg shadow flex items-center">
-        <i className="fas fa-calendar-check text-blue-500 text-2xl mr-3"></i>
-        <h3 className="text-xl font-bold text-gray-800">Hoy ({baseDayName})</h3>
-    </div>
-    {classesToday.length > 0 ? (
-        classesToday.map(clase => (
-            <div key={clase.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col gap-3">
-                <div className="flex items-center justify-between border-b pb-2">
-                    <div className="flex items-center">
-                        <i className="far fa-clock text-gray-500 mr-2"></i>
-                        <span className="font-bold text-lg text-gray-700">{clase.time}</span>
-                    </div>
-                </div>
-                <ul className="flex flex-col gap-2">
-                    {clase.studentIds
-                        .map((id, idx) => ({ id, name: clase.studentNames[idx] }))
-                        .map(s => {
-                            // --- CAMBIO 1: Leer ausencia con la fecha exacta 'baseDateStr' ---
-                            const isAusente = (ausentes[baseDateStr]?.[clase.time] || []).includes(s.id);
-                            return (
-                                <li key={s.id} className="flex items-center justify-between p-2 rounded-md bg-gray-50">
-                                    <div className="flex items-center">
-                                        <i className="fas fa-user mr-3 text-gray-400"></i>
-                                        <span className="font-medium text-gray-800">{s.name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <label className="toggle-switch" title={isAusente ? "Marcar como presente" : "Marcar como ausente"}>
-                                            <input
-                                                type="checkbox"
-                                                checked={!isAusente}
-                                                // --- CAMBIO 2: Marcar ausencia con la fecha exacta 'baseDateStr' ---
-                                                onChange={() => marcarAusente(baseDateStr, clase.time, s.id)}
-                                            />
-                                            <span className="slider"></span>
-                                        </label>
-                                        {getPhoneById(s.id) && (
-                                            <button
-                                                onClick={() => sendWhatsAppPanel(getPhoneById(s.id), s.name)}
-                                                className="p-2 w-10 h-10 flex items-center justify-center rounded-full text-gray-500 hover:bg-green-100 hover:text-green-600 transition-colors"
-                                                title="Enviar WhatsApp"
-                                            >
-                                                <i className="fab fa-whatsapp text-xl"></i>
-                                            </button>
-                                        )}
-                                    </div>
-                                </li>
-                            );
-                        })
-                    }
-                    {/* --- CAMBIO 3: Leer reemplazos con la fecha exacta 'baseDateStr' --- */}
-                    {(reemplazos[baseDateStr]?.[clase.time] || []).map(r => (
-                        <li key={r.id} className="flex items-center justify-between bg-yellow-100 p-2 rounded-md">
-                            <div className="flex items-center">
-                                <i className="fas fa-user-clock text-yellow-700 mr-3"></i>
-                                <span className="font-medium text-yellow-800">{r.name} (Reemplazo)</span>
-                            </div>
-                            {/* --- CAMBIO 4: Eliminar reemplazo con la fecha exacta 'baseDateStr' --- */}
-                            <button onClick={() => eliminarReemplazo(baseDateStr, clase.time, r.id)} className="text-red-500 hover:text-red-700">
-                                <i className="fas fa-times-circle"></i>
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-                <div className="border-t pt-3 mt-1">
-                    {/* --- CAMBIO 5: Pasar la fecha exacta 'baseDateStr' al componente --- */}
-                    <AutocompleteReplacementInput 
-                        day={baseDateStr}
-                        time={clase.time}
-                        students={students}
-                        onAddReplacement={agregarReemplazo}
-                    />
-                </div>
-            </div>
-        ))
-    ) : (
-        <div className="bg-white p-6 rounded-lg text-center text-gray-500 shadow-sm">
-            <i className="fas fa-calendar-times text-2xl mb-2 text-gray-400"></i>
-            <p>No hay clases programadas.</p>
-        </div>
-    )}
-</div>
+                                            {/* Columna Hoy */}
+                                            <div className="lg:w-1/2 flex flex-col gap-4">
+                                                <div className="bg-white p-3 rounded-lg shadow flex items-center">
+                                                    <i className="fas fa-calendar-check text-blue-500 text-2xl mr-3"></i>
+                                                    <h3 className="text-xl font-bold text-gray-800">Hoy ({baseDayName})</h3>
+                                                </div>
+                                                {classesToday.length > 0 ? (
+                                                    classesToday.map(clase => (
+                                                        <div key={clase.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col gap-3">
+                                                            <div className="flex items-center justify-between border-b pb-2">
+                                                                <div className="flex items-center">
+                                                                    <i className="far fa-clock text-gray-500 mr-2"></i>
+                                                                    <span className="font-bold text-lg text-gray-700">{clase.time}</span>
+                                                                </div>
+                                                            </div>
+                                                            <ul className="flex flex-col gap-2">
+                                                                {clase.studentIds
+                                                                    .map((id, idx) => ({ id, name: clase.studentNames[idx] }))
+                                                                    .map(s => {
+                                                                        const isAusente = (ausentes[clase.day]?.[clase.time] || []).includes(s.id);
+                                                                        return (
+                                                                            <li key={s.id} className="flex items-center justify-between p-2 rounded-md bg-gray-50">
+                                                                                <div className="flex items-center">
+                                                                                    <i className="fas fa-user mr-3 text-gray-400"></i>
+                                                                                    <span className="font-medium text-gray-800">{s.name}</span>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <label className="toggle-switch" title={isAusente ? "Marcar como presente" : "Marcar como ausente"}>
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            checked={!isAusente}
+                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
+                                                                                        />
+                                                                                        <span className="slider"></span>
+                                                                                    </label>
+                                                                                    {getPhoneById(s.id) && (
+                                                                                        <button
+                                                                                            onClick={() => sendWhatsAppPanel(getPhoneById(s.id), s.name)}
+                                                                                            className="p-2 w-10 h-10 flex items-center justify-center rounded-full text-gray-500 hover:bg-green-100 hover:text-green-600 transition-colors"
+                                                                                            title="Enviar WhatsApp"
+                                                                                        >
+                                                                                            <i className="fab fa-whatsapp text-xl"></i>
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
+                                                                            </li>
+                                                                        );
+                                                                    })
+                                                                }
+                                                                {(reemplazos[clase.day]?.[clase.time] || []).map(r => (
+                                                                    <li key={r.id} className="flex items-center justify-between bg-yellow-100 p-2 rounded-md">
+                                                                        <div className="flex items-center">
+                                                                            <i className="fas fa-user-clock text-yellow-700 mr-3"></i>
+                                                                            <span className="font-medium text-yellow-800">{r.name} (Reemplazo)</span>
+                                                                        </div>
+                                                                        <button onClick={() => eliminarReemplazo(clase.day, clase.time, r.id)} className="text-red-500 hover:text-red-700">
+                                                                            <i className="fas fa-times-circle"></i>
+                                                                        </button>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                            <div className="border-t pt-3 mt-1">
+                                                                <AutocompleteReplacementInput 
+                                                                    day={clase.day}
+                                                                    time={clase.time}
+                                                                    students={students}
+                                                                    onAddReplacement={agregarReemplazo}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="bg-white p-6 rounded-lg text-center text-gray-500 shadow-sm">
+                                                        <i className="fas fa-calendar-times text-2xl mb-2 text-gray-400"></i>
+                                                        <p>No hay clases programadas.</p>
+                                                    </div>
+                                                )}
+                                            </div>
 
                                             {/* Columna Mañana */}
-<div className="lg:w-1/2 flex flex-col gap-4">
-    <div className="bg-white p-3 rounded-lg shadow flex items-center">
-        <i className="fas fa-calendar-day text-blue-500 text-2xl mr-3"></i>
-        <h3 className="text-xl font-bold text-gray-800">Mañana ({tomorrowName})</h3>
-    </div>
-    {classesTomorrow.length > 0 ? (
-        classesTomorrow.map(clase => (
-            <div key={clase.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col gap-3">
-                <div className="flex items-center justify-between border-b pb-2">
-                    <div className="flex items-center">
-                        <i className="far fa-clock text-gray-500 mr-2"></i>
-                        <span className="font-bold text-lg text-gray-700">{clase.time}</span>
-                    </div>
-                </div>
-                <ul className="flex flex-col gap-2">
-                    {clase.studentIds
-                        .map((id, idx) => ({ id, name: clase.studentNames[idx] }))
-                        .map(s => {
-                            // --- CAMBIO 1: Leer ausencia con la fecha exacta ---
-                            const isAusente = (ausentes[tomorrowDateStr]?.[clase.time] || []).includes(s.id);
-                            return (
-                                <li key={s.id} className="flex items-center justify-between p-2 rounded-md bg-gray-50">
-                                    <div className="flex items-center">
-                                        <i className="fas fa-user mr-3 text-gray-400"></i>
-                                        <span className="font-medium text-gray-800">{s.name}</span>
+                                            <div className="lg:w-1/2 flex flex-col gap-4">
+                                                <div className="bg-white p-3 rounded-lg shadow flex items-center">
+                                                    <i className="fas fa-calendar-day text-blue-500 text-2xl mr-3"></i>
+                                                    <h3 className="text-xl font-bold text-gray-800">Mañana ({tomorrowName})</h3>
+                                                </div>
+                                                {classesTomorrow.length > 0 ? (
+                                                    classesTomorrow.map(clase => (
+                                                        <div key={clase.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col gap-3">
+                                                            <div className="flex items-center justify-between border-b pb-2">
+                                                                <div className="flex items-center">
+                                                                    <i className="far fa-clock text-gray-500 mr-2"></i>
+                                                                    <span className="font-bold text-lg text-gray-700">{clase.time}</span>
+                                                                </div>
+                                                            </div>
+                                                            <ul className="flex flex-col gap-2">
+                                                                {clase.studentIds
+                                                                    .map((id, idx) => ({ id, name: clase.studentNames[idx] }))
+                                                                    .map(s => {
+                                                                        const isAusente = (ausentes[clase.day]?.[clase.time] || []).includes(s.id);
+                                                                        return (
+                                                                            <li key={s.id} className="flex items-center justify-between p-2 rounded-md bg-gray-50">
+                                                                                <div className="flex items-center">
+                                                                                    <i className="fas fa-user mr-3 text-gray-400"></i>
+                                                                                    <span className="font-medium text-gray-800">{s.name}</span>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <label className="toggle-switch" title={isAusente ? "Marcar como presente" : "Marcar como ausente"}>
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            checked={!isAusente}
+                                                                                            onChange={() => marcarAusente(clase.day, clase.time, s.id)}
+                                                                                        />
+                                                                                        <span className="slider"></span>
+                                                                                    </label>
+                                                                                    {getPhoneById(s.id) && (
+                                                                                        <button
+                                                                                            onClick={() => sendWhatsAppPanel(getPhoneById(s.id), s.name)}
+                                                                                            className="p-2 w-10 h-10 flex items-center justify-center rounded-full text-gray-500 hover:bg-green-100 hover:text-green-600 transition-colors"
+                                                                                            title="Enviar WhatsApp"
+                                                                                        >
+                                                                                            <i className="fab fa-whatsapp text-xl"></i>
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
+                                                                            </li>
+                                                                        );
+                                                                    })
+                                                                }
+                                                                {(reemplazos[clase.day]?.[clase.time] || []).map(r => (
+                                                                    <li key={r.id} className="flex items-center justify-between bg-yellow-100 p-2 rounded-md">
+                                                                        <div className="flex items-center">
+                                                                            <i className="fas fa-user-clock text-yellow-700 mr-3"></i>
+                                                                            <span className="font-medium text-yellow-800">{r.name} (Reemplazo)</span>
+                                                                        </div>
+                                                                        <button onClick={() => eliminarReemplazo(clase.day, clase.time, r.id)} className="text-red-500 hover:text-red-700">
+                                                                            <i className="fas fa-times-circle"></i>
+                                                                        </button>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                            <div className="border-t pt-3 mt-1">
+                                                                <AutocompleteReplacementInput 
+                                                                    day={clase.day}
+                                                                    time={clase.time}
+                                                                    students={students}
+                                                                    onAddReplacement={agregarReemplazo}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="bg-white p-6 rounded-lg text-center text-gray-500 shadow-sm">
+                                                        <i className="fas fa-calendar-times text-2xl mb-2 text-gray-400"></i>
+                                                        <p>No hay clases programadas.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <label className="toggle-switch" title={isAusente ? "Marcar como presente" : "Marcar como ausente"}>
-                                            <input
-                                                type="checkbox"
-                                                checked={!isAusente}
-                                                // --- CAMBIO 2: Marcar ausencia con la fecha exacta ---
-                                                onChange={() => marcarAusente(tomorrowDateStr, clase.time, s.id)}
-                                            />
-                                            <span className="slider"></span>
-                                        </label>
-                                        {getPhoneById(s.id) && (
-                                            <button
-                                                onClick={() => sendWhatsAppPanel(getPhoneById(s.id), s.name)}
-                                                className="p-2 w-10 h-10 flex items-center justify-center rounded-full text-gray-500 hover:bg-green-100 hover:text-green-600 transition-colors"
-                                                title="Enviar WhatsApp"
-                                            >
-                                                <i className="fab fa-whatsapp text-xl"></i>
-                                            </button>
-                                        )}
-                                    </div>
-                                </li>
-                            );
-                        })
-                    }
-                    {/* --- CAMBIO 3: Leer reemplazos con la fecha exacta --- */}
-                    {(reemplazos[tomorrowDateStr]?.[clase.time] || []).map(r => (
-                        <li key={r.id} className="flex items-center justify-between bg-yellow-100 p-2 rounded-md">
-                            <div className="flex items-center">
-                                <i className="fas fa-user-clock text-yellow-700 mr-3"></i>
-                                <span className="font-medium text-yellow-800">{r.name} (Reemplazo)</span>
-                            </div>
-                            {/* --- CAMBIO 4: Eliminar reemplazo con la fecha exacta --- */}
-                            <button onClick={() => eliminarReemplazo(tomorrowDateStr, clase.time, r.id)} className="text-red-500 hover:text-red-700">
-                                <i className="fas fa-times-circle"></i>
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-                <div className="border-t pt-3 mt-1">
-                    {/* --- CAMBIO 5: Pasar la fecha exacta al componente de reemplazo --- */}
-                    <AutocompleteReplacementInput 
-                        day={tomorrowDateStr}
-                        time={clase.time}
-                        students={students}
-                        onAddReplacement={agregarReemplazo}
-                    />
-                </div>
-            </div>
-        ))
-    ) : (
-        <div className="bg-white p-6 rounded-lg text-center text-gray-500 shadow-sm">
-            <i className="fas fa-calendar-times text-2xl mb-2 text-gray-400"></i>
-            <p>No hay clases programadas.</p>
-        </div>
-    )}
-</div>
+                                )}
 
                                 <ReplaceModal />
+                                
                                 {view === 'list' && (
                                     <>
                                         <div ref={formRef} className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
@@ -2036,6 +2031,7 @@ const marcarAusente = (dateString, time, studentId) => { // Cambiamos `dia` por 
                                         </div>
                                     </>
                                 )}
+                                
                                 {view === 'report' && (
                                     <div>
                                         <div className="flex justify-between items-center mb-4">
@@ -2105,7 +2101,9 @@ const marcarAusente = (dateString, time, studentId) => { // Cambiamos `dia` por 
                                         </div>
                                     </div>
                                 )}
+
                                 {view === 'daily-report' && <DailyReportView />}
+                                
                                 {view === 'students' && (
                                     <div className="mt-8">
                                         <div ref={formRef} className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
@@ -2309,6 +2307,7 @@ const marcarAusente = (dateString, time, studentId) => { // Cambiamos `dia` por 
                                         </div>
                                     </div>
                                 )}
+                                
                                 {view === 'payments' && (
                                     <div className="mt-8">
                                         <div ref={annualPaymentsReportRef} className="p-6 bg-white rounded-xl shadow-lg mb-6">
@@ -2384,6 +2383,7 @@ const marcarAusente = (dateString, time, studentId) => { // Cambiamos `dia` por 
                                         </div>
                                     </div>
                                 )}
+
                                 {view === 'expenses' && (
                                     <div className="mt-8">
                                         <div className="p-6 bg-gray-100 rounded-xl shadow-inner mb-6">
@@ -2443,6 +2443,7 @@ const marcarAusente = (dateString, time, studentId) => { // Cambiamos `dia` por 
                                         </div>
                                     </div>
                                 )}
+                                
                                 {view === 'activity-log' && (
                                     <div className="mt-8 p-6 bg-gray-100 rounded-xl shadow-inner">
                                         <h2 className="text-2xl font-bold text-gray-800 mb-4">Historial de Actividad</h2>
@@ -2471,6 +2472,7 @@ const marcarAusente = (dateString, time, studentId) => { // Cambiamos `dia` por 
                                 )}
                                 </>
                             </div>
+                        )}
                         )}
                         {userId && (
                             <div className="mt-8 text-center text-gray-500">
